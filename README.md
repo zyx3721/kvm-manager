@@ -470,7 +470,11 @@ METRIC_STREAM_MAXLEN=10000
 ```bash
 # 在 deploy/ 目录下构建（构建上下文为项目根目录）
 cd deploy
-docker build -t kvm-manager:latest -f Dockerfile ..
+docker build \
+  -f deploy/Dockerfile \
+  -t kvm-manager:latest \
+  --build-arg ALPINE_MIRROR=mirrors.aliyun.com \
+  ..
 ```
 
 然后修改 `deploy/docker-compose.yml` 中 `kvm-manager` 服务的 `image` 字段为 `kvm-manager:latest` 。

@@ -37,7 +37,10 @@ FROM alpine:3.22 AS runtime
 
 ENV TZ=Asia/Shanghai
 
-RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories \
+ARG ALPINE_MIRROR=
+RUN if [ -n "$ALPINE_MIRROR" ]; then \
+      sed -i "s/dl-cdn.alpinelinux.org/${ALPINE_MIRROR}/g" /etc/apk/repositories; \
+    fi \
  && apk add --no-cache nginx supervisor ca-certificates tzdata curl \
  && rm -f /etc/nginx/http.d/default.conf
 
