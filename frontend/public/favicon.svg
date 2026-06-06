@@ -1,0 +1,24 @@
+<svg width="96" height="96" viewBox="0 0 96 96" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="kvmIconShell" x1="20" y1="14" x2="78" y2="82" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#60A5FA"/>
+      <stop offset="0.52" stop-color="#22D3EE"/>
+      <stop offset="1" stop-color="#34D399"/>
+    </linearGradient>
+    <linearGradient id="kvmIconPanel" x1="30" y1="30" x2="66" y2="63" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#123A5F"/>
+      <stop offset="1" stop-color="#0B2437"/>
+    </linearGradient>
+    <filter id="kvmIconGlow" x="0" y="0" width="96" height="96" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="10" stdDeviation="9" flood-color="#0284C7" flood-opacity="0.28"/>
+    </filter>
+  </defs>
+  <rect x="14.5" y="14.5" width="67" height="67" rx="19.5" stroke="url(#kvmIconShell)" stroke-width="5" filter="url(#kvmIconGlow)"/>
+  <rect x="24" y="27" width="48" height="36" rx="8" fill="url(#kvmIconPanel)" stroke="#67E8F9" stroke-opacity="0.58" stroke-width="2"/>
+  <path d="M34 42H57" stroke="#D8F3FF" stroke-width="4" stroke-linecap="round"/>
+  <path d="M34 51H50" stroke="#A7F3D0" stroke-opacity="0.85" stroke-width="4" stroke-linecap="round"/>
+  <circle cx="62" cy="51" r="3.4" fill="#34D399"/>
+  <path d="M39 70H57" stroke="#93C5FD" stroke-opacity="0.9" stroke-width="4" stroke-linecap="round"/>
+  <path d="M48 63V70" stroke="#93C5FD" stroke-opacity="0.9" stroke-width="4" stroke-linecap="round"/>
+  <path d="M31 31L39 31" stroke="white" stroke-opacity="0.35" stroke-width="2" stroke-linecap="round"/>
+</svg>

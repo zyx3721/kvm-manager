@@ -1,0 +1,104 @@
+# 环境变量
+.env
+.env.local
+.env.*.local
+.env.development
+docker.env
+!.env.example
+
+# 依赖目录
+node_modules/
+miniprogram_npm/
+vendor/
+.vite/
+
+# 构建产物
+dist/
+dist-ssr/
+*.local
+dev-dist/
+bin/
+tmp/
+.output/
+.data/
+.next/
+.nuxt/
+.nitro/
+.cache/
+
+# 日志
+logs/
+*.log
+
+# IDE / 编辑器
+.vscode/
+!.vscode/extensions.json
+.idea/
+.fleet/
+*.sw?
+
+# AI 编辑器配置
+.claude/
+.trae/
+.codebuddy/
+.cursor/
+.copilot/
+.aider*
+.codeium/
+.tabnine/
+.codex/
+.supermaven/
+.windsurf/
+.zed/
+continue/
+.github/copilot/
+.codex-cache/
+.codegraph/
+.playwright-mcp/
+AGENTS.md
+CLAUDE.md
+
+# 系统文件
+.DS_Store
+Thumbs.db
+project.private.config.json
+
+# 测试覆盖率
+coverage/
+coverage.txt
+
+# TypeScript
+*.tsbuildinfo
+
+# Go 编译产物
+*.exe
+*.so
+*.dylib
+
+# Go 测试
+*.test
+*.out
+
+# 数据库文件
+*.db
+*.sqlite
+
+# 上传文件
+backend/uploads/*
+!backend/uploads/.gitkeep
+
+# 文档文件
+优化.md
+创建虚拟机.md
+迁移虚拟机.md
+热扩容.md
+
+# repomix
+repomix.config.json
+.repomixignore
+repomix-kvm-manager.md
+
+# plan file
+task_plan.md
+findings.md
+progress.md

@@ -1,0 +1,6495 @@
+basePath: /
+definitions:
+  agent.HostInterface:
+    properties:
+      bootMode:
+        type: string
+      bridgeDevice:
+        type: string
+      delay:
+        type: string
+      ipv4:
+        type: string
+      ipv4Mode:
+        type: string
+      ipv6:
+        type: string
+      ipv6Mode:
+        type: string
+      mac:
+        type: string
+      name:
+        type: string
+      status:
+        type: string
+      stp:
+        type: string
+      type:
+        type: string
+    type: object
+  agent.HostInterfaceDevice:
+    properties:
+      name:
+        type: string
+    type: object
+  agent.ISOFile:
+    properties:
+      bytes:
+        type: integer
+      name:
+        type: string
+      path:
+        type: string
+      pool:
+        type: string
+    type: object
+  agent.MigrationConnectionCheckResult:
+    properties:
+      message:
+        type: string
+      ok:
+        type: boolean
+      passwordRequired:
+        type: boolean
+    type: object
+  agent.NetworkFixedAddress:
+    properties:
+      address:
+        type: string
+      mac:
+        type: string
+    type: object
+  agent.NetworkPool:
+    properties:
+      autostart:
+        type: boolean
+      bridge:
+        type: string
+      dhcp:
+        type: boolean
+      dhcpEnd:
+        type: string
+      dhcpStart:
+        type: string
+      fixedAddresses:
+        items:
+          $ref: '#/definitions/agent.NetworkFixedAddress'
+        type: array
+      forward:
+        type: string
+      name:
+        type: string
+      openVSwitch:
+        type: boolean
+      state:
+        type: string
+      subnet:
+        type: string
+    type: object
+  agent.StoragePool:
+    properties:
+      allocation:
+        type: integer
+      autostart:
+        type: boolean
+      available:
+        type: integer
+      capacity:
+        type: integer
+      capacitySource:
+        type: string
+      name:
+        type: string
+      path:
+        type: string
+      state:
+        type: string
+      type:
+        type: string
+      volumeCount:
+        type: integer
+    type: object
+  agent.StorageVolume:
+    properties:
+      allocation:
+        type: integer
+      capacity:
+        type: integer
+      cloneSupported:
+        type: boolean
+      deleteSupported:
+        type: boolean
+      format:
+        type: string
+      name:
+        type: string
+      path:
+        type: string
+      pool:
+        type: string
+      type:
+        type: string
+    type: object
+  domain.Agent:
+    properties:
+      capabilities:
+        items:
+          type: integer
+        type: array
+      created_at:
+        type: string
+      endpoint:
+        type: string
+      failureCount:
+        type: integer
+      id:
+        type: string
+      lastError:
+        type: string
+      lastHeartbeatAt:
+        type: string
+      lastSyncFinishedAt:
+        type: string
+      lastSyncStartedAt:
+        type: string
+      name:
+        type: string
+      status:
+        type: string
+      tlsInsecure:
+        type: boolean
+      updated_at:
+        type: string
+      version:
+        type: string
+    type: object
+  domain.Alert:
+    properties:
+      created_at:
+        type: string
+      dismissedAt:
+        type: string
+      firstSeenAt:
+        type: string
+      id:
+        type: string
+      lastSeenAt:
+        type: string
+      level:
+        type: string
+      message:
+        type: string
+      metadata:
+        type: object
+      notificationSentAt:
+        type: string
+      readAt:
+        type: string
+      resolvedAt:
+        type: string
+      sourceId:
+        type: string
+      sourceType:
+        type: string
+      status:
+        type: string
+      title:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  domain.AuditLog:
+    properties:
+      action:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: string
+      ipAddress:
+        type: string
+      metadata:
+        type: object
+      resourceId:
+        type: string
+      resourceType:
+        type: string
+      userId:
+        type: string
+      username:
+        type: string
+    type: object
+  domain.AuthProvider:
+    properties:
+      config:
+        type: object
+      created_at:
+        type: string
+      enabled:
+        type: boolean
+      id:
+        type: string
+      name:
+        type: string
+      type:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  domain.DashboardSummary:
+    properties:
+      activeAlerts:
+        items:
+          $ref: '#/definitions/domain.Alert'
+        type: array
+      averageCpu:
+        type: integer
+      averageMemory:
+        type: integer
+      errorVMs:
+        type: integer
+      onlineHosts:
+        type: integer
+      pausedVMs:
+        type: integer
+      recentEvents:
+        items:
+          $ref: '#/definitions/domain.AuditLog'
+        type: array
+      recentVMs:
+        items:
+          $ref: '#/definitions/domain.VirtualMachine'
+        type: array
+      runningVMs:
+        type: integer
+      statusCounts:
+        additionalProperties:
+          type: integer
+        type: object
+      stoppedVMs:
+        type: integer
+      totalDiskBytes:
+        type: integer
+      totalHosts:
+        type: integer
+      totalMemoryBytes:
+        type: integer
+      totalVCPUs:
+        type: integer
+      totalVMs:
+        type: integer
+      usedDiskBytes:
+        type: integer
+      usedMemoryBytes:
+        type: integer
+      usedVCPUs:
+        type: integer
+    type: object
+  domain.Host:
+    properties:
+      address:
+        type: string
+      cluster:
+        type: string
+      cpuCores:
+        type: integer
+      cpuUsage:
+        type: integer
+      created_at:
+        type: string
+      diskReadBytesPerSecond:
+        type: integer
+      diskWriteBytesPerSecond:
+        type: integer
+      hostname:
+        type: string
+      id:
+        type: string
+      kvmFullVersion:
+        type: string
+      kvmVersion:
+        type: string
+      memoryBytes:
+        type: integer
+      memoryUsage:
+        type: integer
+      name:
+        type: string
+      networkRxBytesPerSecond:
+        type: integer
+      networkTxBytesPerSecond:
+        type: integer
+      status:
+        type: string
+      storageBytes:
+        type: integer
+      storageUsage:
+        type: integer
+      updated_at:
+        type: string
+      vmCount:
+        type: integer
+    type: object
+  domain.NotificationChannel:
+    properties:
+      config:
+        type: object
+      created_at:
+        type: string
+      enabled:
+        type: boolean
+      id:
+        type: string
+      passwordResetEnabled:
+        type: boolean
+      updated_at:
+        type: string
+    type: object
+  domain.Permission:
+    properties:
+      category:
+        type: string
+      description:
+        type: string
+      impliedReadPermission:
+        type: string
+      key:
+        type: string
+      name:
+        type: string
+    type: object
+  domain.PublicAuthProvider:
+    properties:
+      enabled:
+        type: boolean
+      id:
+        type: string
+      name:
+        type: string
+      type:
+        type: string
+    type: object
+  domain.PublicPasswordResetChannel:
+    properties:
+      description:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      requiresTo:
+        type: boolean
+    type: object
+  domain.Role:
+    properties:
+      builtin:
+        type: boolean
+      created_at:
+        type: string
+      description:
+        type: string
+      id:
+        type: string
+      key:
+        type: string
+      name:
+        type: string
+      permissions:
+        items:
+          type: string
+        type: array
+      updated_at:
+        type: string
+    type: object
+  domain.Session:
+    properties:
+      expires_at:
+        type: string
+      last_seen_at:
+        type: string
+      token:
+        type: string
+      user:
+        $ref: '#/definitions/domain.User'
+    type: object
+  domain.Snapshot:
+    properties:
+      created_at:
+        type: string
+      description:
+        type: string
+      displayName:
+        type: string
+      hostId:
+        type: string
+      hostName:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      sizeBytes:
+        type: integer
+      status:
+        type: string
+      tags:
+        items:
+          type: string
+        type: array
+      type:
+        type: string
+      updated_at:
+        type: string
+      vmId:
+        type: string
+      vmName:
+        type: string
+    type: object
+  domain.SystemBaseConfig:
+    properties:
+      agentOfflineFailureCount:
+        type: integer
+      appName:
+        type: string
+      appSubtitle:
+        type: string
+      created_at:
+        type: string
+      iconData:
+        type: string
+      loginName:
+        type: string
+      passwordResetCaptchaTtlMinutes:
+        type: integer
+      passwordResetCodeTtlMinutes:
+        type: integer
+      passwordResetRateLimitMinutes:
+        type: integer
+      passwordResetSendCooldownMinutes:
+        type: number
+      resourceAlertConsecutiveCount:
+        type: integer
+      resourceCriticalThreshold:
+        type: integer
+      resourceWarningThreshold:
+        type: integer
+      siteName:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  domain.Task:
+    properties:
+      created_at:
+        type: string
+      createdBy:
+        type: string
+      errorMessage:
+        type: string
+      finished_at:
+        type: string
+      id:
+        type: string
+      payload:
+        type: object
+      status:
+        type: string
+      targetId:
+        type: string
+      targetType:
+        type: string
+      type:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  domain.User:
+    properties:
+      created_at:
+        type: string
+      disabled:
+        type: boolean
+      displayName:
+        type: string
+      email:
+        type: string
+      id:
+        type: string
+      lastLoginAt:
+        type: string
+      permissions:
+        items:
+          type: string
+        type: array
+      role:
+        type: string
+      roles:
+        items:
+          $ref: '#/definitions/domain.Role'
+        type: array
+      source:
+        type: string
+      updated_at:
+        type: string
+      username:
+        type: string
+    type: object
+  domain.UserGroup:
+    properties:
+      created_at:
+        type: string
+      description:
+        type: string
+      disabled:
+        type: boolean
+      id:
+        type: string
+      members:
+        items:
+          $ref: '#/definitions/domain.User'
+        type: array
+      name:
+        type: string
+      roles:
+        items:
+          $ref: '#/definitions/domain.Role'
+        type: array
+      updated_at:
+        type: string
+    type: object
+  domain.VMDisk:
+    properties:
+      bytes:
+        type: integer
+      name:
+        type: string
+      path:
+        type: string
+      usedBytes:
+        type: integer
+    type: object
+  domain.VMTemplateMark:
+    properties:
+      agentId:
+        type: string
+      created_at:
+        type: string
+      createdBy:
+        type: string
+      description:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      updated_at:
+        type: string
+      vmUuid:
+        type: string
+    type: object
+  domain.VirtualMachine:
+    properties:
+      cpuCores:
+        type: integer
+      cpuUsage:
+        type: integer
+      cpuUsageAvailable:
+        type: boolean
+      created_at:
+        type: string
+      description:
+        type: string
+      diskBytes:
+        type: integer
+      diskReadBytesPerSecond:
+        type: integer
+      diskUsage:
+        type: integer
+      diskUsageAvailable:
+        type: boolean
+      diskUsedBytes:
+        type: integer
+      diskWriteBytesPerSecond:
+        type: integer
+      disks:
+        items:
+          $ref: '#/definitions/domain.VMDisk'
+        type: array
+      hostId:
+        type: string
+      hostName:
+        type: string
+      id:
+        type: string
+      isTemplate:
+        type: boolean
+      memoryBytes:
+        type: integer
+      memoryUsage:
+        type: integer
+      memoryUsageAvailable:
+        type: boolean
+      name:
+        type: string
+      networkRxBytesPerSecond:
+        type: integer
+      networkTxBytesPerSecond:
+        type: integer
+      osType:
+        type: string
+      primaryIp:
+        type: string
+      status:
+        type: string
+      templateDescription:
+        type: string
+      templateId:
+        type: string
+      templateName:
+        type: string
+      updated_at:
+        type: string
+      uptimeSeconds:
+        type: integer
+      uuid:
+        type: string
+    type: object
+  router.agentListResponse:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/domain.Agent'
+        type: array
+      total:
+        type: integer
+    type: object
+  router.agentProbeResponse:
+    properties:
+      host: {}
+      status:
+        type: string
+    type: object
+  router.agentSyncResponse:
+    properties:
+      agent:
+        type: string
+      status:
+        type: string
+    type: object
+  router.agentTokenRequest:
+    properties:
+      token:
+        example: please-change-agent-token
+        type: string
+    type: object
+  router.alertListResponse:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/domain.Alert'
+        type: array
+      total:
+        type: integer
+    type: object
+  router.auditLogListResponse:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/domain.AuditLog'
+        type: array
+      total:
+        type: integer
+    type: object
+  router.authProviderListResponse:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/domain.AuthProvider'
+        type: array
+      total:
+        type: integer
+    type: object
+  router.authProviderRequestDoc:
+    properties:
+      config:
+        type: object
+      enabled:
+        example: true
+        type: boolean
+      name:
+        example: AD/LDAP
+        type: string
+    type: object
+  router.authProviderTestResponse:
+    properties:
+      matchedUsers:
+        example: 12
+        type: integer
+      status:
+        example: ok
+        type: string
+    type: object
+  router.changePasswordRequest:
+    properties:
+      confirm_password:
+        type: string
+      new_password:
+        type: string
+      old_password:
+        type: string
+    type: object
+  router.createAgentRequest:
+    properties:
+      endpoint:
+        type: string
+      name:
+        type: string
+      tlsInsecure:
+        type: boolean
+      token:
+        type: string
+    type: object
+  router.createSnapshotRequestDoc:
+    properties:
+      description:
+        example: Before system upgrade
+        type: string
+      name:
+        example: snap-before-upgrade
+        type: string
+      tags:
+        example:
+        - production
+        - upgrade
+        items:
+          type: string
+        type: array
+      vmId:
+        example: vm-1
+        type: string
+    type: object
+  router.errorResponse:
+    properties:
+      error:
+        type: string
+      message:
+        type: string
+    type: object
+  router.healthResponse:
+    properties:
+      database:
+        type: string
+      redis:
+        type: string
+      status:
+        type: string
+      time:
+        type: string
+    type: object
+  router.hostInterfaceCreateDocRequest:
+    properties:
+      applySystemConfig:
+        example: true
+        type: boolean
+      delay:
+        example: "0"
+        type: string
+      device:
+        example: em1
+        type: string
+      dnsServers:
+        example:
+        - 223.5.5.5
+        - 8.8.8.8
+        items:
+          type: string
+        type: array
+      ipv4Address:
+        example: 172.18.0.11/24
+        type: string
+      ipv4Gateway:
+        example: 172.18.0.1
+        type: string
+      ipv4Mode:
+        example: static
+        type: string
+      ipv6Address:
+        example: 2001:db8::10/64
+        type: string
+      ipv6Gateway:
+        example: 2001:db8::1
+        type: string
+      ipv6Mode:
+        example: none
+        type: string
+      name:
+        example: br0
+        type: string
+      startMode:
+        example: onboot
+        type: string
+      stp:
+        example: "on"
+        type: string
+      type:
+        enum:
+        - bridge
+        - ethernet
+        example: bridge
+        type: string
+    type: object
+  router.hostInterfaceDeviceListResponse:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/agent.HostInterfaceDevice'
+        type: array
+      total:
+        type: integer
+    type: object
+  router.hostInterfaceListResponse:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/agent.HostInterface'
+        type: array
+      total:
+        type: integer
+    type: object
+  router.hostInterfaceStateDocRequest:
+    properties:
+      active:
+        example: false
+        type: boolean
+    type: object
+  router.hostListResponse:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/domain.Host'
+        type: array
+      total:
+        type: integer
+    type: object
+  router.isoFileListResponse:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/agent.ISOFile'
+        type: array
+      total:
+        type: integer
+    type: object
+  router.loginRequest:
+    properties:
+      password:
+        type: string
+      provider:
+        type: string
+      username:
+        type: string
+    type: object
+  router.managedUserDisabledRequestDoc:
+    properties:
+      disabled:
+        example: true
+        type: boolean
+    type: object
+  router.managedUserListResponse:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/domain.User'
+        type: array
+      total:
+        type: integer
+    type: object
+  router.managedUserRequestDoc:
+    properties:
+      disabled:
+        example: false
+        type: boolean
+      displayName:
+        example: 张三
+        type: string
+      email:
+        example: zhangsan@example.com
+        type: string
+      password:
+        example: change-me-123
+        type: string
+      roleKeys:
+        example:
+        - operator
+        items:
+          type: string
+        type: array
+      username:
+        example: zhangsan
+        type: string
+    type: object
+  router.meResponse:
+    properties:
+      expires_at:
+        type: string
+      last_seen_at:
+        type: string
+      user:
+        $ref: '#/definitions/domain.User'
+    type: object
+  router.messageResponse:
+    properties:
+      message:
+        type: string
+    type: object
+  router.metricPointResponse:
+    properties:
+      cpu:
+        example: 42
+        type: integer
+      disk:
+        example: 35
+        type: integer
+      diskReadBytesPerSecond:
+        example: 204800
+        type: integer
+      diskWriteBytesPerSecond:
+        example: 102400
+        type: integer
+      memory:
+        example: 58
+        type: integer
+      networkRxBytesPerSecond:
+        example: 409600
+        type: integer
+      networkTxBytesPerSecond:
+        example: 307200
+        type: integer
+      storage:
+        example: 61
+        type: integer
+      time:
+        example: "2026-05-21T12:00:00Z"
+        type: string
+      vmCount:
+        example: 12
+        type: integer
+    type: object
+  router.metricSeriesDocResponse:
+    properties:
+      bucket:
+        example: 1m0s
+        type: string
+      items:
+        items:
+          $ref: '#/definitions/router.metricPointResponse'
+        type: array
+      range:
+        example: 1h
+        type: string
+    type: object
+  router.networkPoolCreateDocRequest:
+    properties:
+      bridge:
+        example: br0
+        type: string
+      dhcp:
+        example: true
+        type: boolean
+      fixedAddress:
+        example: false
+        type: boolean
+      name:
+        example: default
+        type: string
+      openVSwitch:
+        example: false
+        type: boolean
+      subnet:
+        example: 192.168.100.0/24
+        type: string
+      type:
+        example: nat
+        type: string
+    type: object
+  router.networkPoolListResponse:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/agent.NetworkPool'
+        type: array
+      total:
+        type: integer
+    type: object
+  router.notificationChannelListResponse:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/domain.NotificationChannel'
+        type: array
+      total:
+        type: integer
+    type: object
+  router.notificationChannelRequestDoc:
+    properties:
+      config:
+        type: object
+      enabled:
+        example: true
+        type: boolean
+      passwordResetEnabled:
+        example: false
+        type: boolean
+    type: object
+  router.passwordResetCaptchaResponse:
+    properties:
+      expiresAt:
+        type: string
+      generatedAt:
+        type: string
+      question:
+        type: string
+      token:
+        type: string
+    type: object
+  router.passwordResetChannelListResponse:
+    properties:
+      channels:
+        items:
+          $ref: '#/definitions/domain.PublicPasswordResetChannel'
+        type: array
+      verificationToken:
+        type: string
+    type: object
+  router.passwordResetConfirmRequest:
+    properties:
+      code:
+        type: string
+      confirmPassword:
+        type: string
+      newPassword:
+        type: string
+      username:
+        type: string
+    type: object
+  router.passwordResetSendCodeRequest:
+    properties:
+      channel:
+        type: string
+      to:
+        type: string
+      username:
+        type: string
+      verificationToken:
+        type: string
+      verifyEmail:
+        type: string
+    type: object
+  router.passwordResetSendCodeResponse:
+    properties:
+      cooldownSeconds:
+        example: 60
+        type: integer
+      expiresAt:
+        type: string
+      message:
+        example: 验证码已发送
+        type: string
+    type: object
+  router.passwordResetVerifyRequest:
+    properties:
+      captchaAnswer:
+        type: string
+      captchaToken:
+        type: string
+      username:
+        type: string
+    type: object
+  router.permissionListResponse:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/domain.Permission'
+        type: array
+      total:
+        type: integer
+    type: object
+  router.poolAutostartUpdateDocRequest:
+    properties:
+      autostart:
+        example: true
+        type: boolean
+    type: object
+  router.poolAutostartUpdateDocResponse:
+    properties:
+      autostart:
+        example: true
+        type: boolean
+    type: object
+  router.poolStateUpdateDocRequest:
+    properties:
+      active:
+        example: true
+        type: boolean
+    type: object
+  router.poolStateUpdateDocResponse:
+    properties:
+      active:
+        example: true
+        type: boolean
+    type: object
+  router.publicAuthProviderListResponse:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/domain.PublicAuthProvider'
+        type: array
+      total:
+        type: integer
+    type: object
+  router.refreshResponse:
+    properties:
+      status:
+        type: string
+      task:
+        $ref: '#/definitions/domain.Task'
+    type: object
+  router.snapshotActionResponse:
+    properties:
+      snapshot:
+        $ref: '#/definitions/domain.Snapshot'
+      task:
+        $ref: '#/definitions/domain.Task'
+    type: object
+  router.snapshotAnnotationResponse:
+    properties:
+      snapshot:
+        $ref: '#/definitions/domain.Snapshot'
+    type: object
+  router.snapshotListResponse:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/domain.Snapshot'
+        type: array
+      total:
+        type: integer
+    type: object
+  router.statusResponse:
+    properties:
+      status:
+        type: string
+    type: object
+  router.storagePoolCreateDocRequest:
+    properties:
+      device:
+        example: /dev/sdb
+        type: string
+      format:
+        example: nfs
+        type: string
+      name:
+        example: default
+        type: string
+      path:
+        example: /var/lib/libvirt/images
+        type: string
+      sourceHost:
+        example: nfs.example.com
+        type: string
+      sourcePath:
+        example: /srv/storage
+        type: string
+      type:
+        example: dir
+        type: string
+    type: object
+  router.storagePoolListResponse:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/agent.StoragePool'
+        type: array
+      total:
+        type: integer
+    type: object
+  router.storageVolumeCloneDocRequest:
+    properties:
+      convert:
+        example: true
+        type: boolean
+      format:
+        example: qcow2
+        type: string
+      name:
+        example: disk-01-clone.qcow2
+        type: string
+      preallocMetadata:
+        example: true
+        type: boolean
+      sourceName:
+        example: disk-01.qcow2
+        type: string
+    type: object
+  router.storageVolumeCreateDocRequest:
+    properties:
+      capacityBytes:
+        example: 21474836480
+        type: integer
+      format:
+        example: qcow2
+        type: string
+      name:
+        example: disk-01.qcow2
+        type: string
+      preallocMetadata:
+        example: true
+        type: boolean
+    type: object
+  router.storageVolumeListResponse:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/agent.StorageVolume'
+        type: array
+      total:
+        type: integer
+    type: object
+  router.systemBaseConfigRequestDoc:
+    properties:
+      agentOfflineFailureCount:
+        example: 3
+        type: integer
+      appName:
+        example: KVM Manager
+        type: string
+      appSubtitle:
+        example: VIRTUALIZATION OPS
+        type: string
+      iconData:
+        example: /favicon.svg
+        type: string
+      loginName:
+        example: KVM Manager
+        type: string
+      passwordResetCaptchaTtlMinutes:
+        example: 1
+        type: integer
+      passwordResetCodeTtlMinutes:
+        example: 10
+        type: integer
+      passwordResetRateLimitMinutes:
+        example: 5
+        type: integer
+      passwordResetSendCooldownMinutes:
+        example: 0.5
+        type: number
+      resourceAlertConsecutiveCount:
+        example: 3
+        type: integer
+      resourceCriticalThreshold:
+        example: 85
+        type: integer
+      resourceWarningThreshold:
+        example: 70
+        type: integer
+      siteName:
+        example: KVM Manager
+        type: string
+    type: object
+  router.taskDetailResponse:
+    properties:
+      task:
+        $ref: '#/definitions/domain.Task'
+    type: object
+  router.taskListResponse:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/domain.Task'
+        type: array
+      total:
+        type: integer
+    type: object
+  router.unreadNotificationCountResponse:
+    properties:
+      count:
+        example: 3
+        type: integer
+    type: object
+  router.updateSnapshotAnnotationRequestDoc:
+    properties:
+      description:
+        example: 业务升级前创建
+        type: string
+      displayName:
+        example: 升级前快照
+        type: string
+      tags:
+        example:
+        - production
+        - upgrade
+        items:
+          type: string
+        type: array
+    type: object
+  router.userGroupListResponse:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/domain.UserGroup'
+        type: array
+      total:
+        type: integer
+    type: object
+  router.userGroupRequestDoc:
+    properties:
+      description:
+        example: 日常虚拟化运维团队
+        type: string
+      disabled:
+        example: false
+        type: boolean
+      memberIds:
+        items:
+          type: string
+        type: array
+      name:
+        example: 运维组
+        type: string
+      roleKeys:
+        example:
+        - operator
+        items:
+          type: string
+        type: array
+    type: object
+  router.userRoleListResponse:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/domain.Role'
+        type: array
+      total:
+        type: integer
+    type: object
+  router.userRoleRequestDoc:
+    properties:
+      description:
+        example: 允许日常运维操作
+        type: string
+      key:
+        example: ops-custom
+        type: string
+      name:
+        example: 自定义运维
+        type: string
+      permissions:
+        example:
+        - vms.read
+        - vms.power
+        items:
+          type: string
+        type: array
+    type: object
+  router.vmActionResponse:
+    properties:
+      task:
+        $ref: '#/definitions/domain.Task'
+      vm:
+        $ref: '#/definitions/domain.VirtualMachine'
+    type: object
+  router.vmAsyncTaskDocResponse:
+    properties:
+      status:
+        example: queued
+        type: string
+      task:
+        $ref: '#/definitions/domain.Task'
+    type: object
+  router.vmAutostartUpdateDocRequest:
+    properties:
+      autostart:
+        example: true
+        type: boolean
+    type: object
+  router.vmAutostartUpdateDocResponse:
+    properties:
+      autostart:
+        example: true
+        type: boolean
+      task:
+        $ref: '#/definitions/domain.Task'
+    type: object
+  router.vmCloneDiskDocRequest:
+    properties:
+      name:
+        example: vda
+        type: string
+      pool:
+        example: default
+        type: string
+      preallocMetadata:
+        example: true
+        type: boolean
+      sourcePath:
+        example: /var/lib/libvirt/images/prod-web-01.qcow2
+        type: string
+      targetName:
+        example: prod-web-01-clone.qcow2
+        type: string
+    type: object
+  router.vmCloneDocRequest:
+    properties:
+      autostart:
+        example: false
+        type: boolean
+      cdromPolicy:
+        example: disconnect
+        type: string
+      currentCpu:
+        example: 2
+        type: integer
+      currentMemoryMB:
+        example: 4096
+        type: integer
+      description:
+        example: 生产 Web 服务克隆
+        type: string
+      disks:
+        items:
+          $ref: '#/definitions/router.vmCloneDiskDocRequest'
+        type: array
+      interfaces:
+        items:
+          $ref: '#/definitions/router.vmCloneInterfaceDocRequest'
+        type: array
+      maximumCpu:
+        example: 4
+        type: integer
+      maximumMemoryMB:
+        example: 8192
+        type: integer
+      name:
+        example: prod-web-01-clone
+        type: string
+    type: object
+  router.vmCloneDocResponse:
+    properties:
+      status:
+        example: queued
+        type: string
+      task:
+        $ref: '#/definitions/domain.Task'
+    type: object
+  router.vmCloneInterfaceDocRequest:
+    properties:
+      mac:
+        example: "52:54:00:12:34:56"
+        type: string
+      name:
+        example: vnet0
+        type: string
+      source:
+        example: default
+        type: string
+    type: object
+  router.vmConfigCDROMDoc:
+    properties:
+      bus:
+        example: sata
+        type: string
+      connected:
+        example: true
+        type: boolean
+      name:
+        example: sda
+        type: string
+      path:
+        example: /iso/ubuntu.iso
+        type: string
+    type: object
+  router.vmConfigDiskDoc:
+    properties:
+      bus:
+        example: virtio
+        type: string
+      bytes:
+        example: 107374182400
+        type: integer
+      device:
+        example: disk
+        type: string
+      name:
+        example: vda
+        type: string
+      path:
+        example: /var/lib/libvirt/images/prod-web-01.snap
+        type: string
+      pool:
+        example: default
+        type: string
+      sourcePath:
+        example: /var/lib/libvirt/images/prod-web-01.qcow2
+        type: string
+      type:
+        example: file
+        type: string
+    type: object
+  router.vmConfigDocResponse:
+    properties:
+      arch:
+        example: x86_64
+        type: string
+      autostart:
+        example: true
+        type: boolean
+      cdroms:
+        items:
+          $ref: '#/definitions/router.vmConfigCDROMDoc'
+        type: array
+      currentCpu:
+        example: 4
+        type: integer
+      currentMemoryBytes:
+        example: 8589934592
+        type: integer
+      description:
+        example: 生产 Web 服务
+        type: string
+      disks:
+        items:
+          $ref: '#/definitions/router.vmConfigDiskDoc'
+        type: array
+      graphics:
+        $ref: '#/definitions/router.vmConfigGraphicsDoc'
+      hostCpu:
+        example: 32
+        type: integer
+      hostMemoryBytes:
+        example: 137438953472
+        type: integer
+      interfaces:
+        items:
+          $ref: '#/definitions/router.vmConfigInterfaceDoc'
+        type: array
+      maximumCpu:
+        example: 8
+        type: integer
+      maximumMemoryBytes:
+        example: 17179869184
+        type: integer
+      memoryStatsPeriod:
+        example: 5
+        type: integer
+      name:
+        example: prod-web-01
+        type: string
+      osType:
+        example: linux
+        type: string
+      status:
+        example: running
+        type: string
+      uuid:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      xml:
+        example: <domain type='kvm'>...</domain>
+        type: string
+    type: object
+  router.vmConfigGraphicsDoc:
+    properties:
+      listen:
+        example: 0.0.0.0
+        type: string
+      passwordEnabled:
+        example: true
+        type: boolean
+      port:
+        example: "5901"
+        type: string
+      type:
+        example: vnc
+        type: string
+    type: object
+  router.vmConfigInterfaceDoc:
+    properties:
+      mac:
+        example: "52:54:00:12:34:56"
+        type: string
+      model:
+        example: virtio
+        type: string
+      name:
+        example: vnet0
+        type: string
+      source:
+        example: default
+        type: string
+      type:
+        example: network
+        type: string
+    type: object
+  router.vmConfigUpdateDocRequest:
+    properties:
+      currentCpu:
+        example: 4
+        type: integer
+      currentMemoryMB:
+        example: 8192
+        type: integer
+      description:
+        example: 生产 Web 服务
+        type: string
+      maximumCpu:
+        example: 8
+        type: integer
+      maximumMemoryMB:
+        example: 16384
+        type: integer
+      memoryStatsPeriod:
+        example: 5
+        type: integer
+    type: object
+  router.vmConfigUpdateDocResponse:
+    properties:
+      config:
+        $ref: '#/definitions/router.vmConfigDocResponse'
+      task:
+        $ref: '#/definitions/domain.Task'
+    type: object
+  router.vmConsoleInfoDocResponse:
+    properties:
+      listen:
+        example: 127.0.0.1
+        type: string
+      passwordEnabled:
+        example: true
+        type: boolean
+      port:
+        example: 5901
+        type: integer
+      type:
+        example: vnc
+        type: string
+    type: object
+  router.vmConsoleUpdateDocRequest:
+    properties:
+      password:
+        example: secret123
+        type: string
+      passwordEnabled:
+        example: true
+        type: boolean
+    type: object
+  router.vmConsoleUpdateDocResponse:
+    properties:
+      config:
+        $ref: '#/definitions/router.vmConfigDocResponse'
+      task:
+        $ref: '#/definitions/domain.Task'
+    type: object
+  router.vmCreateDiskDocRequest:
+    properties:
+      bus:
+        example: virtio
+        type: string
+      capacityGB:
+        example: 100
+        type: integer
+      format:
+        example: qcow2
+        type: string
+      name:
+        example: prod-web-02-vda.qcow2
+        type: string
+      pool:
+        example: default
+        type: string
+      preallocMetadata:
+        example: true
+        type: boolean
+    type: object
+  router.vmCreateDocRequest:
+    properties:
+      agentId:
+        example: agent-01
+        type: string
+      autostart:
+        example: false
+        type: boolean
+      bootFirmware:
+        example: bios
+        type: string
+      consolePassword:
+        example: ""
+        type: string
+      cpuModel:
+        example: host-passthrough
+        type: string
+      currentCpu:
+        example: 2
+        type: integer
+      currentMemoryMB:
+        example: 4096
+        type: integer
+      description:
+        example: 生产 Web 服务
+        type: string
+      diskBus:
+        example: virtio
+        type: string
+      diskCapacityGB:
+        example: 100
+        type: integer
+      diskFormat:
+        example: qcow2
+        type: string
+      diskName:
+        example: prod-web-02-vda.qcow2
+        type: string
+      diskPool:
+        example: default
+        type: string
+      disks:
+        items:
+          $ref: '#/definitions/router.vmCreateDiskDocRequest'
+        type: array
+      graphics:
+        example: vnc
+        type: string
+      isoBus:
+        example: sata
+        type: string
+      isoPath:
+        example: /var/lib/libvirt/images/CentOS-7.iso
+        type: string
+      maximumCpu:
+        example: 4
+        type: integer
+      maximumMemoryMB:
+        example: 8192
+        type: integer
+      name:
+        example: prod-web-02
+        type: string
+      networkModel:
+        example: virtio
+        type: string
+      networkSource:
+        example: default
+        type: string
+      osType:
+        example: linux
+        type: string
+      preallocMetadata:
+        example: true
+        type: boolean
+      xml:
+        example: <domain type='kvm'>...</domain>
+        type: string
+    type: object
+  router.vmDeviceDeleteDiskDocRequest:
+    properties:
+      name:
+        example: vdb
+        type: string
+    type: object
+  router.vmDeviceDeleteInterfaceDocRequest:
+    properties:
+      mac:
+        example: "52:54:00:12:34:56"
+        type: string
+      name:
+        example: vnet0
+        type: string
+    type: object
+  router.vmDeviceDiskResizeDocRequest:
+    properties:
+      capacityBytes:
+        example: 214748364800
+        type: integer
+      name:
+        example: vda
+        type: string
+    type: object
+  router.vmDeviceInterfaceDocRequest:
+    properties:
+      mac:
+        example: "52:54:00:12:34:56"
+        type: string
+      name:
+        example: vnet0
+        type: string
+      source:
+        example: default
+        type: string
+    type: object
+  router.vmDeviceNewDiskDocRequest:
+    properties:
+      bus:
+        example: virtio
+        type: string
+      capacityBytes:
+        example: 107374182400
+        type: integer
+      format:
+        example: qcow2
+        type: string
+      name:
+        example: prod-web-01-vdb.qcow2
+        type: string
+      pool:
+        example: default
+        type: string
+      preallocMetadata:
+        example: true
+        type: boolean
+      target:
+        example: vdb
+        type: string
+    type: object
+  router.vmDeviceNewInterfaceDocRequest:
+    properties:
+      model:
+        example: e1000e
+        type: string
+      source:
+        example: default
+        type: string
+    type: object
+  router.vmDeviceUpdateDocRequest:
+    properties:
+      deletedDisks:
+        items:
+          $ref: '#/definitions/router.vmDeviceDeleteDiskDocRequest'
+        type: array
+      deletedInterfaces:
+        items:
+          $ref: '#/definitions/router.vmDeviceDeleteInterfaceDocRequest'
+        type: array
+      diskResizes:
+        items:
+          $ref: '#/definitions/router.vmDeviceDiskResizeDocRequest'
+        type: array
+      interfaces:
+        items:
+          $ref: '#/definitions/router.vmDeviceInterfaceDocRequest'
+        type: array
+      newDisks:
+        items:
+          $ref: '#/definitions/router.vmDeviceNewDiskDocRequest'
+        type: array
+      newInterfaces:
+        items:
+          $ref: '#/definitions/router.vmDeviceNewInterfaceDocRequest'
+        type: array
+    type: object
+  router.vmDeviceUpdateDocResponse:
+    properties:
+      config:
+        $ref: '#/definitions/router.vmConfigDocResponse'
+      task:
+        $ref: '#/definitions/domain.Task'
+    type: object
+  router.vmListResponse:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/domain.VirtualMachine'
+        type: array
+      total:
+        type: integer
+    type: object
+  router.vmMediaConnectDocRequest:
+    properties:
+      isoPath:
+        example: /var/lib/libvirt/images/CentOS-7.iso
+        type: string
+      target:
+        example: sda
+        type: string
+    type: object
+  router.vmMediaConnectDocResponse:
+    properties:
+      config:
+        $ref: '#/definitions/router.vmConfigDocResponse'
+      task:
+        $ref: '#/definitions/domain.Task'
+    type: object
+  router.vmMediaDisconnectDocRequest:
+    properties:
+      target:
+        example: sda
+        type: string
+    type: object
+  router.vmMediaDisconnectDocResponse:
+    properties:
+      config:
+        $ref: '#/definitions/router.vmConfigDocResponse'
+      task:
+        $ref: '#/definitions/domain.Task'
+    type: object
+  router.vmMigrateDocRequest:
+    properties:
+      autoConverge:
+        example: true
+        type: boolean
+      copyDisks:
+        example: true
+        type: boolean
+      destinationUri:
+        example: qemu+ssh://compute02/system
+        type: string
+      live:
+        example: true
+        type: boolean
+      persistent:
+        example: true
+        type: boolean
+      postCopy:
+        example: false
+        type: boolean
+      targetAgentId:
+        example: agent-02
+        type: string
+      undefineSource:
+        example: true
+        type: boolean
+    type: object
+  router.vmMigrationHostnameDocRequest:
+    properties:
+      destinationUri:
+        example: qemu+ssh://compute02/system
+        type: string
+      hostname:
+        example: kvm02
+        type: string
+      targetAgentId:
+        example: agent-02
+        type: string
+    type: object
+  router.vmMigrationHostnameDocResponse:
+    properties:
+      result:
+        $ref: '#/definitions/agent.MigrationConnectionCheckResult'
+      status:
+        example: ok
+        type: string
+    type: object
+  router.vmMigrationPrecheckDocResponse:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/router.vmMigrationPrecheckItemDoc'
+        type: array
+      passed:
+        example: true
+        type: boolean
+    type: object
+  router.vmMigrationPrecheckItemDoc:
+    properties:
+      code:
+        example: vm_migrate_ssh_password_required
+        type: string
+      key:
+        example: migration-channel
+        type: string
+      label:
+        example: 迁移通道
+        type: string
+      message:
+        example: 迁移通道可非交互连接
+        type: string
+      status:
+        example: passed
+        type: string
+    type: object
+  router.vmMigrationSSHKeyDocRequest:
+    properties:
+      destinationUri:
+        example: qemu+ssh://compute02/system
+        type: string
+      password:
+        example: ""
+        type: string
+      targetAgentId:
+        example: agent-02
+        type: string
+      username:
+        example: root
+        type: string
+    type: object
+  router.vmMigrationSSHKeyDocResponse:
+    properties:
+      result:
+        $ref: '#/definitions/agent.MigrationConnectionCheckResult'
+      status:
+        example: ok
+        type: string
+    type: object
+  router.vmRenameDocRequest:
+    properties:
+      name:
+        example: prod-web-02
+        type: string
+    type: object
+  router.vmRenameDocResponse:
+    properties:
+      config:
+        $ref: '#/definitions/router.vmConfigDocResponse'
+      task:
+        $ref: '#/definitions/domain.Task'
+    type: object
+  router.vmSingleRefreshResponse:
+    properties:
+      status:
+        example: ok
+        type: string
+      vm:
+        $ref: '#/definitions/domain.VirtualMachine'
+    type: object
+  router.vmTemplateMarkDocRequest:
+    properties:
+      description:
+        example: 已安装 Guest Agent 和基础运维工具
+        type: string
+      name:
+        example: CentOS 7 基础模板
+        type: string
+    type: object
+  router.vmTemplateMarkDocResponse:
+    properties:
+      task:
+        $ref: '#/definitions/domain.Task'
+      template:
+        $ref: '#/definitions/domain.VMTemplateMark'
+    type: object
+  router.vmTemplateUnmarkDocResponse:
+    properties:
+      status:
+        example: ok
+        type: string
+      task:
+        $ref: '#/definitions/domain.Task'
+    type: object
+  router.vmXMLUpdateDocRequest:
+    properties:
+      xml:
+        example: <domain type='kvm'>...</domain>
+        type: string
+    type: object
+  router.vmXMLUpdateDocResponse:
+    properties:
+      config:
+        $ref: '#/definitions/router.vmConfigDocResponse'
+      task:
+        $ref: '#/definitions/domain.Task'
+    type: object
+info:
+  contact: {}
+  description: KVM 虚拟化资源管理控制台后端 API，提供认证、Agent 管理、运行态资源、刷新事件、任务、审计和告警接口。
+  title: KVM Manager API
+  version: "1.0"
+paths:
+  /api/agents:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/router.agentListResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取 Agent 列表
+      tags:
+      - agents
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Agent 登记信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/router.createAgentRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/domain.Agent'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: 登记 Agent
+      tags:
+      - agents
+  /api/agents/{id}:
+    delete:
+      parameters:
+      - description: Agent ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/router.statusResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: 删除 Agent
+      tags:
+      - agents
+  /api/agents/{id}/sync:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Agent ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Agent 令牌
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/router.agentTokenRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/router.agentSyncResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: 立即同步指定 Agent
+      tags:
+      - agents
+  /api/agents/{id}/test-connection:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Agent ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Agent 令牌
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/router.agentTokenRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/router.agentProbeResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: 测试已登记 Agent 连接
+      tags:
+      - agents
+  /api/agents/test-connection:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Agent 连接信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/router.createAgentRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/router.agentProbeResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: 测试未登记 Agent 连接
+      tags:
+      - agents
+  /api/alerts:
+    get:
+      parameters:
+      - description: 告警状态，如 active、resolved
+        in: query
+        name: status
+        type: string
+      - description: 搜索关键词，可匹配级别、状态、标题、消息、来源和外部通知状态
+        in: query
+        name: q
+        type: string
+      - description: 告警元数据顶层字段名，配合 metadataValue 精确限定 JSON 字段；仅填写字段名时匹配存在该字段的告警
+        in: query
+        name: metadataKey
+        type: string
+      - description: 告警元数据字段值关键词；metadataKey 为空时在整段元数据 JSON 中模糊搜索
+        in: query
+        name: metadataValue
+        type: string
+      - description: 返回数量，可选 30、50、100、200 或 all
+        in: query
+        name: limit
+        type: string
+      - description: 页码，从 1 开始
+        in: query
+        name: page
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/router.alertListResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取告警列表
+      tags:
+      - alerts
+  /api/alerts/{id}/resolve:
+    post:
+      parameters:
+      - description: 告警 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/router.statusResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: 手动解决告警
+      tags:
+      - alerts
+  /api/audit-logs:
+    get:
+      parameters:
+      - description: 搜索关键词，可匹配动作、用户、资源、IP 和元数据
+        in: query
+        name: q
+        type: string
+      - description: 审计元数据顶层字段名，配合 metadataValue 精确限定 JSON 字段；仅填写字段名时匹配存在该字段的日志
+        in: query
+        name: metadataKey
+        type: string
+      - description: 审计元数据字段值关键词；metadataKey 为空时在整段元数据 JSON 中模糊搜索
+        in: query
+        name: metadataValue
+        type: string
+      - description: 返回数量，可选 30、50、100、200 或 all
+        in: query
+        name: limit
+        type: string
+      - description: 页码，从 1 开始
+        in: query
+        name: page
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/router.auditLogListResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取审计日志列表
+      tags:
+      - logs
+  /api/auth/login:
+    post:
+      consumes:
+      - application/json
+      description: 使用本地账号或已启用的外部认证方式登录，返回会话 Token 和用户信息。默认空库管理员为 admin / 123456。
+      parameters:
+      - description: 登录信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/router.loginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/domain.Session'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+      summary: 登录
+      tags:
+      - auth
+  /api/auth/logout:
+    post:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/router.statusResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: 注销当前会话
+      tags:
+      - auth
+  /api/auth/me:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/router.meResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取当前用户
+      tags:
+      - auth
+  /api/auth/password:
+    put:
+      consumes:
+      - application/json
+      description: 校验旧密码后更新当前登录用户密码。新密码至少 6 个字符，且不能与旧密码相同。
+      parameters:
+      - description: 密码信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/router.changePasswordRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/router.messageResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: 修改当前用户密码
+      tags:
+      - auth
+  /api/auth/password-reset/captcha:
+    get:
+      description: 返回登录页找回密码流程使用的算式验证码与签名 Token。图形验证码有效期由基础配置控制。
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/router.passwordResetCaptchaResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+      summary: 获取找回密码图形验证码
+      tags:
+      - auth
+  /api/auth/password-reset/confirm:
+    post:
+      consumes:
+      - application/json
+      description: 校验找回密码验证码后重置本地账号密码，并清理该用户已有会话。
+      parameters:
+      - description: 验证码与新密码
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/router.passwordResetConfirmRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/router.messageResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+      summary: 确认找回密码并重置密码
+      tags:
+      - auth
+  /api/auth/password-reset/send-code:
+    post:
+      consumes:
+      - application/json
+      description: 使用已启用找回密码用途的 Webhook、邮件、飞书、企业微信或钉钉媒介发送找回密码验证码。发送前必须携带用户名与图形验证码校验得到的短期
+        Token，并校验验证邮箱与账号配置邮箱一致；邮件媒介会发送到账号配置邮箱，机器人媒介无需额外接收信息。验证码有效期、发送冷却和频率限制统计窗口由基础配置控制。
+      parameters:
+      - description: 发送配置
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/router.passwordResetSendCodeRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/router.passwordResetSendCodeResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "429":
+          description: Too Many Requests
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+      summary: 发送找回密码验证码
+      tags:
+      - auth
+  /api/auth/password-reset/verify:
+    post:
+      consumes:
+      - application/json
+      description: 校验本地账号和图形验证码，通过后返回已启用找回密码用途的通知媒介和短期校验 Token。
+      parameters:
+      - description: 用户名与图形验证码
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/router.passwordResetVerifyRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/router.passwordResetChannelListResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+      summary: 校验找回密码用户名与图形验证码
+      tags:
+      - auth
+  /api/auth/providers:
+    get:
+      description: 返回已启用的外部认证方式；本地账号登录始终可用。
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/router.publicAuthProviderListResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+      summary: 获取登录页可用认证方式
+      tags:
+      - auth
+  /api/dashboard/summary:
+    get:
+      description: 从运行态缓存和日志告警数据聚合仪表盘信息。
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/domain.DashboardSummary'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取仪表盘汇总
+      tags:
+      - realtime
+  /api/events:
+    get:
+      description: 前端订阅此接口接收运行态资源更新事件。该接口返回 text/event-stream。
+      produces:
+      - text/plain
+      responses:
+        "200":
+          description: SSE stream
+          schema:
+            type: string
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: SSE 事件流
+      tags:
+      - realtime
+  /api/health:
+    get:
+      description: 检查后端服务和数据库连接状态。
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/router.healthResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+      summary: 健康检查
+      tags:
+      - health
+  /api/host-interfaces/{agentId}:
+    get:
+      description: 后端按 Agent ID 转发到宿主机 Agent，实时读取物理网卡、loopback 与 bridge 接口列表；需要 host.interfaces.read
+        权限。
+      parameters:
+      - description: Agent ID
+        in: path
+        name: agentId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/router.hostInterfaceListResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取宿主机接口
+      tags:
+      - realtime
+    post:
+      consumes:
+      - application/json
+      description: 在指定宿主机 Agent 上创建 libvirt interface，支持 bridge 和 ethernet 类型，可选绑定已有设备并配置启动模式、IPv4/IPv6；绑定设备已被其他接口使用时会拒绝创建；静态地址会拒绝重复
+        IP、重复或重叠子网，以及不在同一子网的网关；bridge 绑定已有设备时会在执行 virsh 前备份已存在的 ifcfg-bridge 和 ifcfg-device；填写
+        DNS 时 applySystemConfig 为 true，并尝试通过 nmcli 或 ifcfg 写入宿主机 DNS；需要 host.interfaces.manage
+        权限。
+      parameters:
+      - description: Agent ID
+        in: path
+        name: agentId
+        required: true
+        type: string
+      - description: 接口配置
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/router.hostInterfaceCreateDocRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/agent.HostInterface'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: 创建宿主机接口
+      tags:
+      - realtime
+  /api/host-interfaces/{agentId}/delete/{name}:
+    delete:
+      description: 删除指定宿主机 Agent 上已停止的 libvirt interface；需要 host.interfaces.manage
+        权限。
+      parameters:
+      - description: Agent ID
+        in: path
+        name: agentId
+        required: true
+        type: string
+      - description: 接口名称
+        in: path
+        name: name
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: 删除宿主机接口
+      tags:
+      - realtime
+  /api/host-interfaces/{agentId}/devices/list:
+    get:
+      description: 后端按 Agent ID 转发到宿主机 Agent，读取 libvirt node device 中的 net 设备列表；需要
+        host.interfaces.read 权限。
+      parameters:
+      - description: Agent ID
+        in: path
+        name: agentId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/router.hostInterfaceDeviceListResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取宿主机接口设备候选
+      tags:
+      - realtime
+  /api/host-interfaces/{agentId}/state/{name}:
+    put:
+      consumes:
+      - application/json
+      description: 在指定宿主机 Agent 上启动或停止 libvirt interface；需要 host.interfaces.manage
+        权限。
+      parameters:
+      - description: Agent ID
+        in: path
+        name: agentId
+        required: true
+        type: string
+      - description: 接口名称
+        in: path
+        name: name
+        required: true
+        type: string
+      - description: 接口状态
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/router.hostInterfaceStateDocRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: boolean
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: 修改宿主机接口状态
+      tags:
+      - realtime
+  /api/hosts:
+    get:
+      description: 从后端运行态缓存读取宿主机列表。拥有宿主机、Agent、虚拟机、快照、存储池或网络池相关权限时可作为关联只读数据访问，用于资源页展示、筛选和下拉选择。
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/router.hostListResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取宿主机列表
+      tags:
+      - realtime
+  /api/metrics/hosts/{agentId}:
+    get:
+      description: 查询宿主机 CPU、内存、存储和虚拟机数量趋势。agentId=all 时聚合全部宿主机。range 支持 1h、24h、7d、30d
+        和 custom。自定义时间范围需要传入分钟精度或 RFC3339 格式的 start 和 end。
+      parameters:
+      - description: Agent ID 或 all
+        in: path
+        name: agentId
+        required: true
+        type: string
+      - default: 1h
+        description: 趋势时间范围
+        enum:
+        - 1h
+        - 24h
+        - 7d
+        - 30d
+        - custom
+        in: query
+        name: range
+        type: string
+      - description: 自定义开始时间，例如 2026-05-23T10:00
+        in: query
+        name: start
+        type: string
+      - description: 自定义结束时间，例如 2026-05-23T12:00
+        in: query
+        name: end
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/router.metricSeriesDocResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: 查询宿主机指标趋势
+      tags:
+      - realtime
+  /api/metrics/vms/{vmId}:
+    get:
+      description: 查询虚拟机 CPU、内存、磁盘使用率、磁盘 I/O 和网络吞吐趋势。range 支持 1h、24h、7d、30d 和 custom。自定义时间范围需要传入分钟精度或
+        RFC3339 格式的 start 和 end。
+      parameters:
+      - description: 虚拟机 ID
+        in: path
+        name: vmId
+        required: true
+        type: string
+      - default: 1h
+        description: 趋势时间范围
+        enum:
+        - 1h
+        - 24h
+        - 7d
+        - 30d
+        - custom
+        in: query
+        name: range
+        type: string
+      - description: 自定义开始时间，例如 2026-05-23T10:00
+        in: query
+        name: start
+        type: string
+      - description: 自定义结束时间，例如 2026-05-23T12:00
+        in: query
+        name: end
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/router.metricSeriesDocResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: 查询虚拟机指标趋势
+      tags:
+      - realtime
+  /api/network-pools/{agentId}:
+    get:
+      description: 后端按 Agent ID 转发到宿主机 Agent，实时读取 libvirt 网络池列表。拥有网络池相关权限或虚拟机相关权限时可作为关联只读数据访问，用于虚拟机创建、编辑、克隆和迁移配置。
+      parameters:
+      - description: Agent ID
+        in: path
+        name: agentId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/router.networkPoolListResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取宿主机网络池
+      tags:
+      - realtime
+    post:
+      consumes:
+      - application/json
+      description: 在指定宿主机 Agent 上创建 libvirt 网络池，支持 nat、route、isolate 和 bridge；固定地址需要同时启用
+        DHCP；bridge 类型会检查桥接设备存在。
+      parameters:
+      - description: Agent ID
+        in: path
+        name: agentId
+        required: true
+        type: string
+      - description: 网络池配置
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/router.networkPoolCreateDocRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/agent.NetworkPool'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: 创建宿主机网络池
+      tags:
+      - realtime
+  /api/network-pools/{agentId}/autostart/{pool}:
+    put:
+      consumes:
+      - application/json
+      description: 在指定宿主机 Agent 上启用或关闭 libvirt 网络池自启动。
+      parameters:
+      - description: Agent ID
+        in: path
+        name: agentId
+        required: true
+        type: string
+      - description: 网络池名称
+        in: path
+        name: pool
+        required: true
+        type: string
+      - description: 网络池自启动配置
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/router.poolAutostartUpdateDocRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/router.poolAutostartUpdateDocResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: 修改宿主机网络池自启动
+      tags:
+      - realtime
+  /api/network-pools/{agentId}/delete/{pool}:
+    delete:
+      description: 删除指定宿主机 Agent 上已停止的 libvirt 网络池定义。运行中的网络池需要先停止后才能删除。
+      parameters:
+      - description: Agent ID
+        in: path
+        name: agentId
+        required: true
+        type: string
+      - description: 网络池名称
+        in: path
+        name: pool
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/router.statusResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: 删除宿主机网络池
+      tags:
+      - realtime
+  /api/network-pools/{agentId}/state/{pool}:
+    put:
+      consumes:
+      - application/json
+      description: 在指定宿主机 Agent 上启动或停止 libvirt 网络池。
+      parameters:
+      - description: Agent ID
+        in: path
+        name: agentId
+        required: true
+        type: string
+      - description: 网络池名称
+        in: path
+        name: pool
+        required: true
+        type: string
+      - description: 网络池状态
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/router.poolStateUpdateDocRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/router.poolStateUpdateDocResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: 修改宿主机网络池状态
+      tags:
+      - realtime
+  /api/notifications:
+    get:
+      description: 返回右上角通知中心展示的告警消息，默认仅返回未清空的活跃告警。
+      parameters:
+      - description: 通知来源告警状态，active 或 all
+        in: query
+        name: status
+        type: string
+      - description: 返回数量，默认 20
+        in: query
+        name: limit
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/router.alertListResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取通知消息
+      tags:
+      - alerts
+  /api/notifications/{id}/read:
+    post:
+      parameters:
+      - description: 通知对应告警 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/router.statusResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: 标记单条通知已读
+      tags:
+      - alerts
+  /api/notifications/clear:
+    post:
+      description: 清空仅影响通知中心展示，不会解决告警。
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/router.statusResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: 清空通知中心消息
+      tags:
+      - alerts
+  /api/notifications/read-all:
+    post:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/router.statusResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: 标记全部通知已读
+      tags:
+      - alerts
+  /api/notifications/unread-count:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/router.unreadNotificationCountResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取未读通知数量
+      tags:
+      - alerts
+  /api/public/base-config:
+    get:
+      description: 返回登录页、启动页、侧边栏品牌区和浏览器标题展示所需的网站名称、品牌名称和图标配置。
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/domain.SystemBaseConfig'
+      summary: 获取公开基础配置
+      tags:
+      - settings
+  /api/refresh:
+    post:
+      description: 创建或复用正在运行的运行态刷新任务。后端工作线程会同步所有已登记 Agent，并通过 SSE 推送进度和完成事件。
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+          schema:
+            $ref: '#/definitions/router.refreshResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: 创建异步刷新任务
+      tags:
+      - realtime
+  /api/settings/auth-providers:
+    get:
+      description: 返回 AD/LDAP 等外部认证配置。LDAP bindPassword 不返回明文，已配置时返回 hasBindPassword
+        标记。需要认证配置查看或管理权限。
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/router.authProviderListResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取认证配置
+      tags:
+      - settings
+  /api/settings/auth-providers/{id}:
+    put:
+      consumes:
+      - application/json
+      description: 首期支持 AD/LDAP。显示名称不能为空；启用后登录页会显示对应认证方式，且必须提供服务器地址、端口、Base DN、用户过滤器、绑定
+        DN 和绑定密码。LDAP bindPassword 留空时保留已保存值，填写新值时替换。LDAPS 通常使用 636 端口，StartTLS 通常使用
+        389 端口，二者不能同时启用。关闭认证时允许保存空配置，用于清空已保存配置。外部认证用户必须先在用户配置中创建并启用后才可登录。
+      parameters:
+      - description: 认证配置 ID：ldap
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 认证配置
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/router.authProviderRequestDoc'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/domain.AuthProvider'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: 更新认证配置
+      tags:
+      - settings
+  /api/settings/auth-providers/{id}/test:
+    post:
+      description: 使用已保存认证配置测试 LDAP 连接、绑定账号和用户搜索，成功时返回匹配用户数量。若配置了用户组过滤器，则按该配置统计匹配用户数，登录时也会要求用户匹配该组条件；用户组过滤器可直接填写用户组
+        DN，后端会按 memberOf 自动转换。
+      parameters:
+      - description: 认证配置 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/router.authProviderTestResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: 测试认证配置
+      tags:
+      - settings
+  /api/settings/base-config:
+    get:
+      description: 返回网站名称、登录页名称、控制台品牌名称、控制台品牌副标题、图标、安全时效、资源阈值和 Agent 判定配置。需要基础配置查看或管理权限。
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/domain.SystemBaseConfig'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取基础配置
+      tags:
+      - settings
+    put:
+      consumes:
+      - application/json
+      description: 更新网站名称、登录/注册界面名称、控制台品牌名称、控制台品牌副标题、图标、安全时效、资源阈值和 Agent 判定配置。图标支持站内路径或图片
+        Data URL，最大 512KB。
+      parameters:
+      - description: 基础配置
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/router.systemBaseConfigRequestDoc'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/domain.SystemBaseConfig'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: 更新基础配置
+      tags:
+      - settings
+  /api/settings/notifications:
+    get:
+      description: 返回 Webhook、邮件、飞书、企业微信和钉钉通知媒介配置。平台内告警通过右上角通知中心展示。邮件 password、飞书/钉钉
+        secret 不返回明文，已配置时返回 hasPassword 或 hasSecret 标记。需要通知配置查看或管理权限。
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/router.notificationChannelListResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取通知媒介配置
+      tags:
+      - settings
+  /api/settings/notifications/{id}:
+    put:
+      consumes:
+      - application/json
+      description: 通知媒介包含告警通知和找回密码两个独立用途开关；任一用途启用时 Webhook 需要 url，可选 method、headers；邮件需要
+        smtpHost、smtpPort、username、password、from、to，可选 fromName、useTLS 或 startTLS
+        且 TLS 与 STARTTLS 不能同时启用；飞书、企业微信、钉钉需要 webhookUrl，飞书和钉钉可选 secret。邮件 password、飞书/钉钉
+        secret 留空时保留已保存值，填写新值时替换。两个用途都关闭时允许保存空配置，用于清空已保存配置。
+      parameters:
+      - description: 通知媒介 ID：webhook、email、lark、wechat、dingtalk
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 通知媒介配置
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/router.notificationChannelRequestDoc'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/domain.NotificationChannel'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: 更新通知媒介配置
+      tags:
+      - settings
+  /api/settings/notifications/{id}/test:
+    post:
+      parameters:
+      - description: 通知媒介 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/router.statusResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: 测试通知媒介
+      tags:
+      - settings
+  /api/settings/permissions:
+    get:
+      description: 返回当前系统可配置到自定义角色中的权限点。需要用户配置查看或管理权限。
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/router.permissionListResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取可选权限点
+      tags:
+      - settings
+  /api/settings/roles:
+    get:
+      description: 返回内置角色与自定义角色。需要用户配置查看或管理权限。
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/router.userRoleListResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取用户角色
+      tags:
+      - settings
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 角色配置
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/router.userRoleRequestDoc'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/domain.Role'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: 创建自定义角色
+      tags:
+      - settings
+  /api/settings/roles/{id}:
+    delete:
+      description: 内置角色 admin、operator、viewer 不允许删除。
+      parameters:
+      - description: 角色 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/router.statusResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: 删除自定义角色
+      tags:
+      - settings
+    put:
+      consumes:
+      - application/json
+      description: 内置角色 admin、operator、viewer 不允许修改。
+      parameters:
+      - description: 角色 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 角色配置
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/router.userRoleRequestDoc'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/domain.Role'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: 更新自定义角色
+      tags:
+      - settings
+  /api/settings/user-groups:
+    get:
+      description: 返回用户群组及成员、角色配置。需要用户配置查看或管理权限。
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/router.userGroupListResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取用户群组
+      tags:
+      - settings
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 用户群组
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/router.userGroupRequestDoc'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/domain.UserGroup'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: 创建用户群组
+      tags:
+      - settings
+  /api/settings/user-groups/{id}:
+    delete:
+      parameters:
+      - description: 用户群组 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/router.statusResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: 删除用户群组
+      tags:
+      - settings
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: 用户群组 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 用户群组
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/router.userGroupRequestDoc'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/domain.UserGroup'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: 更新用户群组
+      tags:
+      - settings
+  /api/settings/users:
+    get:
+      description: 返回平台用户及其有效角色和权限。AD/LDAP 登录用户也必须先在此列表中创建并启用。需要用户配置查看或管理权限。
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/router.managedUserListResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取平台用户
+      tags:
+      - settings
+    post:
+      consumes:
+      - application/json
+      description: 创建平台用户必须填写本地密码。启用 AD/LDAP 后，用户仍必须先在此创建并启用；本地登录校验数据库密码，AD/LDAP 登录校验
+        LDAP 密码且不写入数据库。
+      parameters:
+      - description: 用户配置
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/router.managedUserRequestDoc'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/domain.User'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: 创建平台用户
+      tags:
+      - settings
+  /api/settings/users/{id}:
+    delete:
+      description: 删除平台用户前必须先禁用该用户。删除会清理该用户会话、直接角色和群组成员关系；审计日志和历史任务保留记录。不能删除当前登录用户和默认
+        admin 管理员。
+      parameters:
+      - description: 用户 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: 删除平台用户
+      tags:
+      - settings
+    put:
+      consumes:
+      - application/json
+      description: 更新用户名、显示名称、角色、禁用状态和可选新密码。密码留空时不修改数据库中的本地密码。默认 admin 管理员不能改名或禁用。
+      parameters:
+      - description: 用户 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 用户配置
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/router.managedUserRequestDoc'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/domain.User'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: 更新平台用户
+      tags:
+      - settings
+  /api/settings/users/{id}/disabled:
+    post:
+      consumes:
+      - application/json
+      description: 默认 admin 管理员不能禁用。
+      parameters:
+      - description: 用户 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 用户状态
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/router.managedUserDisabledRequestDoc'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/domain.User'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: 启用或禁用平台用户
+      tags:
+      - settings
+  /api/snapshots:
+    get:
+      description: 从后端运行态缓存读取快照列表，并合并平台备注和标签。
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/router.snapshotListResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取快照列表
+      tags:
+      - realtime
+    post:
+      consumes:
+      - application/json
+      description: 通过已登记 Agent 的加密令牌为已关机虚拟机创建 libvirt 默认内部快照，完成后刷新运行态缓存并记录任务和审计日志。需要
+        snapshots.create 权限。
+      parameters:
+      - description: 创建快照参数
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/router.createSnapshotRequestDoc'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/router.snapshotActionResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: 创建快照
+      tags:
+      - realtime
+  /api/snapshots/{id}/annotation:
+    put:
+      consumes:
+      - application/json
+      description: 更新平台侧快照显示名、描述和标签，不修改 libvirt 快照实体。需要 snapshots.update 权限。
+      parameters:
+      - description: 快照 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 快照备注
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/router.updateSnapshotAnnotationRequestDoc'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/router.snapshotAnnotationResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: 更新快照备注
+      tags:
+      - realtime
+  /api/snapshots/{id}/delete:
+    post:
+      description: 通过已登记 Agent 的加密令牌删除指定内部快照，完成后刷新运行态缓存并记录任务和审计日志。需要 snapshots.delete
+        权限。
+      parameters:
+      - description: 快照 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/router.snapshotActionResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: 删除快照
+      tags:
+      - realtime
+  /api/snapshots/{id}/revert:
+    post:
+      description: 通过已登记 Agent 的加密令牌恢复指定快照，完成后刷新运行态缓存并记录任务和审计日志。需要 snapshots.revert
+        权限。
+      parameters:
+      - description: 快照 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/router.snapshotActionResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: 恢复快照
+      tags:
+      - realtime
+  /api/snapshots/refresh:
+    post:
+      description: 仅刷新已登记 Agent 上的虚拟机快照列表，并更新运行态缓存；不触发宿主机、虚拟机详情和指标的全量刷新。需要 snapshots.read
+        权限。
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/router.statusResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: 刷新快照列表
+      tags:
+      - realtime
+  /api/storage-pools/{agentId}:
+    get:
+      description: 后端按 Agent ID 转发到宿主机 Agent，实时读取 libvirt 存储池列表。拥有存储池相关权限或虚拟机相关权限时可作为关联只读数据访问，用于虚拟机创建、编辑、克隆和迁移配置。
+      parameters:
+      - description: Agent ID
+        in: path
+        name: agentId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/router.storagePoolListResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取宿主机存储池
+      tags:
+      - realtime
+    post:
+      consumes:
+      - application/json
+      description: 在指定宿主机 Agent 上创建 libvirt 存储池，支持 dir、logical、netfs 和 iscsi。
+      parameters:
+      - description: Agent ID
+        in: path
+        name: agentId
+        required: true
+        type: string
+      - description: 存储池配置
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/router.storagePoolCreateDocRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/agent.StoragePool'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: 创建宿主机存储池
+      tags:
+      - realtime
+  /api/storage-pools/{agentId}/autostart/{pool}:
+    put:
+      consumes:
+      - application/json
+      description: 在指定宿主机 Agent 上启用或关闭 libvirt 存储池自启动。
+      parameters:
+      - description: Agent ID
+        in: path
+        name: agentId
+        required: true
+        type: string
+      - description: 存储池名称
+        in: path
+        name: pool
+        required: true
+        type: string
+      - description: 存储池自启动配置
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/router.poolAutostartUpdateDocRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/router.poolAutostartUpdateDocResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: 修改宿主机存储池自启动
+      tags:
+      - realtime
+  /api/storage-pools/{agentId}/delete/{pool}:
+    delete:
+      description: 删除指定宿主机 Agent 上已停止的 libvirt 存储池定义。运行中的存储池需要先停止后才能删除。
+      parameters:
+      - description: Agent ID
+        in: path
+        name: agentId
+        required: true
+        type: string
+      - description: 存储池名称
+        in: path
+        name: pool
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/router.statusResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: 删除宿主机存储池
+      tags:
+      - realtime
+  /api/storage-pools/{agentId}/iso-files/{pool}:
+    get:
+      description: 读取指定宿主机存储池中的 .iso 文件，供虚拟机编辑窗口介质页选择。
+      parameters:
+      - description: Agent ID
+        in: path
+        name: agentId
+        required: true
+        type: string
+      - description: 存储池名称
+        in: path
+        name: pool
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/router.isoFileListResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取存储池 ISO 文件
+      tags:
+      - realtime
+  /api/storage-pools/{agentId}/state/{pool}:
+    put:
+      consumes:
+      - application/json
+      description: 在指定宿主机 Agent 上启动或停止 libvirt 存储池。
+      parameters:
+      - description: Agent ID
+        in: path
+        name: agentId
+        required: true
+        type: string
+      - description: 存储池名称
+        in: path
+        name: pool
+        required: true
+        type: string
+      - description: 存储池状态
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/router.poolStateUpdateDocRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/router.poolStateUpdateDocResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: 修改宿主机存储池状态
+      tags:
+      - realtime
+  /api/storage-pools/{agentId}/volumes/{pool}:
+    delete:
+      description: 删除指定宿主机存储池中的卷或光盘镜像。
+      parameters:
+      - description: Agent ID
+        in: path
+        name: agentId
+        required: true
+        type: string
+      - description: 存储池名称
+        in: path
+        name: pool
+        required: true
+        type: string
+      - description: 存储卷名称
+        in: query
+        name: name
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/router.statusResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: 删除存储池卷
+      tags:
+      - realtime
+    get:
+      description: 读取指定宿主机存储池中的卷或光盘镜像列表，供存储池详情弹窗展示。
+      parameters:
+      - description: Agent ID
+        in: path
+        name: agentId
+        required: true
+        type: string
+      - description: 存储池名称
+        in: path
+        name: pool
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/router.storageVolumeListResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取存储池卷列表
+      tags:
+      - realtime
+    post:
+      consumes:
+      - application/json
+      description: 在指定宿主机存储池中创建 qcow2、qcow、qed 或 raw 格式的存储卷。preallocMetadata 仅在 qcow2
+        格式下生效，会传递给 virsh vol-create-as --prealloc-metadata。
+      parameters:
+      - description: Agent ID
+        in: path
+        name: agentId
+        required: true
+        type: string
+      - description: 存储池名称
+        in: path
+        name: pool
+        required: true
+        type: string
+      - description: 存储卷配置
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/router.storageVolumeCreateDocRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/agent.StorageVolume'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: 创建存储池卷
+      tags:
+      - realtime
+  /api/storage-pools/{agentId}/volumes/{pool}/clone:
+    post:
+      consumes:
+      - application/json
+      description: 创建后台任务克隆指定宿主机存储池中的卷；convert 为 true 时通过 qemu-img convert 转换为 raw、qcow、qcow2
+        或 qed。任务完成或失败后通过 SSE 通知前端。
+      parameters:
+      - description: Agent ID
+        in: path
+        name: agentId
+        required: true
+        type: string
+      - description: 存储池名称
+        in: path
+        name: pool
+        required: true
+        type: string
+      - description: 克隆配置
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/router.storageVolumeCloneDocRequest'
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+          schema:
+            $ref: '#/definitions/router.refreshResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: 克隆存储池卷
+      tags:
+      - realtime
+  /api/storage-pools/{agentId}/volumes/{pool}/upload:
+    post:
+      consumes:
+      - multipart/form-data
+      description: 将 multipart 表单中的 ISO 文件保存为后台任务，再上传为指定宿主机存储池卷。表单字段 file 为文件，name
+        为可选卷名称。任务完成或失败后通过 SSE 通知前端。
+      parameters:
+      - description: Agent ID
+        in: path
+        name: agentId
+        required: true
+        type: string
+      - description: 存储池名称
+        in: path
+        name: pool
+        required: true
+        type: string
+      - description: ISO 文件
+        in: formData
+        name: file
+        required: true
+        type: file
+      - description: 卷名称
+        in: formData
+        name: name
+        type: string
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+          schema:
+            $ref: '#/definitions/router.refreshResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: 上传 ISO 到存储池
+      tags:
+      - realtime
+  /api/tasks:
+    get:
+      parameters:
+      - description: 任务状态，如 queued、running、completed、failed
+        in: query
+        name: status
+        type: string
+      - description: 搜索关键词，可匹配任务类型、状态、目标、进度和错误信息
+        in: query
+        name: q
+        type: string
+      - description: 任务载荷顶层字段名，配合 payloadValue 精确限定 JSON 字段；仅填写字段名时匹配存在该字段的任务
+        in: query
+        name: payloadKey
+        type: string
+      - description: 任务载荷字段值关键词；payloadKey 为空时在整段载荷 JSON 中模糊搜索
+        in: query
+        name: payloadValue
+        type: string
+      - description: 返回数量，可选 30、50、100、200 或 all
+        in: query
+        name: limit
+        type: string
+      - description: 页码，从 1 开始
+        in: query
+        name: page
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/router.taskListResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取任务列表
+      tags:
+      - logs
+  /api/tasks/{id}:
+    get:
+      parameters:
+      - description: 任务 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/router.taskDetailResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取任务详情
+      tags:
+      - logs
+  /api/vms:
+    get:
+      description: 从后端运行态缓存读取虚拟机列表，支持状态、关键词和宿主机过滤。拥有虚拟机、宿主机、Agent 或快照相关权限时可作为关联只读数据访问，用于资源页展示、筛选和快照创建选择。
+      parameters:
+      - description: 虚拟机状态，如 running、stopped、paused、error
+        in: query
+        name: status
+        type: string
+      - description: 关键词，匹配名称、IP 或系统类型
+        in: query
+        name: q
+        type: string
+      - description: 宿主机 Agent ID
+        in: query
+        name: hostId
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/router.vmListResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取虚拟机列表
+      tags:
+      - realtime
+    post:
+      consumes:
+      - application/json
+      description: 创建后台任务，在指定宿主机 Agent 上创建虚拟机。常规模式会创建系统盘卷，调用 virt-install 生成 XML 后通过
+        virsh define 定义虚拟机，并校验最大 CPU、最大内存不超过宿主机资源；后端仍兼容 createMode=template 的旧磁盘模板创建模式，会从已有
+        qcow2、img、raw、qcow 或 qed 模板磁盘克隆系统盘到目标卷名，再按导入磁盘方式定义虚拟机；XML 模式可直接提交完整 libvirt
+        XML，后端和 Agent 会从 XML name 读取虚拟机名称，并校验宿主机、XML 非空、XML 可解析以及名称不重复。当前前端模板菜单使用
+        /api/vms/{id}/template-create 从已标记的虚拟机模板创建。常规和旧磁盘模板模式支持 CPU/内存、操作系统类型、ISO
+        镜像、ISO 总线类型、网络池、VNC 控制台、控制台密码、创建后直接启动和固件配置；未选择 ISO 镜像时仍会按 isoBus 创建空 CDROM
+        设备。任务完成后后端先执行 fast 同步并广播 runtime.updated，让新虚拟机尽快出现在列表中，随后后台延迟 full 同步补齐重字段。
+      parameters:
+      - description: 虚拟机创建配置
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/router.vmCreateDocRequest'
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+          schema:
+            $ref: '#/definitions/router.vmAsyncTaskDocResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: 创建虚拟机
+      tags:
+      - realtime
+  /api/vms/{id}:
+    get:
+      parameters:
+      - description: 虚拟机 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/domain.VirtualMachine'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取虚拟机详情
+      tags:
+      - realtime
+  /api/vms/{id}/autostart:
+    put:
+      consumes:
+      - application/json
+      description: 单独修改虚拟机随宿主机同启配置。后端转发到 Agent 执行 virsh autostart 或 autostart --disable，并记录任务与审计日志。
+      parameters:
+      - description: 虚拟机 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 虚拟机自启动配置
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/router.vmAutostartUpdateDocRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/router.vmAutostartUpdateDocResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: 修改虚拟机自启动
+      tags:
+      - realtime
+  /api/vms/{id}/clone:
+    post:
+      consumes:
+      - application/json
+      description: 为已停止虚拟机克隆磁盘卷并基于源虚拟机 XML 定义新虚拟机。运行中的虚拟机会被拒绝；后端创建后台任务前会检查宿主机 CPU/内存上限、克隆虚拟机名称是否已存在，检查目标存储池中目标卷名是否已存在，并校验目标卷扩展名必须与源磁盘一致；Agent
+        执行前也会校验最大 CPU、最大内存不超过宿主机资源，随后执行存储卷克隆、重写名称/UUID/磁盘路径/MAC/网卡网络池后调用 virsh define。选择不同目标存储池时，Agent
+        使用 qemu-img convert 将源卷复制到目标存储池；autostart 为 true 时表示克隆后直接启动，并会强制断开克隆定义中的 CDROM
+        介质。
+      parameters:
+      - description: 虚拟机 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 虚拟机克隆配置
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/router.vmCloneDocRequest'
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+          schema:
+            $ref: '#/definitions/router.vmCloneDocResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: 克隆虚拟机
+      tags:
+      - realtime
+  /api/vms/{id}/config:
+    get:
+      description: 后端根据虚拟机所属 Agent 实时读取 libvirt 配置，Agent 使用当前 dumpxml 返回 CPU/内存上下限、介质、磁盘、网卡、自启动和描述。
+      parameters:
+      - description: 虚拟机 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/router.vmConfigDocResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取虚拟机真实配置
+      tags:
+      - realtime
+    put:
+      consumes:
+      - application/json
+      description: 修改虚拟机描述、vCPU 当前/最大分配和内存当前/最大分配。运行中的虚拟机支持在已预留上限内热扩容当前 CPU 与内存，最大
+        CPU 和最大内存仍需关机后修改。后端转发到 Agent 执行 virsh setvcpus、setmaxmem、setmem 和 desc；运行中热扩容使用
+        --live --config。
+      parameters:
+      - description: 虚拟机 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 虚拟机配置
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/router.vmConfigUpdateDocRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/router.vmConfigUpdateDocResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: 修改虚拟机资源配置
+      tags:
+      - realtime
+  /api/vms/{id}/console:
+    get:
+      description: 查询虚拟机 VNC 控制台类型、端口和是否配置访问密码，不返回密码明文。
+      parameters:
+      - description: 虚拟机 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/router.vmConsoleInfoDocResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: 查询虚拟机控制台配置
+      tags:
+      - realtime
+    put:
+      consumes:
+      - application/json
+      description: 修改虚拟机的 VNC 控制台密码。运行中虚拟机支持启用或修改密码，并通过 update-device --live --config
+        同时更新当前会话与持久配置，不支持关闭已启用的密码；已停止虚拟机使用 --config 更新持久配置。开启密码时写入 graphics passwd
+        属性，关闭时移除密码。
+      parameters:
+      - description: 虚拟机 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 控制台配置
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/router.vmConsoleUpdateDocRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/router.vmConsoleUpdateDocResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: 修改虚拟机控制台配置
+      tags:
+      - realtime
+  /api/vms/{id}/console/ws:
+    get:
+      description: WebSocket 接口。前端 noVNC 连接该接口，后端使用已登记 Agent 的加密令牌转发到 Agent VNC 代理。
+      parameters:
+      - description: 虚拟机 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - text/plain
+      responses:
+        "101":
+          description: Switching Protocols
+          schema:
+            type: string
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: 打开虚拟机 Web 控制台
+      tags:
+      - realtime
+  /api/vms/{id}/delete:
+    post:
+      consumes:
+      - application/json
+      description: 删除虚拟机定义并移除普通磁盘存储卷，不删除连接到 CDROM 的 ISO 介质。删除成功后后端先从运行态缓存移除该虚拟机并广播
+        runtime.updated，让列表尽快消失，随后后台延迟 full 同步所属 Agent 兜底校准。
+      parameters:
+      - description: 虚拟机 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/router.vmActionResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: 删除虚拟机
+      tags:
+      - vms
+  /api/vms/{id}/devices:
+    put:
+      consumes:
+      - application/json
+      description: 修改虚拟机网卡网络池、新增/删除网卡、扩容已有磁盘、新增磁盘或删除磁盘。运行中的虚拟机仅支持通过 virsh blockresize
+        热扩容已有磁盘，并通过 virsh attach-disk --live --config 热添加新磁盘；网络设备修改和删除磁盘需关机后操作。已停止虚拟机的网卡、磁盘和网络池变更会写入
+        libvirt XML 后执行 virsh define；网卡优先按 MAC 匹配，Agent 会根据目标网络池切换 interface type
+        与 source 属性；已有磁盘只允许扩容不允许缩容；删除磁盘会从 XML 移除普通 disk 设备并删除对应存储卷，且至少保留一块磁盘。
+      parameters:
+      - description: 虚拟机 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 虚拟机设备配置
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/router.vmDeviceUpdateDocRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/router.vmDeviceUpdateDocResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: 修改虚拟机磁盘与网络设备
+      tags:
+      - realtime
+  /api/vms/{id}/force-delete:
+    post:
+      consumes:
+      - application/json
+      description: 强制关闭虚拟机后删除虚拟机定义并移除普通磁盘存储卷，不删除连接到 CDROM 的 ISO 介质。删除成功后后端先从运行态缓存移除该虚拟机并广播
+        runtime.updated，让列表尽快消失，随后后台延迟 full 同步所属 Agent 兜底校准。
+      parameters:
+      - description: 虚拟机 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/router.vmActionResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: 强制删除虚拟机
+      tags:
+      - vms
+  /api/vms/{id}/force-reboot:
+    post:
+      consumes:
+      - application/json
+      description: 强制重置虚拟机，对应 Agent reset 操作。
+      parameters:
+      - description: 虚拟机 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/router.vmActionResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: 强制重启虚拟机
+      tags:
+      - vms
+  /api/vms/{id}/force-shutdown:
+    post:
+      consumes:
+      - application/json
+      description: 强制关机别名，等同于 force-stop，对应 Agent destroy 操作。命令成功后后端先更新运行态缓存为已停止并返回，再后台延迟
+        full 同步所属 Agent。
+      parameters:
+      - description: 虚拟机 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/router.vmActionResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: 强制关机
+      tags:
+      - vms
+  /api/vms/{id}/force-stop:
+    post:
+      consumes:
+      - application/json
+      description: 强制关闭虚拟机，对应 Agent destroy 操作。命令成功后后端先更新运行态缓存为已停止并返回，再后台延迟 full 同步所属
+        Agent。
+      parameters:
+      - description: 虚拟机 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/router.vmActionResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: 强制关闭虚拟机
+      tags:
+      - vms
+  /api/vms/{id}/media:
+    delete:
+      consumes:
+      - application/json
+      description: 为指定 CDROM 断开当前 ISO 镜像。运行中的虚拟机会被拒绝；已停止虚拟机使用 virsh change-media --eject
+        --config 更新持久配置，并记录任务与审计日志。
+      parameters:
+      - description: 虚拟机 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 介质断开配置
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/router.vmMediaDisconnectDocRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/router.vmMediaDisconnectDocResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: 断开虚拟机介质
+      tags:
+      - realtime
+    put:
+      consumes:
+      - application/json
+      description: 为指定 CDROM 连接 ISO 镜像。运行中的虚拟机会被拒绝；已停止虚拟机使用 virsh change-media --insert
+        --config 更新持久配置，并记录任务与审计日志。
+      parameters:
+      - description: 虚拟机 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 介质连接配置
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/router.vmMediaConnectDocRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/router.vmMediaConnectDocResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: 连接虚拟机介质
+      tags:
+      - realtime
+  /api/vms/{id}/migrate:
+    post:
+      consumes:
+      - application/json
+      description: 创建后台任务迁移虚拟机。前端默认勾选复制本地磁盘，并要求结构化预检通过后才启用迁移按钮。正式迁移提交只做请求格式、虚拟机、源目标
+        Agent、迁移方式和 URI 格式等基础校验，不重复执行完整远程预检，排队后由源 Agent 执行迁移并反馈最终结果。热迁移复制本地磁盘时，源 Agent
+        先通过 SSH 按源磁盘原路径复制磁盘，再执行 virsh migrate --live --unsafe，并按请求追加 --persistent、--auto-converge
+        和 --postcopy；热迁移未复制磁盘时按共享存储迁移并可追加 --undefinesource。冷迁移未复制磁盘时仍走共享存储迁移；冷迁移复制本地磁盘时由源
+        Agent 通过 SSH 复制磁盘、重写 XML 并远程 virsh define。复制本地磁盘并勾选迁移后清理源虚拟机时，成功后会删除源定义和源普通磁盘；共享存储迁移只取消源定义，不删除磁盘。
+      parameters:
+      - description: 虚拟机 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 虚拟机迁移配置
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/router.vmMigrateDocRequest'
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+          schema:
+            $ref: '#/definitions/router.vmAsyncTaskDocResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: 迁移虚拟机
+      tags:
+      - realtime
+  /api/vms/{id}/migrate-hostname:
+    post:
+      consumes:
+      - application/json
+      description: 当热迁移通道预检提示目标宿主机主机名解析为 localhost 时，前端可提交目标主机名。后端转发源 Agent，通过 SSH
+        设置目标宿主机 hostname，并在源宿主机和目标宿主机 /etc/hosts 写入目标 IP 与主机名解析；配置成功后前端重新执行迁移预检。
+      parameters:
+      - description: 虚拟机 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 迁移目标主机名配置
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/router.vmMigrationHostnameDocRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/router.vmMigrationHostnameDocResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: 修复迁移目标主机名
+      tags:
+      - realtime
+  /api/vms/{id}/migrate-precheck:
+    post:
+      consumes:
+      - application/json
+      description: 返回结构化迁移预检清单，不创建后台任务；这是完整远程迁移预检入口。预检项包括源 VM 状态、目标同名虚拟机、目标 CPU/内存容量、基础
+        CPU 架构、网络池/桥接设备、共享存储或目标存储路径和迁移通道；勾选复制本地磁盘时会检查目标宿主机是否存在每块源磁盘路径所在的存储池，并检查目标池中是否已存在同路径或同名磁盘卷，同时要求
+        qemu+ssh:// 迁移 URI；未勾选复制本地磁盘时检查源目标存储池是否显示共享存储特征；仅当迁移 URI 以 qemu+ssh:// 开头时检测
+        SSH 非交互通道，其他 URI 返回跳过项。
+      parameters:
+      - description: 虚拟机 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 虚拟机迁移配置
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/router.vmMigrateDocRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/router.vmMigrationPrecheckDocResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: 预检虚拟机迁移
+      tags:
+      - realtime
+  /api/vms/{id}/migrate-ssh-key:
+    post:
+      consumes:
+      - application/json
+      description: 当以 qemu+ssh:// 开头的迁移通道预检提示需要密码时，前端可提交目标 SSH 用户和密码，由源 Agent 将源宿主机公钥写入目标宿主机
+        authorized_keys；密码仅用于本次配置，不在平台侧持久化。
+      parameters:
+      - description: 虚拟机 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 迁移 SSH 免密配置
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/router.vmMigrationSSHKeyDocRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/router.vmMigrationSSHKeyDocResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: 配置迁移 SSH 免密
+      tags:
+      - realtime
+  /api/vms/{id}/pause:
+    post:
+      consumes:
+      - application/json
+      description: 暂停虚拟机，对应 Agent suspend 操作。命令成功后后端先更新运行态缓存为已暂停并返回，再后台延迟 full 同步所属
+        Agent。
+      parameters:
+      - description: 虚拟机 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/router.vmActionResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: 暂停虚拟机
+      tags:
+      - vms
+  /api/vms/{id}/reboot:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 虚拟机 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/router.vmActionResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: 重启虚拟机
+      tags:
+      - vms
+  /api/vms/{id}/refresh:
+    post:
+      description: 仅刷新指定虚拟机所属宿主机上的当前 VM 信息，会重新读取 Guest Agent OS、domifaddr IP、磁盘明细、CPU/内存使用率和
+        I/O 速率，并更新运行态缓存；不刷新快照列表。
+      parameters:
+      - description: 虚拟机 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/router.vmSingleRefreshResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: 刷新单台虚拟机运行态
+      tags:
+      - realtime
+  /api/vms/{id}/rename:
+    put:
+      consumes:
+      - application/json
+      description: 修改已停止虚拟机名称。运行中的虚拟机会被拒绝；后端会检查同宿主机 Agent 上是否已有重名虚拟机，随后转发到 Agent 执行
+        virsh domrename，并同步运行态缓存。
+      parameters:
+      - description: 虚拟机 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 虚拟机名称
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/router.vmRenameDocRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/router.vmRenameDocResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: 修改虚拟机名称
+      tags:
+      - realtime
+  /api/vms/{id}/resume:
+    post:
+      consumes:
+      - application/json
+      description: 恢复 paused 状态虚拟机，对应 Agent resume 操作。
+      parameters:
+      - description: 虚拟机 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/router.vmActionResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: 恢复已暂停虚拟机
+      tags:
+      - vms
+  /api/vms/{id}/shutdown:
+    post:
+      consumes:
+      - application/json
+      description: 正常关机别名，等同于 stop，对应 Agent shutdown 操作。命令成功后后端先更新运行态缓存为已停止并返回，再后台延迟
+        full 同步所属 Agent。
+      parameters:
+      - description: 虚拟机 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/router.vmActionResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: 正常关机
+      tags:
+      - vms
+  /api/vms/{id}/start:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 虚拟机 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/router.vmActionResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: 启动虚拟机
+      tags:
+      - vms
+  /api/vms/{id}/stop:
+    post:
+      consumes:
+      - application/json
+      description: 正常关闭虚拟机，对应 Agent shutdown 操作。命令成功后后端先更新运行态缓存为已停止并返回，再后台延迟 full
+        同步所属 Agent。
+      parameters:
+      - description: 虚拟机 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/router.vmActionResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: 关闭虚拟机
+      tags:
+      - vms
+  /api/vms/{id}/template-create:
+    post:
+      consumes:
+      - application/json
+      description: 基于已标记的虚拟机模板创建新虚拟机。接口复用整机克隆参数，要求模板虚拟机已停止，排队前检查新虚拟机名称、宿主机资源、目标存储池卷名和目标卷扩展名；Agent
+        复制模板磁盘卷并基于模板 XML 重写名称、UUID、磁盘路径、MAC 和网络池后定义新虚拟机。需要 vms.create 权限。
+      parameters:
+      - description: 模板虚拟机 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 从模板创建配置
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/router.vmCloneDocRequest'
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+          schema:
+            $ref: '#/definitions/router.vmAsyncTaskDocResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: 从虚拟机模板创建
+      tags:
+      - realtime
+  /api/vms/{id}/template-mark:
+    delete:
+      description: 删除虚拟机模板标记，不删除虚拟机本体和磁盘卷。需要 vms.update 权限。
+      parameters:
+      - description: 虚拟机 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/router.vmTemplateUnmarkDocResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: 取消虚拟机模板标记
+      tags:
+      - realtime
+    post:
+      consumes:
+      - application/json
+      description: 将已停止虚拟机标记为模板。模板标记只写入数据库中的 agent_id、vm_uuid、模板名称、描述和创建人等必要字段，不保存
+        CPU、内存、磁盘等虚拟机详情；运行态 VM 返回时会按 agent_id + vm_uuid 合并 isTemplate、templateId、templateName
+        和 templateDescription 字段。需要 vms.update 权限。
+      parameters:
+      - description: 虚拟机 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 模板标记信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/router.vmTemplateMarkDocRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/router.vmTemplateMarkDocResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: 标记虚拟机模板
+      tags:
+      - realtime
+  /api/vms/{id}/xml:
+    put:
+      consumes:
+      - application/json
+      description: 为已停止虚拟机写入完整 libvirt XML。运行中的虚拟机会被拒绝；Agent 校验 XML 非空、格式可解析且 domain
+        name 与当前虚拟机一致后执行 virsh define。
+      parameters:
+      - description: 虚拟机 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 虚拟机 XML 配置
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/router.vmXMLUpdateDocRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/router.vmXMLUpdateDocResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/router.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: 修改虚拟机 XML
+      tags:
+      - realtime
+securityDefinitions:
+  BearerAuth:
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

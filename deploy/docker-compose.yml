@@ -1,0 +1,55 @@
+services:
+  #  ----------------------------------------------------------------
+  # 新建 PostgreSQL 容器（使用已有容器时注释此块）
+  # -----------------------------------------------------------------
+  postgres:
+    image: postgres:17-alpine
+    container_name: kvm-manager-postgres
+    restart: unless-stopped
+    networks:
+      - kvm_network
+    ports:
+      - 5432:5432
+    volumes:
+      - ./PgSqlData:/var/lib/postgresql/data
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      TZ: Asia/Shanghai
+
+  #  ----------------------------------------------------------------
+  # 新建 Redis 容器（使用已有容器时注释此块）
+  # -----------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: kvm-manager-redis
+    restart: unless-stopped
+    networks:
+      - kvm_network
+    command: redis-server --requirepass ${REDIS_PASSWORD:-123456} --appendonly yes
+    volumes:
+      - ./RedisData:/data
+
+  kvm-manager:
+    image: zyx3721/kvm-manager:latest
+    container_name: kvm-manager
+    restart: unless-stopped
+    networks:
+      - kvm_network
+    ports:
+      - 80:80
+    env_file:
+      - .env
+    volumes:
+      - ./KVMData:/app/data
+    # ----------------------------------------------------------------
+    # 依赖新建容器（使用已有容器时注释此块）
+    # ----------------------------------------------------------------
+    depends_on:
+      - postgres
+      - redis
+
+networks:
+  kvm_network:
+    driver: bridge
