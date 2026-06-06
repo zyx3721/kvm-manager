@@ -19,6 +19,7 @@ import {
   XIcon,
 } from "lucide-react";
 import { fetchAlerts, fetchAuditLogs, fetchTasks, resolveAlert, type Alert, type AuditLog, type Task } from "../../lib/api";
+import { fetchAlertDeliveries, type AlertNotificationDelivery } from "../../lib/api";
 import { formatTimeAgo } from "../../lib/format";
 import { DialogPortal } from "../../components/kvm/DialogPortal";
 import { ExportDialog } from "../../components/kvm/ExportDialog";
@@ -228,11 +229,34 @@ function Pagination({ start, end, total, pageSize, currentPage, pageCount, setPa
 function PageButton({ label, disabled, onClick, children }: { label: string; disabled: boolean; onClick: () => void; children: React.ReactNode }) { return <button type="button" onClick={onClick} disabled={disabled} className="kvm-action-button flex h-9 w-9 items-center justify-center rounded-lg border disabled:opacity-40" style={{ background: "var(--kvm-card)", borderColor: "var(--kvm-border)", color: "var(--kvm-text-muted)" }} aria-label={label}>{children}</button>; }
 
 function DetailDialog({ detail, onClose }: { detail: DetailItem; onClose: () => void }) {
+  const [deliveries, setDeliveries] = useState<AlertNotificationDelivery[]>([]);
+  const [deliveriesLoading, setDeliveriesLoading] = useState(false);
+  const [deliveriesError, setDeliveriesError] = useState("");
+  useEffect(() => {
+    if (!detail || detail.type !== "alerts") {
+      setDeliveries([]);
+      setDeliveriesError("");
+      return;
+    }
+    setDeliveriesLoading(true);
+    setDeliveriesError("");
+    fetchAlertDeliveries((detail.item as Alert).id)
+      .then((data) => setDeliveries(data.items))
+      .catch(() => {
+        setDeliveries([]);
+        setDeliveriesError("读取通知投递历史失败");
+      })
+      .finally(() => setDeliveriesLoading(false));
+  }, [detail]);
   if (!detail) return null;
   const title = detail.type === "tasks" ? "任务详情" : detail.type === "audit" ? "审计详情" : "告警详情";
   const rows = detailRows(detail);
   const extra = extraPayload(detail);
-  return <DialogPortal><div className="kvm-dialog-backdrop fixed inset-0 z-50 flex items-center justify-center px-4"><div className="kvm-dialog-panel kvm-operations-dialog w-full max-w-3xl rounded-xl p-5 shadow-2xl"><div className="mb-4 flex items-center justify-between"><h3 className="text-base font-semibold" style={{ color: "var(--kvm-text)" }}>{title}</h3><button type="button" onClick={onClose} className="kvm-action-button flex h-8 w-8 items-center justify-center rounded-lg border" style={{ borderColor: "var(--kvm-border)", color: "var(--kvm-text-muted)", background: "rgba(255,255,255,0.03)" }} aria-label="关闭"><XIcon size={15} /></button></div><div className="kvm-detail-tile-grid grid grid-cols-1 gap-3 md:grid-cols-2">{rows.map((row) => <ReadOnlyField key={row.label} label={row.label} value={row.value} />)}</div>{extra && <div className="mt-4"><div className="mb-2 text-xs font-semibold" style={{ color: "var(--kvm-text-muted)" }}>{extra.title}</div><pre className="kvm-payload-pre kvm-hidden-scrollbar max-h-[32vh] overflow-y-auto overflow-x-hidden whitespace-pre-wrap break-all rounded-lg p-4 text-xs" style={{ color: "var(--kvm-text-muted)" }}>{extra.value}</pre></div>}</div></div></DialogPortal>;
+  return <DialogPortal><div className="kvm-dialog-backdrop fixed inset-0 z-50 flex items-center justify-center px-4"><div className="kvm-dialog-panel kvm-operations-dialog max-h-[86vh] w-full max-w-4xl overflow-hidden rounded-xl p-5 shadow-2xl"><div className="mb-4 flex items-center justify-between"><h3 className="text-base font-semibold" style={{ color: "var(--kvm-text)" }}>{title}</h3><button type="button" onClick={onClose} className="kvm-action-button flex h-8 w-8 items-center justify-center rounded-lg border" style={{ borderColor: "var(--kvm-border)", color: "var(--kvm-text-muted)", background: "rgba(255,255,255,0.03)" }} aria-label="关闭"><XIcon size={15} /></button></div><div className="kvm-hidden-scrollbar max-h-[74vh] overflow-y-auto pr-1"><div className="kvm-detail-tile-grid grid grid-cols-1 gap-3 md:grid-cols-2">{rows.map((row) => <ReadOnlyField key={row.label} label={row.label} value={row.value} />)}</div>{extra && <div className="mt-4"><div className="mb-2 text-xs font-semibold" style={{ color: "var(--kvm-text-muted)" }}>{extra.title}</div><pre className="kvm-payload-pre kvm-hidden-scrollbar max-h-[32vh] overflow-y-auto overflow-x-hidden whitespace-pre-wrap break-all rounded-lg p-4 text-xs" style={{ color: "var(--kvm-text-muted)" }}>{extra.value}</pre></div>}{detail.type === "alerts" && <AlertDeliveryHistory items={deliveries} loading={deliveriesLoading} error={deliveriesError} />}</div></div></div></DialogPortal>;
+}
+
+function AlertDeliveryHistory({ items, loading, error }: { items: AlertNotificationDelivery[]; loading: boolean; error: string }) {
+  return <section className="mt-4"><div className="mb-2 flex items-center justify-between gap-3"><div className="text-xs font-semibold" style={{ color: "var(--kvm-text-muted)" }}>通知投递历史</div>{loading && <span className="text-xs" style={{ color: "var(--kvm-text-muted)" }}>正在读取</span>}</div><div className="overflow-hidden rounded-lg border" style={{ borderColor: "var(--kvm-border)" }}><table className="w-full text-xs"><thead><tr>{["媒介", "事件", "状态", "重试", "时间", "错误"].map((head) => <th key={head} className="px-3 py-2 text-center font-semibold" style={{ color: "var(--kvm-text-muted)", borderBottom: "1px solid var(--kvm-border)" }}>{head}</th>)}</tr></thead><tbody>{!loading && error && <tr><td colSpan={6} className="px-3 py-6 text-center" style={{ color: "#fca5a5" }}>{error}</td></tr>}{!loading && !error && items.length === 0 && <tr><td colSpan={6} className="px-3 py-6 text-center" style={{ color: "var(--kvm-text-muted)" }}>暂无外部投递记录</td></tr>}{items.map((item) => <tr key={item.id} style={{ borderBottom: "1px solid rgba(56,78,120,0.16)" }}><td className="px-3 py-2 text-center" style={{ color: "var(--kvm-text)" }}>{labelChannel(item.channelId)}</td><td className="px-3 py-2 text-center" style={{ color: "var(--kvm-text-muted)" }}>{item.eventType === "recovery" ? "恢复" : "告警"}</td><td className="px-3 py-2 text-center"><StatusPill value={labelDeliveryStatus(item.status)} tone={deliveryTone(item.status)} /></td><td className="px-3 py-2 text-center" style={{ color: "var(--kvm-text-muted)" }}>{item.retryCount}{item.status === "pending" && item.retryCount > 0 ? ` / ${fullTime(item.nextRetryAt)}` : ""}</td><td className="px-3 py-2 text-center" style={{ color: "var(--kvm-text-muted)" }}>{item.sentAt ? fullTime(item.sentAt) : item.lastAttemptAt ? fullTime(item.lastAttemptAt) : fullTime(item.created_at)}</td><td className="max-w-[280px] px-3 py-2 text-center" style={{ color: item.error ? "#fca5a5" : "var(--kvm-text-muted)" }}><span className="line-clamp-2 break-words">{item.error || "-"}</span></td></tr>)}</tbody></table></div></section>;
 }
 
 function ReadOnlyField({ label, value }: { label: string; value: React.ReactNode }) { return <div className="kvm-dialog-card kvm-operations-detail-card rounded-lg p-3"><div className="mb-1 text-[11px]" style={{ color: "var(--kvm-text-muted)" }}>{label}</div><div className="break-words text-sm font-medium" style={{ color: "var(--kvm-text)" }}>{value || "-"}</div></div>; }
@@ -256,6 +280,9 @@ function labelAlertLevel(level: string) { return { info: "信息", warning: "警
 function alertLevelColor(level: string) { return { info: "#93c5fd", warning: "#fcd34d", critical: "#fca5a5" }[level] ?? "var(--kvm-text)"; }
 function labelResource(type: string) { return { agent: "Agent", host: "宿主机", virtual_machine: "虚拟机", system: "系统", snapshot: "快照" }[type] ?? type; }
 function labelNotificationStatus(item: Alert) { return item.notificationSentAt ? "已触达" : "待发送"; }
+function labelChannel(id: string) { return { webhook: "Webhook", email: "邮件", lark: "飞书", wechat: "企业微信", dingtalk: "钉钉" }[id] ?? id; }
+function labelDeliveryStatus(status: string) { return { pending: "待发送", sent: "已发送", failed: "失败" }[status] ?? status; }
+function deliveryTone(status: string): "green" | "red" | "yellow" | "blue" | "gray" { if (status === "sent") return "green"; if (status === "failed") return "red"; if (status === "pending") return "yellow"; return "gray"; }
 function labelTaskType(type: string) { return type; }
 function labelAction(action: string) { return action; }
 function isPermissionMessage(message: string) { return message.includes("当前用户无权执行此操作"); }

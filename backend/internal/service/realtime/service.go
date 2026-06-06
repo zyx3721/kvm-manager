@@ -18,7 +18,7 @@ import (
 )
 
 type AlertNotifier interface {
-	NotifyAlert(ctx context.Context, alert domain.Alert)
+	NotifyDelivery(ctx context.Context, delivery domain.AlertNotificationDelivery)
 }
 
 const (
@@ -158,6 +158,7 @@ func (s *Service) recordAgentSyncFailure(ctx context.Context, item domain.Agent,
 		"lastError":    message,
 		"failureCount": item.FailureCount + 1,
 	})
+	s.notifyPendingAlerts(ctx)
 }
 func (s *Service) SyncAgentWithToken(ctx context.Context, id string, token string) error {
 	return s.SyncAgentWithTokenMode(ctx, id, token, SyncFull)
@@ -307,7 +308,8 @@ func (s *Service) SyncVMWithToken(ctx context.Context, id string, token string, 
 	s.evaluateRuntimeAlerts(ctx, item, host, map[string]domain.VirtualMachine{vm.ID: vm})
 	s.notifyPendingAlerts(ctx)
 	_ = s.store.UpdateAgentSyncSuccess(ctx, item.ID, info.KVMVersion, info.Capabilities)
-	_ = s.store.ResolveActiveAlertsBySource(ctx, "agent", item.ID)
+	s.resolveActiveAlertsBySource(ctx, "agent", item.ID)
+	s.notifyPendingAlerts(ctx)
 	return vm, nil
 }
 
@@ -402,7 +404,8 @@ func (s *Service) syncWithToken(ctx context.Context, item domain.Agent, token st
 	s.evaluateRuntimeAlerts(ctx, item, host, vms)
 	s.notifyPendingAlerts(ctx)
 	_ = s.store.UpdateAgentSyncSuccess(ctx, item.ID, info.KVMVersion, info.Capabilities)
-	_ = s.store.ResolveActiveAlertsBySource(ctx, "agent", item.ID)
+	s.resolveActiveAlertsBySource(ctx, "agent", item.ID)
+	s.notifyPendingAlerts(ctx)
 	return nil
 }
 
@@ -429,7 +432,15 @@ func (s *Service) notifyPendingAlerts(ctx context.Context) {
 		return
 	}
 	for _, alert := range alerts {
-		s.notifier.NotifyAlert(ctx, alert)
+		s.queueProblemNotification(ctx, alert)
+	}
+	deliveries, err := s.store.ListPendingAlertNotificationDeliveries(ctx, 50)
+	if err != nil {
+		s.logger.Warn("list pending alert notifications failed", "error", err)
+		return
+	}
+	for _, delivery := range deliveries {
+		s.notifier.NotifyDelivery(ctx, delivery)
 	}
 }
 
@@ -444,7 +455,7 @@ func (s *Service) evaluateHostThresholdAlert(ctx context.Context, item domain.Ag
 		return
 	}
 	s.recordThresholdAlertSample("host", sourceID, title, false)
-	_ = s.store.ResolveActiveAlert(ctx, "host", sourceID, title)
+	s.resolveActiveAlert(ctx, "host", sourceID, title)
 }
 
 func (s *Service) evaluateVMStateAlert(ctx context.Context, item domain.Agent, vm domain.VirtualMachine) {
@@ -453,7 +464,7 @@ func (s *Service) evaluateVMStateAlert(ctx context.Context, item domain.Agent, v
 		_ = s.store.UpsertActiveAlert(ctx, "critical", "virtual_machine", vm.ID+":state", title, fmt.Sprintf("虚拟机 %s 当前状态为 %s", vm.Name, vm.Status), map[string]any{"agent": item.Name, "vm": vm.Name, "status": vm.Status})
 		return
 	}
-	_ = s.store.ResolveActiveAlert(ctx, "virtual_machine", vm.ID+":state", title)
+	s.resolveActiveAlert(ctx, "virtual_machine", vm.ID+":state", title)
 }
 
 func (s *Service) evaluateVMThresholdAlert(ctx context.Context, item domain.Agent, vm domain.VirtualMachine, metric string, value int, available bool, limit int, consecutiveLimit int, key string) {
@@ -467,7 +478,7 @@ func (s *Service) evaluateVMThresholdAlert(ctx context.Context, item domain.Agen
 		return
 	}
 	s.recordThresholdAlertSample("virtual_machine", sourceID, title, false)
-	_ = s.store.ResolveActiveAlert(ctx, "virtual_machine", sourceID, title)
+	s.resolveActiveAlert(ctx, "virtual_machine", sourceID, title)
 }
 
 func (s *Service) recordThresholdAlertSample(sourceType string, sourceID string, title string, exceeded bool) int {

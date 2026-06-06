@@ -107,6 +107,7 @@ func NewRouter(cfg config.Config, store *repository.Store, runtime *realtime.Ser
 	mux.Handle("GET /api/tasks", r.requireAuth(http.HandlerFunc(r.handleListTasks)))
 	mux.Handle("GET /api/audit-logs", r.requireAuth(http.HandlerFunc(r.handleListAuditLogs)))
 	mux.Handle("GET /api/alerts", r.requireAuth(http.HandlerFunc(r.handleListAlerts)))
+	mux.Handle("GET /api/alerts/", r.requireAuth(http.HandlerFunc(r.handleAlertRoute)))
 	mux.Handle("POST /api/alerts/", r.requireAuth(http.HandlerFunc(r.handleAlertRoute)))
 	mux.Handle("GET /api/notifications", r.requireAuth(http.HandlerFunc(r.handleListNotifications)))
 	mux.Handle("GET /api/notifications/unread-count", r.requireAuth(http.HandlerFunc(r.handleUnreadNotificationCount)))

@@ -733,6 +733,33 @@ export type NotificationChannel = {
   updated_at: string;
 };
 
+export type AlertNotificationDelivery = {
+  id: string;
+  alert: Alert;
+  eventType: string;
+  channelId: string;
+  status: string;
+  payload: Record<string, unknown> | string;
+  error: string;
+  retryCount: number;
+  nextRetryAt: string;
+  lastAttemptAt?: string;
+  sentAt?: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type NotificationTemplatePreview = {
+  problemSubject: string;
+  problemText: string;
+  problemWebhook?: Record<string, unknown>;
+  recoverySubject: string;
+  recoveryText: string;
+  recoveryWebhook?: Record<string, unknown>;
+  contentType?: string;
+  messageType?: string;
+};
+
 export type AuthProvider = {
   id: string;
   type: string;
@@ -1410,6 +1437,10 @@ export function resolveAlert(id: string) {
   });
 }
 
+export function fetchAlertDeliveries(id: string) {
+  return apiRequest<ListResponse<AlertNotificationDelivery>>(`/api/alerts/${encodeURIComponent(id)}/deliveries`);
+}
+
 export function fetchNotifications(limit = 20) {
   return apiRequest<ListResponse<Alert>>(`/api/notifications?limit=${limit}`);
 }
@@ -1451,6 +1482,16 @@ export function testNotificationChannel(id: string) {
     `/api/settings/notifications/${encodeURIComponent(id)}/test`,
     { method: 'POST' }
   );
+}
+
+export function previewNotificationChannel(
+  id: string,
+  payload: { enabled: boolean; passwordResetEnabled: boolean; config: Record<string, unknown> }
+) {
+  return apiRequest<NotificationTemplatePreview>(`/api/settings/notifications/${encodeURIComponent(id)}/preview`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
 }
 
 export function fetchPasswordResetCaptcha() {

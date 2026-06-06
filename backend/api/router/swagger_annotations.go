@@ -1266,6 +1266,19 @@ func swaggerListAlerts() {}
 // @Router /api/alerts/{id}/resolve [post]
 func swaggerResolveAlert() {}
 
+// swaggerListAlertDeliveries godoc
+// @Summary 获取告警通知投递历史
+// @Description 返回指定告警的外部通知投递记录，包含告警与恢复事件、媒介、状态、重试次数、错误信息和发送时间。
+// @Tags alerts
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "告警 ID"
+// @Success 200 {object} alertNotificationDeliveryListResponse
+// @Failure 401 {object} errorResponse
+// @Failure 500 {object} errorResponse
+// @Router /api/alerts/{id}/deliveries [get]
+func swaggerListAlertDeliveries() {}
+
 // swaggerListNotifications godoc
 // @Summary 获取通知消息
 // @Description 返回右上角通知中心展示的告警消息，默认仅返回未清空的活跃告警。
@@ -1329,7 +1342,7 @@ func swaggerClearNotifications() {}
 
 // swaggerListNotificationChannels godoc
 // @Summary 获取通知媒介配置
-// @Description 返回 Webhook、邮件、飞书、企业微信和钉钉通知媒介配置。平台内告警通过右上角通知中心展示。邮件 password、飞书/钉钉 secret 不返回明文，已配置时返回 hasPassword 或 hasSecret 标记。需要通知配置查看或管理权限。
+// @Description 返回 Webhook、邮件、飞书、企业微信和钉钉通知媒介配置。平台内告警通过右上角通知中心展示。配置可包含 problemTemplate、recoveryTemplate、sendRecovery，Webhook 可额外包含 webhookProblemPayload、webhookRecoveryPayload。邮件 password、飞书/钉钉 secret 不返回明文，已配置时返回 hasPassword 或 hasSecret 标记。需要通知配置查看或管理权限。
 // @Tags settings
 // @Produce json
 // @Security BearerAuth
@@ -1341,7 +1354,7 @@ func swaggerListNotificationChannels() {}
 
 // swaggerUpdateNotificationChannel godoc
 // @Summary 更新通知媒介配置
-// @Description 通知媒介包含告警通知和找回密码两个独立用途开关；任一用途启用时 Webhook 需要 url，可选 method、headers；邮件需要 smtpHost、smtpPort、username、password、from、to，可选 fromName、useTLS 或 startTLS 且 TLS 与 STARTTLS 不能同时启用；飞书、企业微信、钉钉需要 webhookUrl，飞书和钉钉可选 secret。邮件 password、飞书/钉钉 secret 留空时保留已保存值，填写新值时替换。两个用途都关闭时允许保存空配置，用于清空已保存配置。
+// @Description 通知媒介包含告警通知、恢复通知模板和找回密码用途配置；任一用途启用时 Webhook 需要 url，可选 method、headers、webhookProblemPayload、webhookRecoveryPayload；邮件需要 smtpHost、smtpPort、username、password、from、to，可选 fromName、useTLS、startTLS、problemTemplate、recoveryTemplate、problemSubjectTemplate、recoverySubjectTemplate、emailContentType、sendRecovery 且 TLS 与 STARTTLS 不能同时启用；飞书、企业微信、钉钉需要 webhookUrl，飞书和钉钉可选 secret，并支持 problemTemplate、recoveryTemplate、sendRecovery 和对应消息类型字段 larkMessageType、wechatMessageType、dingtalkMessageType。邮件 password、飞书/钉钉 secret 留空时保留已保存值，填写新值时替换。两个用途都关闭时允许保存空配置，用于清空已保存配置。
 // @Tags settings
 // @Accept json
 // @Produce json
@@ -1368,6 +1381,22 @@ func swaggerUpdateNotificationChannel() {}
 // @Failure 503 {object} errorResponse
 // @Router /api/settings/notifications/{id}/test [post]
 func swaggerTestNotificationChannel() {}
+
+// swaggerPreviewNotificationChannel godoc
+// @Summary 预览通知模板
+// @Description 使用示例告警渲染当前通知媒介配置中的告警模板、恢复模板、邮件主题模板和 Webhook JSON 模板，不发送外部通知。
+// @Tags settings
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "通知媒介 ID"
+// @Param request body notificationChannelRequestDoc true "通知媒介配置"
+// @Success 200 {object} notificationTemplatePreviewDoc
+// @Failure 400 {object} errorResponse
+// @Failure 401 {object} errorResponse
+// @Failure 404 {object} errorResponse
+// @Router /api/settings/notifications/{id}/preview [post]
+func swaggerPreviewNotificationChannel() {}
 
 // swaggerListAuthProviders godoc
 // @Summary 获取认证配置

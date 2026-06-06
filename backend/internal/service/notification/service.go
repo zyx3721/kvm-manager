@@ -26,6 +26,8 @@ import (
 type Store interface {
 	ListNotificationChannels(ctx context.Context) ([]domain.NotificationChannel, error)
 	MarkAlertNotificationSent(ctx context.Context, id string) error
+	MarkAlertNotificationDeliverySent(ctx context.Context, id string) error
+	MarkAlertNotificationDeliveryFailed(ctx context.Context, id string, message string) error
 }
 
 type Service struct {
@@ -39,6 +41,10 @@ func NewService(store Store, logger *slog.Logger) *Service {
 }
 
 func (s *Service) NotifyAlert(ctx context.Context, alert domain.Alert) {
+	s.NotifyAlertEvent(ctx, AlertNotificationEvent{Type: EventTypeProblem, Alert: alert})
+}
+
+func (s *Service) NotifyAlertEvent(ctx context.Context, event AlertNotificationEvent) {
 	channels, err := s.store.ListNotificationChannels(ctx)
 	if err != nil {
 		s.logger.Warn("list notification channels failed", "error", err)
@@ -50,21 +56,63 @@ func (s *Service) NotifyAlert(ctx context.Context, alert domain.Alert) {
 		if !channel.Enabled {
 			continue
 		}
+		if event.Type == EventTypeRecovery && !notificationTemplateConfig(channel.Config).SendRecovery {
+			continue
+		}
 		activeExternalChannels++
-		if err := s.send(ctx, channel, alert); err != nil {
-			s.logger.Warn("send alert notification failed", "channel", channel.ID, "alert", alert.ID, "error", err)
+		if err := s.send(ctx, channel, event); err != nil {
+			s.logger.Warn("send alert notification failed", "channel", channel.ID, "alert", event.Alert.ID, "event", event.Type, "error", err)
 			continue
 		}
 		sent = true
 	}
-	if sent || activeExternalChannels == 0 {
-		_ = s.store.MarkAlertNotificationSent(ctx, alert.ID)
+	if event.Type == EventTypeProblem && (sent || activeExternalChannels == 0) {
+		_ = s.store.MarkAlertNotificationSent(ctx, event.Alert.ID)
 	}
 }
 
+func (s *Service) NotifyDelivery(ctx context.Context, delivery domain.AlertNotificationDelivery) {
+	event := AlertNotificationEvent{Type: delivery.EventType, Alert: delivery.Alert}
+	channel, ok, err := s.notificationChannel(ctx, delivery.ChannelID)
+	if err != nil {
+		s.logger.Warn("list notification channels failed", "error", err)
+		return
+	}
+	if !ok || !channel.Enabled || (event.Type == EventTypeRecovery && !notificationTemplateConfig(channel.Config).SendRecovery) {
+		_ = s.store.MarkAlertNotificationDeliverySent(ctx, delivery.ID)
+		if event.Type == EventTypeProblem {
+			_ = s.store.MarkAlertNotificationSent(ctx, event.Alert.ID)
+		}
+		return
+	}
+	if err := s.send(ctx, channel, event); err != nil {
+		s.logger.Warn("send alert notification failed", "channel", channel.ID, "alert", event.Alert.ID, "event", event.Type, "error", err)
+		_ = s.store.MarkAlertNotificationDeliveryFailed(ctx, delivery.ID, UserFacingErrorMessage(err))
+		return
+	}
+	_ = s.store.MarkAlertNotificationDeliverySent(ctx, delivery.ID)
+	if event.Type == EventTypeProblem {
+		_ = s.store.MarkAlertNotificationSent(ctx, event.Alert.ID)
+	}
+}
+
+func (s *Service) notificationChannel(ctx context.Context, id string) (domain.NotificationChannel, bool, error) {
+	channels, err := s.store.ListNotificationChannels(ctx)
+	if err != nil {
+		return domain.NotificationChannel{}, false, err
+	}
+	for _, channel := range channels {
+		if channel.ID == id {
+			return channel, true, nil
+		}
+	}
+	return domain.NotificationChannel{}, false, nil
+}
+
 func (s *Service) SendTest(ctx context.Context, channel domain.NotificationChannel) error {
-	alert := domain.Alert{ID: "test", Level: "info", Title: "KVM Manager 测试通知", Message: "这是一条通知媒介测试消息", SourceType: "system", SourceID: "notification-test", LastSeenAt: time.Now().UTC()}
-	return s.send(ctx, channel, alert)
+	now := time.Now().UTC()
+	alert := domain.Alert{ID: "test", Level: "info", Status: "active", Title: "KVM Manager 测试通知", Message: "这是一条通知媒介测试消息", SourceType: "system", SourceID: "notification-test", FirstSeenAt: now, LastSeenAt: now}
+	return s.send(ctx, channel, AlertNotificationEvent{Type: EventTypeProblem, Alert: alert})
 }
 
 type PasswordResetMessage struct {
@@ -112,38 +160,38 @@ func (s *Service) SendPasswordReset(ctx context.Context, channel domain.Notifica
 	}
 }
 
-func (s *Service) send(ctx context.Context, channel domain.NotificationChannel, alert domain.Alert) error {
+func (s *Service) send(ctx context.Context, channel domain.NotificationChannel, event AlertNotificationEvent) error {
 	switch channel.ID {
 	case "webhook":
 		var cfg webhookConfig
 		if err := decodeConfig(channel.Config, &cfg); err != nil {
 			return err
 		}
-		return s.sendWebhook(ctx, cfg, alert)
+		return s.sendWebhook(ctx, cfg, event)
 	case "lark":
 		var cfg robotConfig
 		if err := decodeConfig(channel.Config, &cfg); err != nil {
 			return err
 		}
-		return s.sendLark(ctx, cfg, alert)
+		return s.sendLark(ctx, cfg, event)
 	case "wechat":
 		var cfg robotConfig
 		if err := decodeConfig(channel.Config, &cfg); err != nil {
 			return err
 		}
-		return s.sendWechat(ctx, cfg, alert)
+		return s.sendWechat(ctx, cfg, event)
 	case "dingtalk":
 		var cfg robotConfig
 		if err := decodeConfig(channel.Config, &cfg); err != nil {
 			return err
 		}
-		return s.sendDingTalk(ctx, cfg, alert)
+		return s.sendDingTalk(ctx, cfg, event)
 	case "email":
 		var cfg emailConfig
 		if err := decodeConfig(channel.Config, &cfg); err != nil {
 			return err
 		}
-		return sendEmail(cfg, alert)
+		return sendEmail(cfg, event)
 	default:
 		return fmt.Errorf("不支持的通知媒介 %s", channel.ID)
 	}
@@ -175,11 +223,13 @@ type webhookConfig struct {
 	Method  string            `json:"method"`
 	Secret  string            `json:"secret"`
 	Headers map[string]string `json:"headers"`
+	templateConfig
 }
 
 type robotConfig struct {
 	WebhookURL string `json:"webhookUrl"`
 	Secret     string `json:"secret"`
+	templateConfig
 }
 
 type emailConfig struct {
@@ -192,6 +242,7 @@ type emailConfig struct {
 	To       []string `json:"to"`
 	UseTLS   bool     `json:"useTLS"`
 	StartTLS bool     `json:"startTLS"`
+	templateConfig
 }
 
 func decodeConfig(data []byte, target any) error {
@@ -201,7 +252,7 @@ func decodeConfig(data []byte, target any) error {
 	return json.Unmarshal(data, target)
 }
 
-func (s *Service) sendWebhook(ctx context.Context, cfg webhookConfig, alert domain.Alert) error {
+func (s *Service) sendWebhook(ctx context.Context, cfg webhookConfig, event AlertNotificationEvent) error {
 	if strings.TrimSpace(cfg.URL) == "" {
 		return fmt.Errorf("Webhook URL 不能为空")
 	}
@@ -212,7 +263,10 @@ func (s *Service) sendWebhook(ctx context.Context, cfg webhookConfig, alert doma
 	if method != http.MethodPost && method != http.MethodPut && method != http.MethodPatch {
 		return fmt.Errorf("Webhook 请求方法仅支持 POST、PUT 或 PATCH")
 	}
-	payload := map[string]any{"id": alert.ID, "level": alert.Level, "title": alert.Title, "message": alert.Message, "sourceType": alert.SourceType, "sourceId": alert.SourceID, "lastSeenAt": alert.LastSeenAt.Format(time.RFC3339)}
+	payload, err := alertWebhookPayload(event, cfg.templateConfig)
+	if err != nil {
+		return err
+	}
 	return s.postJSON(ctx, method, cfg.URL, payload, cfg.Headers)
 }
 
@@ -238,14 +292,72 @@ func (s *Service) sendPasswordResetWebhook(ctx context.Context, cfg webhookConfi
 	return s.postJSON(ctx, method, cfg.URL, payload, cfg.Headers)
 }
 
-func (s *Service) sendLark(ctx context.Context, cfg robotConfig, alert domain.Alert) error {
-	payload := map[string]any{"msg_type": "text", "content": map[string]string{"text": alertText(alert)}}
+func (s *Service) sendLark(ctx context.Context, cfg robotConfig, event AlertNotificationEvent) error {
+	payload := larkAlertPayload(event, cfg.templateConfig)
 	if secret := strings.TrimSpace(cfg.Secret); secret != "" {
 		timestamp := strconv.FormatInt(time.Now().Unix(), 10)
 		payload["timestamp"] = timestamp
 		payload["sign"] = signLark(timestamp, secret)
 	}
 	return s.postJSON(ctx, http.MethodPost, cfg.WebhookURL, payload, nil)
+}
+
+func larkAlertPayload(event AlertNotificationEvent, cfg templateConfig) map[string]any {
+	subject := alertSubject(event, cfg)
+	text := alertText(event, cfg)
+	switch larkMessageType(cfg) {
+	case "post":
+		return map[string]any{
+			"msg_type": "post",
+			"content": map[string]any{
+				"post": map[string]any{
+					"zh_cn": map[string]any{
+						"title":   subject,
+						"content": larkPostContent(text),
+					},
+				},
+			},
+		}
+	case "interactive":
+		return map[string]any{
+			"msg_type": "interactive",
+			"card": map[string]any{
+				"config": map[string]bool{"wide_screen_mode": true},
+				"header": map[string]any{
+					"template": larkCardTemplate(event),
+					"title":    map[string]string{"tag": "plain_text", "content": subject},
+				},
+				"elements": []map[string]any{
+					{"tag": "div", "text": map[string]string{"tag": "lark_md", "content": text}},
+				},
+			},
+		}
+	default:
+		return map[string]any{"msg_type": "text", "content": map[string]string{"text": text}}
+	}
+}
+
+func larkPostContent(text string) [][]map[string]string {
+	lines := strings.Split(text, "\n")
+	content := make([][]map[string]string, 0, len(lines))
+	for _, line := range lines {
+		content = append(content, []map[string]string{{"tag": "text", "text": line}})
+	}
+	return content
+}
+
+func larkCardTemplate(event AlertNotificationEvent) string {
+	if event.Type == EventTypeRecovery {
+		return "green"
+	}
+	switch event.Alert.Level {
+	case "critical":
+		return "red"
+	case "warning":
+		return "orange"
+	default:
+		return "blue"
+	}
 }
 
 func (s *Service) sendLarkMarkdown(ctx context.Context, cfg robotConfig, text string) error {
@@ -282,15 +394,19 @@ func (s *Service) sendLarkPasswordResetCard(ctx context.Context, cfg robotConfig
 	return s.postJSON(ctx, http.MethodPost, cfg.WebhookURL, payload, nil)
 }
 
-func (s *Service) sendWechat(ctx context.Context, cfg robotConfig, alert domain.Alert) error {
-	return s.postJSON(ctx, http.MethodPost, cfg.WebhookURL, map[string]any{"msgtype": "text", "text": map[string]string{"content": alertText(alert)}}, nil)
+func (s *Service) sendWechat(ctx context.Context, cfg robotConfig, event AlertNotificationEvent) error {
+	text := alertText(event, cfg.templateConfig)
+	if wechatMessageType(cfg.templateConfig) == "markdown" {
+		return s.postJSON(ctx, http.MethodPost, cfg.WebhookURL, map[string]any{"msgtype": "markdown", "markdown": map[string]string{"content": text}}, nil)
+	}
+	return s.postJSON(ctx, http.MethodPost, cfg.WebhookURL, map[string]any{"msgtype": "text", "text": map[string]string{"content": text}}, nil)
 }
 
 func (s *Service) sendWechatMarkdown(ctx context.Context, cfg robotConfig, text string) error {
 	return s.postJSON(ctx, http.MethodPost, cfg.WebhookURL, map[string]any{"msgtype": "markdown", "markdown": map[string]string{"content": text}}, nil)
 }
 
-func (s *Service) sendDingTalk(ctx context.Context, cfg robotConfig, alert domain.Alert) error {
+func (s *Service) sendDingTalk(ctx context.Context, cfg robotConfig, event AlertNotificationEvent) error {
 	webhookURL := cfg.WebhookURL
 	if secret := strings.TrimSpace(cfg.Secret); secret != "" {
 		var err error
@@ -299,7 +415,11 @@ func (s *Service) sendDingTalk(ctx context.Context, cfg robotConfig, alert domai
 			return err
 		}
 	}
-	return s.postJSON(ctx, http.MethodPost, webhookURL, map[string]any{"msgtype": "text", "text": map[string]string{"content": alertText(alert)}}, nil)
+	text := alertText(event, cfg.templateConfig)
+	if dingTalkMessageType(cfg.templateConfig) == "markdown" {
+		return s.postJSON(ctx, http.MethodPost, webhookURL, map[string]any{"msgtype": "markdown", "markdown": map[string]string{"title": alertSubject(event, cfg.templateConfig), "text": dingtalkMarkdownLineBreaks(text)}}, nil)
+	}
+	return s.postJSON(ctx, http.MethodPost, webhookURL, map[string]any{"msgtype": "text", "text": map[string]string{"content": text}}, nil)
 }
 
 func (s *Service) sendDingTalkMarkdown(ctx context.Context, cfg robotConfig, title, text string) error {
@@ -363,7 +483,7 @@ func signDingTalkURL(rawURL string, secret string) (string, error) {
 	return parsed.String(), nil
 }
 
-func sendEmail(cfg emailConfig, alert domain.Alert) error {
+func sendEmail(cfg emailConfig, event AlertNotificationEvent) error {
 	if cfg.SMTPHost == "" {
 		return fmt.Errorf("SMTP 主机不能为空")
 	}
@@ -383,8 +503,39 @@ func sendEmail(cfg emailConfig, alert domain.Alert) error {
 		return fmt.Errorf("收件人不能为空")
 	}
 	addr := fmt.Sprintf("%s:%d", cfg.SMTPHost, cfg.SMTPPort)
-	message := []byte("From: " + formatMailFrom(cfg) + "\r\n" + "To: " + strings.Join(cfg.To, ",") + "\r\n" + "Subject: " + alert.Title + "\r\n" + "Content-Type: text/plain; charset=UTF-8\r\n\r\n" + alertText(alert))
+	subject := alertSubject(event, cfg.templateConfig)
+	message := []byte("From: " + formatMailFrom(cfg) + "\r\n" + "To: " + strings.Join(cfg.To, ",") + "\r\n" + "Subject: " + subject + "\r\n" + "Content-Type: " + emailContentType(cfg.templateConfig) + "; charset=UTF-8\r\n\r\n" + alertText(event, cfg.templateConfig))
 	return sendSMTPMessage(cfg, addr, cfg.To, message)
+}
+
+func emailContentType(cfg templateConfig) string {
+	if strings.EqualFold(strings.TrimSpace(cfg.EmailContentType), "text/html") {
+		return "text/html"
+	}
+	return "text/plain"
+}
+
+func larkMessageType(cfg templateConfig) string {
+	switch strings.ToLower(strings.TrimSpace(cfg.LarkMessageType)) {
+	case "post", "interactive":
+		return strings.ToLower(strings.TrimSpace(cfg.LarkMessageType))
+	default:
+		return "text"
+	}
+}
+
+func wechatMessageType(cfg templateConfig) string {
+	if strings.EqualFold(strings.TrimSpace(cfg.WechatMessageType), "markdown") {
+		return "markdown"
+	}
+	return "text"
+}
+
+func dingTalkMessageType(cfg templateConfig) string {
+	if strings.EqualFold(strings.TrimSpace(cfg.DingTalkMessageType), "markdown") {
+		return "markdown"
+	}
+	return "text"
 }
 
 func sendPasswordResetEmail(cfg emailConfig, message PasswordResetMessage) error {
@@ -490,10 +641,6 @@ func dialStartTLSSMTP(addr string, host string) (*smtp.Client, error) {
 		return nil, err
 	}
 	return client, nil
-}
-
-func alertText(alert domain.Alert) string {
-	return fmt.Sprintf("[%s] %s\n%s\n来源：%s/%s", alert.Level, alert.Title, alert.Message, alert.SourceType, alert.SourceID)
 }
 
 func passwordResetRobotText(message PasswordResetMessage) string {

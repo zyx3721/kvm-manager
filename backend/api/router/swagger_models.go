@@ -147,6 +147,11 @@ type alertListResponse struct {
 	Total int            `json:"total"`
 }
 
+type alertNotificationDeliveryListResponse struct {
+	Items []domain.AlertNotificationDelivery `json:"items"`
+	Total int                                `json:"total"`
+}
+
 type unreadNotificationCountResponse struct {
 	Count int `json:"count" example:"3"`
 }
@@ -201,6 +206,17 @@ type notificationChannelRequestDoc struct {
 	Enabled              bool           `json:"enabled" example:"true"`
 	PasswordResetEnabled bool           `json:"passwordResetEnabled" example:"false"`
 	Config               map[string]any `json:"config" swaggertype:"object"`
+}
+
+type notificationTemplatePreviewDoc struct {
+	ProblemSubject  string         `json:"problemSubject"`
+	ProblemText     string         `json:"problemText"`
+	ProblemWebhook  map[string]any `json:"problemWebhook,omitempty" swaggertype:"object"`
+	RecoverySubject string         `json:"recoverySubject"`
+	RecoveryText    string         `json:"recoveryText"`
+	RecoveryWebhook map[string]any `json:"recoveryWebhook,omitempty" swaggertype:"object"`
+	ContentType     string         `json:"contentType,omitempty"`
+	MessageType     string         `json:"messageType,omitempty"`
 }
 
 type authProviderRequestDoc struct {

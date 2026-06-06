@@ -61,7 +61,17 @@
 
 ### 1.3 告警日志
 
-告警日志写入 `alerts` 表，主要用于记录平台运行态异常。
+告警日志写入 `alerts` 表，主要用于记录平台运行态异常。外部告警和恢复通知的投递状态写入 `alert_notification_deliveries` 表，用于区分告警触发、告警恢复、不同通知媒介和发送结果。
+
+外部通知投递记录包含以下排查字段：
+
+- `event_type`：区分告警触发 `problem` 与告警恢复 `recovery`。
+- `channel_id`：记录 Webhook、邮件、飞书、企业微信或钉钉媒介。
+- `status`：记录 `pending`、`sent` 或 `failed`。
+- `retry_count`、`next_retry_at`、`last_attempt_at`：记录失败重试次数、下次重试时间和最近尝试时间。
+- `error`、`sent_at`：记录用户可见错误原因和发送成功时间。
+
+恢复事件只会为 `config.sendRecovery=true` 的告警通知媒介创建投递记录。投递失败会按退避策略重新进入 `pending`，达到最大重试次数后保持 `failed`，不写入用户审计日志。
 
 适合写入告警的场景：
 
@@ -178,12 +188,15 @@
 | 操作 | 任务 | 审计 | 告警 | 说明 |
 | :-: | :-: | :-: | :-: | :-: |
 | 告警列表读取 | 否 | 否 | 否 | 只读查询 |
-| 手动解决告警 | 否 | 是 | 是 | 写入 `alert.resolve` 并更新告警状态 |
+| 手动解决告警 | 否 | 是 | 是 | 写入 `alert.resolve` 并更新告警状态；启用恢复通知时写入恢复通知投递记录 |
 | 通知列表读取 | 否 | 否 | 否 | 只读查询 |
 | 单条通知标记已读 | 否 | 是 | 是 | 写入 `notification.read` 并更新告警通知状态 |
 | 全部通知标记已读 | 否 | 是 | 是 | 写入 `notification.read_all` |
 | 清空通知中心 | 否 | 是 | 是 | 写入 `notification.clear`，不解决告警 |
-| 外部告警通知发送成功 | 否 | 否 | 是 | 更新 `notificationSentAt`，不写用户审计 |
+| 外部告警通知发送成功 | 否 | 否 | 是 | 更新 `alert_notification_deliveries.status/sent_at/last_attempt_at`，触发通知成功时同步更新 `notificationSentAt`，不写用户审计 |
+| 外部告警通知发送失败 | 否 | 否 | 是 | 更新 `alert_notification_deliveries.error/retry_count/next_retry_at/last_attempt_at`，按退避策略重试，达到上限后置为 `failed` |
+| 外部恢复通知发送成功 | 否 | 否 | 是 | 更新 `alert_notification_deliveries.status/sent_at/last_attempt_at`，不写用户审计 |
+| 外部恢复通知发送失败 | 否 | 否 | 是 | 更新 `alert_notification_deliveries.error/retry_count/next_retry_at/last_attempt_at`，按退避策略重试，达到上限后置为 `failed` |
 
 ### 2.8 系统配置与权限
 

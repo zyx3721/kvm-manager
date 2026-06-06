@@ -423,6 +423,52 @@
                 }
             }
         },
+        "/api/alerts/{id}/deliveries": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "返回指定告警的外部通知投递记录，包含告警与恢复事件、媒介、状态、重试次数、错误信息和发送时间。",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "alerts"
+                ],
+                "summary": "获取告警通知投递历史",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "告警 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/router.alertNotificationDeliveryListResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/router.errorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/router.errorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/alerts/{id}/resolve": {
             "post": {
                 "security": [
@@ -2415,7 +2461,7 @@
                         "BearerAuth": []
                     }
                 ],
-                "description": "返回 Webhook、邮件、飞书、企业微信和钉钉通知媒介配置。平台内告警通过右上角通知中心展示。邮件 password、飞书/钉钉 secret 不返回明文，已配置时返回 hasPassword 或 hasSecret 标记。需要通知配置查看或管理权限。",
+                "description": "返回 Webhook、邮件、飞书、企业微信和钉钉通知媒介配置。平台内告警通过右上角通知中心展示。配置可包含 problemTemplate、recoveryTemplate、sendRecovery，Webhook 可额外包含 webhookProblemPayload、webhookRecoveryPayload。邮件 password、飞书/钉钉 secret 不返回明文，已配置时返回 hasPassword 或 hasSecret 标记。需要通知配置查看或管理权限。",
                 "produces": [
                     "application/json"
                 ],
@@ -2452,7 +2498,7 @@
                         "BearerAuth": []
                     }
                 ],
-                "description": "通知媒介包含告警通知和找回密码两个独立用途开关；任一用途启用时 Webhook 需要 url，可选 method、headers；邮件需要 smtpHost、smtpPort、username、password、from、to，可选 fromName、useTLS 或 startTLS 且 TLS 与 STARTTLS 不能同时启用；飞书、企业微信、钉钉需要 webhookUrl，飞书和钉钉可选 secret。邮件 password、飞书/钉钉 secret 留空时保留已保存值，填写新值时替换。两个用途都关闭时允许保存空配置，用于清空已保存配置。",
+                "description": "通知媒介包含告警通知、恢复通知模板和找回密码用途配置；任一用途启用时 Webhook 需要 url，可选 method、headers、webhookProblemPayload、webhookRecoveryPayload；邮件需要 smtpHost、smtpPort、username、password、from、to，可选 fromName、useTLS、startTLS、problemTemplate、recoveryTemplate、problemSubjectTemplate、recoverySubjectTemplate、emailContentType、sendRecovery 且 TLS 与 STARTTLS 不能同时启用；飞书、企业微信、钉钉需要 webhookUrl，飞书和钉钉可选 secret，并支持 problemTemplate、recoveryTemplate、sendRecovery 和对应消息类型字段 larkMessageType、wechatMessageType、dingtalkMessageType。邮件 password、飞书/钉钉 secret 留空时保留已保存值，填写新值时替换。两个用途都关闭时允许保存空配置，用于清空已保存配置。",
                 "consumes": [
                     "application/json"
                 ],
@@ -2508,6 +2554,70 @@
                     },
                     "500": {
                         "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/router.errorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/settings/notifications/{id}/preview": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "使用示例告警渲染当前通知媒介配置中的告警模板、恢复模板、邮件主题模板和 Webhook JSON 模板，不发送外部通知。",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "settings"
+                ],
+                "summary": "预览通知模板",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "通知媒介 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "通知媒介配置",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/router.notificationChannelRequestDoc"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/router.notificationTemplatePreviewDoc"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/router.errorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/router.errorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
                         "schema": {
                             "$ref": "#/definitions/router.errorResponse"
                         }
@@ -7072,6 +7182,50 @@
                 }
             }
         },
+        "domain.AlertNotificationDelivery": {
+            "type": "object",
+            "properties": {
+                "alert": {
+                    "$ref": "#/definitions/domain.Alert"
+                },
+                "channelId": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "error": {
+                    "type": "string"
+                },
+                "eventType": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "lastAttemptAt": {
+                    "type": "string"
+                },
+                "nextRetryAt": {
+                    "type": "string"
+                },
+                "payload": {
+                    "type": "object"
+                },
+                "retryCount": {
+                    "type": "integer"
+                },
+                "sentAt": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
         "domain.AuditLog": {
             "type": "object",
             "properties": {
@@ -7822,6 +7976,20 @@
                 }
             }
         },
+        "router.alertNotificationDeliveryListResponse": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/domain.AlertNotificationDelivery"
+                    }
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
         "router.auditLogListResponse": {
             "type": "object",
             "properties": {
@@ -8332,6 +8500,35 @@
                 "passwordResetEnabled": {
                     "type": "boolean",
                     "example": false
+                }
+            }
+        },
+        "router.notificationTemplatePreviewDoc": {
+            "type": "object",
+            "properties": {
+                "contentType": {
+                    "type": "string"
+                },
+                "messageType": {
+                    "type": "string"
+                },
+                "problemSubject": {
+                    "type": "string"
+                },
+                "problemText": {
+                    "type": "string"
+                },
+                "problemWebhook": {
+                    "type": "object"
+                },
+                "recoverySubject": {
+                    "type": "string"
+                },
+                "recoveryText": {
+                    "type": "string"
+                },
+                "recoveryWebhook": {
+                    "type": "object"
                 }
             }
         },

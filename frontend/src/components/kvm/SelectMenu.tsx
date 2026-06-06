@@ -18,7 +18,9 @@ export function SelectMenu({
   placeholder,
   disabled,
   className = '',
+  buttonClassName = '',
   menuClassName = '',
+  optionClassName = '',
   menuZIndex = 1200,
   maxVisibleItems,
   placement: preferredPlacement = 'auto',
@@ -30,7 +32,9 @@ export function SelectMenu({
   placeholder: string;
   disabled?: boolean;
   className?: string;
+  buttonClassName?: string;
   menuClassName?: string;
+  optionClassName?: string;
   menuZIndex?: number;
   maxVisibleItems?: number;
   placement?: 'auto' | 'bottom' | 'top';
@@ -94,7 +98,10 @@ export function SelectMenu({
         type="button"
         disabled={closed}
         onClick={() => setOpen(next => !next)}
-        className="kvm-action-button flex h-10 w-full cursor-pointer items-center justify-between gap-3 rounded-lg border px-3 text-left text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-60"
+        className={
+          'kvm-action-button flex h-10 w-full cursor-pointer items-center justify-between gap-3 rounded-lg border px-3 text-left text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-60 ' +
+          buttonClassName
+        }
         style={{
           background: 'var(--kvm-control-bg)',
           borderColor: open ? 'rgba(45,212,191,0.45)' : 'var(--kvm-border)',
@@ -147,7 +154,10 @@ export function SelectMenu({
                   onChange(item.value);
                   setOpen(false);
                 }}
-                className="group flex h-10 w-full cursor-pointer items-center justify-between gap-3 rounded-md px-3 text-left text-sm font-semibold transition-colors hover:bg-[rgba(45,212,191,0.1)] disabled:cursor-not-allowed disabled:opacity-50"
+                className={
+                  'group flex h-10 w-full cursor-pointer items-center justify-between gap-3 rounded-md px-3 text-left text-sm font-semibold transition-colors hover:bg-[rgba(45,212,191,0.1)] disabled:cursor-not-allowed disabled:opacity-50 ' +
+                  optionClassName
+                }
                 style={{
                   background: active ? 'rgba(45,212,191,0.14)' : undefined,
                   color: active ? '#99f6e4' : 'var(--kvm-text)',

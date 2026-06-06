@@ -163,6 +163,10 @@ func (r *router) handleAgentDelete(w http.ResponseWriter, req *http.Request, id 
 		writeError(w, http.StatusInternalServerError, "get_agent_failed", "读取 Agent 失败")
 		return
 	}
+	resolvedAlerts, err := r.store.ResolveActiveAlertsBySourceReturning(req.Context(), "agent", id)
+	if err != nil {
+		r.logger.Warn("resolve agent alerts before delete failed", "error", err, "agent", id)
+	}
 	if err := r.store.DeleteAgent(req.Context(), id); err != nil {
 		if errors.Is(err, repository.ErrNotFound) {
 			writeError(w, http.StatusNotFound, "agent_not_found", "Agent 不存在")
@@ -172,8 +176,8 @@ func (r *router) handleAgentDelete(w http.ResponseWriter, req *http.Request, id 
 		writeError(w, http.StatusInternalServerError, "delete_agent_failed", "删除 Agent 失败")
 		return
 	}
-	if err := r.store.ResolveActiveAlertsBySource(req.Context(), "agent", id); err != nil {
-		r.logger.Warn("resolve agent alerts after delete failed", "error", err, "agent", id)
+	if len(resolvedAlerts) > 0 {
+		r.runtime.QueueResolvedAlertNotifications(req.Context(), resolvedAlerts)
 	}
 	r.runtime.RemoveAgent(id)
 	r.runtime.Broadcast("runtime.updated")

@@ -50,6 +50,10 @@ func (r *router) handleNotificationRoute(w http.ResponseWriter, req *http.Reques
 		r.handleTestNotificationChannel(w, req, id)
 		return
 	}
+	if req.Method == http.MethodPost && action == "preview" {
+		r.handlePreviewNotificationChannel(w, req, id)
+		return
+	}
 	writeError(w, http.StatusMethodNotAllowed, "method_not_allowed", "请求方法不支持")
 }
 
@@ -100,6 +104,36 @@ func (r *router) handleTestNotificationChannel(w http.ResponseWriter, req *http.
 	}
 	_ = r.store.WriteAudit(req.Context(), currentSession(req).User.ID, "settings.notification.test", "notification_channel", id, repository.ClientIP(req), map[string]any{})
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+}
+
+func (r *router) handlePreviewNotificationChannel(w http.ResponseWriter, req *http.Request, id string) {
+	if !isNotificationChannelID(id) {
+		writeError(w, http.StatusNotFound, "notification_not_found", "通知媒介不存在")
+		return
+	}
+	defer req.Body.Close()
+	var body notificationChannelRequest
+	if err := decodeJSONBody(w, req, &body); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid_request", "通知配置格式不正确")
+		return
+	}
+	previous, _ := r.store.GetNotificationChannel(req.Context(), id)
+	config, err := sanitizeNotificationConfigWithPrevious(id, body.Config, notificationConfigMap(previous.Config), false)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid_notification_config", notification.UserFacingErrorMessage(err))
+		return
+	}
+	configBytes, err := json.Marshal(config)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid_notification_config", "通知配置格式不正确")
+		return
+	}
+	preview, err := notification.PreviewTemplateConfig(id, configBytes)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid_notification_template", notification.UserFacingErrorMessage(err))
+		return
+	}
+	writeJSON(w, http.StatusOK, preview)
 }
 
 func isNotificationChannelID(id string) bool {
@@ -156,8 +190,16 @@ func sanitizeNotificationConfigWithPrevious(id string, config map[string]any, pr
 				return nil, fmt.Errorf("请求头 JSON 格式不正确")
 			}
 		}
-		return removeEmptyConfigValues(config), nil
+		config = removeEmptyConfigValues(config)
+		configBytes, _ := json.Marshal(config)
+		if err := notification.ValidateTemplateConfig(configBytes); err != nil {
+			return nil, err
+		}
+		return config, nil
 	case "email":
+		if contentType := stringValue(config["emailContentType"]); contentType != "" && contentType != "text/plain" && contentType != "text/html" {
+			return nil, fmt.Errorf("邮件内容类型仅支持 text/plain 或 text/html")
+		}
 		if value, ok := config["to"].(string); ok {
 			parts := strings.Split(value, ",")
 			items := make([]string, 0, len(parts))
@@ -195,10 +237,31 @@ func sanitizeNotificationConfigWithPrevious(id string, config map[string]any, pr
 		} else if numberValue(config["smtpPort"]) <= 0 {
 			return nil, fmt.Errorf("SMTP 端口不能为空")
 		}
-	case "lark", "wechat", "dingtalk":
+	case "lark":
 		if strings.TrimSpace(stringValue(config["webhookUrl"])) == "" {
 			return nil, fmt.Errorf("机器人 Webhook 不能为空")
 		}
+		if messageType := stringValue(config["larkMessageType"]); messageType != "" && messageType != "text" && messageType != "post" && messageType != "interactive" {
+			return nil, fmt.Errorf("飞书消息类型仅支持 text、post 或 interactive")
+		}
+	case "wechat":
+		if strings.TrimSpace(stringValue(config["webhookUrl"])) == "" {
+			return nil, fmt.Errorf("机器人 Webhook 不能为空")
+		}
+		if messageType := stringValue(config["wechatMessageType"]); messageType != "" && messageType != "text" && messageType != "markdown" {
+			return nil, fmt.Errorf("企业微信消息类型仅支持 text 或 markdown")
+		}
+	case "dingtalk":
+		if strings.TrimSpace(stringValue(config["webhookUrl"])) == "" {
+			return nil, fmt.Errorf("机器人 Webhook 不能为空")
+		}
+		if messageType := stringValue(config["dingtalkMessageType"]); messageType != "" && messageType != "text" && messageType != "markdown" {
+			return nil, fmt.Errorf("钉钉消息类型仅支持 text 或 markdown")
+		}
+	}
+	configBytes, _ := json.Marshal(config)
+	if err := notification.ValidateTemplateConfig(configBytes); err != nil {
+		return nil, err
 	}
 	return config, nil
 }

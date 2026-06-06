@@ -26,6 +26,18 @@ KVM Manager 用于统一管理多台 KVM 宿主机上的虚拟化资源。控制
 
 项目当前采用“后端定时刷新任务 + Redis 运行态缓存 + SSE 通知”的实时架构：后端按 `RUNTIME_SYNC_INTERVAL` 创建或复用全局运行态轻量刷新任务，任务执行时向 Agent 拉取宿主机和虚拟机运行态数据并优先写入 Redis 缓存，再通过 SSE 通知页面更新；后端按 `RUNTIME_DEEP_SYNC_INTERVAL` 低频执行 full 深度刷新，用于补采 IP、操作系统、内存、磁盘和快照等重字段。右上角全量刷新图标或手动 `/api/refresh` 会触发 full 全量刷新并采集快照。虚拟机内存使用率按 `actual - usable` 计算，缺少 `usable` 时使用 `available` 兜底；虚拟机磁盘总容量来自 `domblkinfo Capacity`，使用大小和使用率来自 `virt-df --csv` 的客户机文件系统 Used。刷新入口、页面刷新范围和 fast/full 边界详见 `docs/frontend-refresh-functions.md`，虚拟机采集字段和计算口径详见 `docs/vm-info-collection.md`。
 
+## 1.2 项目预览
+
+|                   项目登录页                   |
+| :--------------------------------------------: |
+| ![login](.github/images/kvm-manager-login.jpg) |
+
+|                   项目首页                   |
+| :------------------------------------------: |
+| ![home](.github/images/kvm-manager-home.jpg) |
+
+
+
 ## 1.2 核心功能
 
 - **用户认证**：管理员初始化、JWT 会话、登录状态校验、修改密码与注销。
@@ -126,7 +138,7 @@ kvm-manager/
 │       │   ├── host-interfaces/    # 宿主机接口页面、创建弹窗、地址配置与校验工具
 │       │   ├── operations/         # 任务、告警与操作记录页面 OperationsPage
 │       │   ├── settings/           # 用户、认证与通知配置页面 SettingsPage
-│       │   │   └── components/     # 用户配置、角色权限、权限补齐规则与群组维护组件
+│       │   │   └── components/     # 用户配置、通知模板、角色权限、权限补齐规则与群组维护组件
 │       │   ├── storage-pools/      # 存储池页面 StoragePoolsPage
 │       │   │   ├── components/     # 存储池徽标、创建弹窗、详情弹窗、ISO 上传弹窗、卷克隆弹窗、错误提示与样式工具
 │       │   │   └── utils/          # 存储池上传任务与容量用量展示工具
@@ -831,6 +843,7 @@ server {
 任务、审计和告警分别用于记录后台任务进度、用户关键操作和平台运行态异常；具体覆盖范围、失败记录规则和后续开发同步要求详见 `docs/operation-log-coverage.md`。
 
 - `GET /api/alerts?status=active&q=严重&metadataKey=metric&metadataValue=disk&limit=50&page=1` - 获取告警列表，可按 `status`、`q` 与告警元数据 JSON 顶层字段搜索过滤，`q` 可匹配级别、状态、标题、消息、来源和外部通知状态，`metadataKey` 为空时 `metadataValue` 在整段元数据 JSON 中模糊搜索，`metadataValue` 为空时匹配存在该字段的告警，`limit` 支持 `30`、`50`、`100`、`200`、`all`，`page` 从 1 开始
+- `GET /api/alerts/{id}/deliveries` - 获取指定告警的外部通知投递历史，包含告警 / 恢复事件、媒介、状态、重试次数、错误信息、下次重试时间和发送时间
 - `POST /api/alerts/{id}/resolve` - 手动解决活跃告警，并写入审计日志
 - `GET /api/notifications?limit=20` - 获取右上角通知中心消息，默认展示未清空的活跃告警
 - `POST /api/notifications/clear` - 清空通知中心消息，不会解决告警，并写入审计日志
@@ -923,9 +936,10 @@ server {
 - `POST /api/settings/auth-providers/{id}/test` - 使用已保存认证配置测试连接，并返回匹配用户数量
 - `GET /api/settings/base-config` - 获取基础配置，包含网站名称、认证页品牌名称、控制台品牌名称、控制台品牌副标题、图标、安全时效、资源阈值和 Agent 判定参数；需要基础配置查看或管理权限
 - `PUT /api/settings/base-config` - 更新基础配置，图标支持站内路径或图片 Data URL；可调整找回密码安全时效、前端 CPU/内存/磁盘百分比条颜色阈值、后端资源告警阈值、资源告警连续次数和 Agent 离线判定次数；需要基础配置管理权限
-- `GET /api/settings/notifications` - 获取通知媒介列表，包含 Webhook、邮件、飞书、企业微信和钉钉，以及告警通知与找回密码两个用途开关；需要通知配置查看或管理权限；邮件 `password`、飞书/钉钉 `secret` 不返回明文，已配置时分别返回 `hasPassword=true` 或 `hasSecret=true`
-- `PUT /api/settings/notifications/{id}` - 更新指定通知媒介的告警通知开关、找回密码开关和配置，`id` 支持 `webhook`、`email`、`lark`、`wechat`、`dingtalk`；两个用途都关闭时允许保存空配置以清空已保存配置；邮件 `password`、飞书/钉钉 `secret` 留空时保留已保存值，填写新值时替换
+- `GET /api/settings/notifications` - 获取通知媒介列表，包含 Webhook、邮件、飞书、企业微信和钉钉，以及告警通知与找回密码两个用途开关、自定义告警模板、恢复模板和恢复通知开关；需要通知配置查看或管理权限；邮件 `password`、飞书/钉钉 `secret` 不返回明文，已配置时分别返回 `hasPassword=true` 或 `hasSecret=true`
+- `PUT /api/settings/notifications/{id}` - 更新指定通知媒介的告警通知开关、找回密码开关和配置，`id` 支持 `webhook`、`email`、`lark`、`wechat`、`dingtalk`；配置可包含 `problemTemplate`、`recoveryTemplate`、`problemSubjectTemplate`、`recoverySubjectTemplate`、`sendRecovery`，邮件可包含 `emailContentType`，飞书、企业微信和钉钉可分别包含 `larkMessageType`、`wechatMessageType`、`dingtalkMessageType`，Webhook 还可包含 `webhookProblemPayload`、`webhookRecoveryPayload`；两个用途都关闭时允许保存空配置以清空已保存配置；邮件 `password`、飞书/钉钉 `secret` 留空时保留已保存值，填写新值时替换
 - `POST /api/settings/notifications/{id}/test` - 使用已保存配置发送一条测试通知
+- `POST /api/settings/notifications/{id}/preview` - 使用示例告警预览当前配置中的告警模板、恢复模板、邮件主题模板和 Webhook JSON 模板，不发送外部通知
 - `GET /api/settings/permissions` - 获取可分配到角色的权限点，返回权限 key、名称、描述、分类和可选的 `impliedReadPermission` 操作权限补齐查看权限规则；需要用户配置查看或管理权限
 - `GET /api/settings/roles` - 获取用户角色列表，默认包含 `admin`、`operator`、`viewer`；需要用户配置查看或管理权限
 - `POST /api/settings/roles` - 创建自定义角色
@@ -989,10 +1003,23 @@ server {
 
 通知媒介用途规则：
 
-- 通知媒介包含“告警通知”和“找回密码”两个独立用途开关。
+- 通知媒介包含“告警通知”“恢复通知”和“找回密码”用途配置。
 - 告警通知开关控制活跃告警是否推送到该外部媒介。
+- 恢复通知开关保存在 `config.sendRecovery`，仅在告警通知开启时生效，控制告警从活跃变为已解决时是否推送恢复内容。
 - 找回密码开关控制该媒介是否出现在找回密码发送选项中。
 - Webhook、邮件、飞书、企业微信和钉钉启用找回密码用途后，均可用于找回密码验证码发送。
+
+告警模板规则：
+
+- 邮件、飞书、企业微信和钉钉使用文本模板，字段为 `problemTemplate` 与 `recoveryTemplate`；邮件可额外配置 `problemSubjectTemplate` 与 `recoverySubjectTemplate`。
+- 邮件告警 / 恢复内容类型可选 `text/plain` 或 `text/html`，默认 `text/plain`。
+- 飞书告警 / 恢复消息类型可选 `text`、`post` 或 `interactive`，默认 `text`；飞书 `post` 和 `interactive` 会使用邮件主题模板同源的标题作为富文本或卡片标题。
+- 企业微信和钉钉告警 / 恢复消息类型可选 `text` 或 `markdown`，默认 `text`；钉钉 Markdown 会使用邮件主题模板同源的标题作为消息标题。
+- Webhook 默认发送 JSON 对象，也可通过 `webhookProblemPayload` 和 `webhookRecoveryPayload` 自定义 JSON 模板。
+- 模板支持事件变量 `{{event.type}}`、`{{event.statusText}}`，告警变量 `{{alert.id}}`、`{{alert.level}}`、`{{alert.levelText}}`、`{{alert.status}}`、`{{alert.title}}`、`{{alert.message}}`、`{{alert.sourceType}}`、`{{alert.sourceId}}`、`{{alert.firstSeenAt}}`、`{{alert.lastSeenAt}}`、`{{alert.resolvedAt}}`、`{{alert.duration}}`。
+- 元数据变量支持 `{{metadata.<字段名>}}` 动态引用；当前内置告警会写入 `agent`、`endpoint`、`lastError`、`failureCount`、`vm`、`status`、`metric`、`value`、`limit`、`consecutive` 等字段。
+- 文本模板留空时使用系统默认模板；Webhook JSON 模板留空时使用系统默认 JSON 结构。
+- 前端通知配置页通过“变量说明”按钮展示全部变量说明，并可用“预览”按钮查看示例告警渲染结果。
 
 找回密码规则：
 
@@ -1039,7 +1066,9 @@ AD/LDAP 登录规则：
 告警发送规则：
 
 - 告警触发后，后端会写入告警表并在右上角通知中心展示。
-- 若通知媒介启用了告警通知用途，会发送告警内容并记录 `notificationSentAt`。
+- 若通知媒介启用了告警通知用途，会为每个启用的外部媒介写入通知投递记录并发送告警内容，触发通知发送成功后记录 `notificationSentAt`。
+- 若通知媒介启用了恢复通知，告警自动恢复或手动解决时会写入恢复通知投递记录，并按恢复模板发送恢复内容。
+- 投递失败会按退避策略重试，最多重试 6 次，单次退避最长 15 分钟；告警详情弹窗可查看每个媒介的投递状态、错误原因和下次重试时间。
 - 未配置告警通知外部媒介时，站内通知展示视为已触达，避免同一活跃告警反复尝试发送。
 
 ## 5.7 Agent API
@@ -1221,7 +1250,8 @@ Agent 除 `GET /health` 外，所有 `/v1/*` 接口都需要携带 `Authorizatio
 通知与认证配置规则：
 
 - 平台内告警默认通过右上角通知中心展示。
-- 外部通知媒介支持分别开启告警通知和找回密码用途。
+- 外部通知媒介支持分别开启告警通知、恢复通知和找回密码用途。
+- 告警通知和恢复通知可分别配置内容模板，Webhook 可额外配置 JSON payload 模板。
 - Webhook 支持自定义请求方法和请求头。
 - 邮件通过 SMTP 发送。
 - 飞书、企业微信、钉钉通过群机器人 Webhook 推送。
@@ -1303,7 +1333,7 @@ Agent 除 `GET /health` 外，所有 `/v1/*` 接口都需要携带 `Authorizatio
 
 ## 10.11 通知媒介的“告警通知”和“找回密码”开关有什么区别？
 
-两个开关互不影响。告警通知开关决定活跃告警是否推送到该外部媒介；找回密码开关决定该媒介是否出现在忘记密码流程的发送选项中。Webhook、邮件、飞书、企业微信和钉钉都可以分别开启或关闭这两个用途。
+告警通知开关决定活跃告警是否推送到该外部媒介；恢复通知开关决定告警解决时是否发送恢复内容，且仅在告警通知开启时生效；找回密码开关决定该媒介是否出现在忘记密码流程的发送选项中。Webhook、邮件、飞书、企业微信和钉钉都可以分别开启或关闭这些用途。
 
 ## 10.12 为什么告警没有发送到外部媒介？
 
