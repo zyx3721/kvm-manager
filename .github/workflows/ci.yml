@@ -43,7 +43,7 @@ jobs:
           go-version: '1.25'
           cache-dependency-path: backend/go.sum
 
-      - name: 交叉编译多平台二进制文件
+      - name: 交叉编译 Backend 多平台二进制文件
         working-directory: backend
         run: |
           VERSION=${GITHUB_REF#refs/tags/v}
@@ -57,35 +57,35 @@ jobs:
           }
 
           echo "🔨 编译 Linux AMD64..."
-          GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -ldflags="-s -w" -o kvm-manager ./cmd/main.go
+          GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -ldflags="-s -w" -o kvm-manager ./cmd/server/main.go
           prepare_package "dist/linux_amd64"
           mv kvm-manager dist/linux_amd64/
           tar -czf dist/kvm-manager_${VERSION}_linux_amd64.tar.gz -C dist linux_amd64
           rm -rf dist/linux_amd64
 
           echo "🔨 编译 Linux ARM64..."
-          GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -ldflags="-s -w" -o kvm-manager ./cmd/main.go
+          GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -ldflags="-s -w" -o kvm-manager ./cmd/server/main.go
           prepare_package "dist/linux_arm64"
           mv kvm-manager dist/linux_arm64/
           tar -czf dist/kvm-manager_${VERSION}_linux_arm64.tar.gz -C dist linux_arm64
           rm -rf dist/linux_arm64
 
           echo "🔨 编译 macOS AMD64..."
-          GOOS=darwin GOARCH=amd64 CGO_ENABLED=0 go build -ldflags="-s -w" -o kvm-manager ./cmd/main.go
+          GOOS=darwin GOARCH=amd64 CGO_ENABLED=0 go build -ldflags="-s -w" -o kvm-manager ./cmd/server/main.go
           prepare_package "dist/darwin_amd64"
           mv kvm-manager dist/darwin_amd64/
           tar -czf dist/kvm-manager_${VERSION}_darwin_amd64.tar.gz -C dist darwin_amd64
           rm -rf dist/darwin_amd64
 
           echo "🔨 编译 macOS ARM64..."
-          GOOS=darwin GOARCH=arm64 CGO_ENABLED=0 go build -ldflags="-s -w" -o kvm-manager ./cmd/main.go
+          GOOS=darwin GOARCH=arm64 CGO_ENABLED=0 go build -ldflags="-s -w" -o kvm-manager ./cmd/server/main.go
           prepare_package "dist/darwin_arm64"
           mv kvm-manager dist/darwin_arm64/
           tar -czf dist/kvm-manager_${VERSION}_darwin_arm64.tar.gz -C dist darwin_arm64
           rm -rf dist/darwin_arm64
 
           echo "🔨 编译 Windows AMD64..."
-          GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -ldflags="-s -w" -o kvm-manager.exe ./cmd/main.go
+          GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -ldflags="-s -w" -o kvm-manager.exe ./cmd/server/main.go
           prepare_package "dist/windows_amd64"
           mv kvm-manager.exe dist/windows_amd64/
           cd dist && zip -r kvm-manager_${VERSION}_windows_amd64.zip windows_amd64 && cd ..
@@ -97,6 +97,40 @@ jobs:
           cd ..
 
           echo "✅ 编译完成"
+
+      - name: 交叉编译 Agent 多平台二进制文件
+        working-directory: agent
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/v}
+          mkdir -p dist
+
+          prepare_package() {
+            local pkg_dir=$1
+            mkdir -p ${pkg_dir}
+            cp .env.example ${pkg_dir}/.env.example
+            echo "请将 .env.example 复制为 .env 并配置相关参数" > ${pkg_dir}/README.txt
+          }
+
+          echo "🔨 编译 Linux AMD64 Agent..."
+          GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -ldflags="-s -w" -o kvm-agent ./cmd/agent/main.go
+          prepare_package "dist/linux_amd64"
+          mv kvm-agent dist/linux_amd64/
+          tar -czf dist/kvm-agent_${VERSION}_linux_amd64.tar.gz -C dist linux_amd64
+          rm -rf dist/linux_amd64
+
+          echo "🔨 编译 Linux ARM64 Agent..."
+          GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -ldflags="-s -w" -o kvm-agent ./cmd/agent/main.go
+          prepare_package "dist/linux_arm64"
+          mv kvm-agent dist/linux_arm64/
+          tar -czf dist/kvm-agent_${VERSION}_linux_arm64.tar.gz -C dist linux_arm64
+          rm -rf dist/linux_arm64
+
+          echo "📝 生成 Agent 校验和..."
+          cd dist
+          sha256sum *.tar.gz > checksums.txt
+          cd ..
+
+          echo "✅ Agent 编译完成"
 
       - name: 构建并推送 Docker 镜像
         uses: docker/build-push-action@v7
@@ -127,7 +161,7 @@ jobs:
           fi
 
           cat > release_notes.md << EOF
-          ## 🎉 Picbed Switcher v${VERSION} 发布
+          ## 🎉 KVM Manager v${VERSION} 发布
 
           ### 📋 构建信息
           - **版本**: v${VERSION}
@@ -148,9 +182,11 @@ jobs:
           - macOS AMD64: \`kvm-manager_${VERSION}_darwin_amd64.tar.gz\`
           - macOS ARM64: \`kvm-manager_${VERSION}_darwin_arm64.tar.gz\`
           - Windows AMD64: \`kvm-manager_${VERSION}_windows_amd64.zip\`
+          - Agent Linux AMD64: \`kvm-agent_${VERSION}_linux_amd64.tar.gz\`
+          - Agent Linux ARM64: \`kvm-agent_${VERSION}_linux_arm64.tar.gz\`
 
           ### 🔐 校验和
-          请下载 \`checksums.txt\` 验证文件完整性。
+          请下载对应的 \`checksums.txt\` 验证文件完整性。
           EOF
 
           echo "version=${VERSION}" >> $GITHUB_OUTPUT
@@ -167,3 +203,5 @@ jobs:
             backend/dist/*.tar.gz
             backend/dist/*.zip
             backend/dist/checksums.txt
+            agent/dist/*.tar.gz
+            agent/dist/checksums.txt

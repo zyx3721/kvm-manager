@@ -28,7 +28,7 @@ COPY backend/ ./
 
 ARG CGO_ENABLED=0
 ENV CGO_ENABLED=${CGO_ENABLED}
-RUN go build -o kvm-backend ./cmd/main.go
+RUN go build -o kvm-backend ./cmd/server/main.go
 
 ############################
 # 3) runtime

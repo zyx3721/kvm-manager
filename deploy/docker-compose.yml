@@ -32,7 +32,7 @@ services:
       - ./RedisData:/data
 
   kvm-manager:
-    image: zyx3721/kvm-manager:latest
+    image: registry.cn-shenzhen.aliyuncs.com/zyx3721/kvm-manager:latest
     container_name: kvm-manager
     restart: unless-stopped
     networks:

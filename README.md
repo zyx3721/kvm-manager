@@ -8,12 +8,12 @@ KVM Manager 是一个面向 KVM/libvirt 环境的虚拟化资源管理控制台�
 - [二、本地开发快速启动](#二本地开发快速启动)
 - [三、Docker Compose 快速部署](#三docker-compose-快速部署)
 - [四、生产环境部署](#四生产环境部署)
-- [五、API 文档](#五api-文档)
-- [六、使用说明](#六使用说明)
-- [七、版本历史](#七版本历史)
-- [八、安全说明](#八安全说明)
-- [九、注意事项](#九注意事项)
-- [十、常见问题](#十常见问题)
+- [五、使用说明](#五使用说明)
+- [六、安全说明](#六安全说明)
+- [七、注意事项](#七注意事项)
+- [八、常见问题](#八常见问题)
+- [九、API 文档](#九api-文档)
+- [十、版本历史](#十版本历史)
 - [十一、许可证](#十一许可证)
 - [十二、致谢](#十二致谢)
 - [十三、联系方式](#十三联系方式)
@@ -407,19 +407,240 @@ nohup npm run dev > kvm-frontend.log 2>&1 &
   - **默认密码**：`123456`
 - **API 文档**：`http://localhost:8080/swagger/index.html`
 
-# 三、Docker Compose 快速部署
+# 三、Docker Compose 快速部署（推荐）
 
-当前仓库暂未内置完整的 Dockerfile、`deploy/` 目录或 `docker-compose.yml` 编排文件，因此暂不提供可直接执行的一键部署命令。
+## 3.1 部署目录结构
 
-建议后续补齐以下部署资产后再启用本章节的一键部署流程：
+所有相关文件统一放在 `deploy/` 目录下，单镜像包含前端（Nginx）、后端（backend），通过 supervisord 管理多进程。
 
-- 后端 Dockerfile
-- 前端静态资源构建与 Nginx 配置
-- PostgreSQL 数据卷与健康检查
-- 可选 Agent 镜像或 systemd 安装包
-- 统一 `.env.example` 与部署说明
+```bash
+deploy/
+├── docker-compose.yml    # 服务编排配置
+├── entrypoint.sh         # 容器启动脚本
+├── nginx.conf            # 反向代理配置
+├── supervisord.conf      # 多进程管理配置
+├── .env                  # 环境变量（需自行创建，见 3.2）
+├── .env.example          # 环境变量模板
+├── KVMData/              # 应用持久化数据（首次启动自动创建）
+│   └── logs/             # 运行日志
+├── PgSqlData/            # PostgreSQL 数据（首次启动自动创建）
+└── RedisData/            # Redis 数据（首次启动自动创建）
+```
 
-在编排文件补齐前，本地开发和生产部署可分别参考第二章与第四章。
+## 3.2 准备配置文件
+
+进入 `deploy` 目录，创建 `.env` 环境变量文件：
+
+```bash
+cd deploy
+vim .env
+```
+
+`.env` 文件内容参考：
+
+```bash
+SERVER_MODE=release
+
+DB_HOST=postgres
+DB_PORT=5432
+DB_NAME=kvm-manager
+DB_USER=postgres
+DB_PASSWORD=Sunline2024
+DB_SSLMODE=disable
+
+JWT_SECRET=change-me-in-production
+JWT_EXPIRE_HOURS=24
+SESSION_IDLE_TIMEOUT_HOURS=12
+
+REDIS_ADDR=redis:6379
+REDIS_PASSWORD=123456
+REDIS_DB=0
+
+RUNTIME_SYNC_INTERVAL=30s
+RUNTIME_DEEP_SYNC_INTERVAL=10m
+RUNTIME_SYNC_CONCURRENCY=3
+METRIC_RETENTION_DAYS=30
+METRIC_STREAM_MAXLEN=10000
+```
+
+## 3.3 构建镜像（可选）
+
+如果不想使用阿里云镜像仓库的镜像，可直接在本地手动构建（默认使用阿里云镜像仓库地址）：
+
+```bash
+# 在 deploy/ 目录下构建（构建上下文为项目根目录）
+cd deploy
+docker build -t kvm-manager:latest -f Dockerfile ..
+```
+
+然后修改 `deploy/docker-compose.yml` 中 `kvm-manager` 服务的 `image` 字段为 `kvm-manager:latest` 。
+
+## 3.4 启动服务
+
+`docker-compose.yml` 支持两种模式，按需选择：
+
+**模式一：新建 PostgreSQL 容器（默认）**
+
+首次启动会自动创建 `kvm-manager` 数据库：
+
+```bash
+cd deploy
+docker compose up -d
+```
+
+**模式二：使用已有容器**
+
+`.env` 环境变量文件中确保数据库配置填入已有容器地址，并编辑 `deploy/docker-compose.yml`：
+
+1. 注释掉 `postgres` 和 `redis` 服务块
+2. 注释掉 `kvm-manager.depends_on` 块
+
+```bash
+cd deploy
+docker compose up -d
+```
+
+## 3.5 服务管理
+
+```bash
+# 查看服务状态
+docker compose ps
+
+# 查看实时日志
+docker compose logs -f kvm-manager
+
+# 重启 kvm-manager 服务
+docker compose restart kvm-manager
+
+# 停止所有服务
+docker compose down
+
+# 停止并删除数据卷（谨慎！数据会丢失）
+docker compose down -v
+```
+
+## 3.6 访问系统
+
+服务启动后，访问以下地址：
+
+- **首页**：`http://your-domain.com`
+  - **默认用户名**：`admin`
+  - **默认密码**：`123456`
+- **API 文档**：`http://your-domain.com/swagger/index.html`
+- **健康检查**：`https://your-domain.com/health`
+
+## 3.7 宿主机 Nginx 反代（可选）
+
+如需通过宿主机 Nginx 配置 HTTPS，将 `deploy/docker-compose.yml` 中的端口映射改为非 80 端口（如 `8080:80`），再配置外部 Nginx 代理：
+
+### 3.7.1 HTTP 示例
+
+```bash
+server {
+    listen 80;
+    server_name your-domain.com;
+
+    # 限制上传文件大小（可选）
+    client_max_body_size 50m;
+
+    # Gzip 压缩配置
+    gzip on;
+    gzip_vary on;
+    gzip_proxied any;
+    gzip_comp_level 6;
+    gzip_types text/plain text/css text/xml text/javascript
+               application/json application/javascript application/xml+rss
+               application/rss+xml font/truetype font/opentype
+               application/vnd.ms-fontobject image/svg+xml;
+    gzip_min_length 1000;
+
+    # 日志配置
+    access_log /usr/local/nginx/logs/kvm-manager-access.log;
+    error_log /usr/local/nginx/logs/kvm-manager-error.log warn;
+
+    location / {
+        proxy_pass http://127.0.0.1:8080;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # 超时配置
+        proxy_connect_timeout 600s;
+        proxy_send_timeout 600s;
+        proxy_read_timeout 600s;
+    }
+}
+```
+
+### 3.7.2 HTTPS 实例
+
+> HTTPS 示例（含 80→443 跳转，请替换证书路径）：
+
+```bash
+# HTTP 80端口配置，自动重定向到HTTPS
+server {
+    listen 80;
+    server_name your-domain.com;   # 修改为你的域名/主机名，例如：kvm-manager.cn
+    return 301 https://$host$request_uri;
+}
+
+# kvm-manager 站点 HTTPS 配置
+server {
+    # listen 443 ssl http2;  # Nginx 1.25 以下版本写法
+    listen 443 ssl;
+    http2 on;
+    server_name your-domain.com;   # 修改为你的域名/主机名，例如：kvm-manager.cn
+
+    # 证书路径（替换为实际证书文件）
+    ssl_certificate     /usr/local/nginx/ssl/your-domain.com.pem;  # 例如：/usr/local/nginx/ssl/kvm-manager.cn.pem
+    ssl_certificate_key /usr/local/nginx/ssl/your-domain.com.key;  # 例如：/usr/local/nginx/ssl/kvm-manager.cn.key
+
+    # SSL安全优化
+    ssl_protocols              TLSv1.2 TLSv1.3;
+    ssl_prefer_server_ciphers  on;
+    ssl_ciphers                ECDHE-RSA-AES128-GCM-SHA256:HIGH:!aNULL:!MD5:!RC4:!DHE;
+    ssl_session_timeout        10m;
+    ssl_session_cache          shared:SSL:10m;
+
+    # 限制上传文件大小（可选）
+    client_max_body_size 50m;
+
+    # Gzip 压缩配置
+    gzip on;
+    gzip_vary on;
+    gzip_proxied any;
+    gzip_comp_level 6;
+    gzip_types text/plain text/css text/xml text/javascript
+               application/json application/javascript application/xml+rss
+               application/rss+xml font/truetype font/opentype
+               application/vnd.ms-fontobject image/svg+xml;
+    gzip_min_length 1000;
+
+    # 日志配置
+    access_log /usr/local/nginx/logs/kvm-manager-access.log;
+    error_log /usr/local/nginx/logs/kvm-manager-error.log warn;
+
+    location / {
+        proxy_pass http://127.0.0.1:8080;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # 超时配置
+        proxy_connect_timeout 600s;
+        proxy_send_timeout 600s;
+        proxy_read_timeout 600s;
+    }
+}
+```
 
 # 四、生产环境部署
 
@@ -728,7 +949,7 @@ server {
     return 301 https://$host$request_uri;
 }
 
-# picbed 站点 HTTPS 配置
+# kvm-manager 站点 HTTPS 配置
 server {
     # listen 443 ssl http2;  # Nginx 1.25 以下版本写法
     listen 443 ssl;
@@ -736,8 +957,8 @@ server {
     server_name your-domain.com;   # 修改为你的域名/主机名，例如：kvm-manager.cn
 
     # 证书路径（替换为实际证书文件）
-    ssl_certificate     /usr/local/nginx/ssl/your-domain.com.pem;  # 例如：/usr/local/nginx/ssl/picbed.cn.pem
-    ssl_certificate_key /usr/local/nginx/ssl/your-domain.com.key;  # 例如：/usr/local/nginx/ssl/picbed.cn.key
+    ssl_certificate     /usr/local/nginx/ssl/your-domain.com.pem;  # 例如：/usr/local/nginx/ssl/kvm-manager.cn.pem
+    ssl_certificate_key /usr/local/nginx/ssl/your-domain.com.key;  # 例如：/usr/local/nginx/ssl/kvm-manager.cn.key
 
     # SSL安全优化
     ssl_protocols              TLSv1.2 TLSv1.3;
@@ -814,11 +1035,206 @@ server {
 - **API 文档**：`http://your-domain.com/swagger/index.html`
 - **健康检查**：`https://your-domain.com/health`
 
-# 五、API 文档
+# 五、使用说明
+
+## 5.1 登录控制台
+
+- 启动后端和前端后访问 `http://localhost:5173/login`。
+- 当 `users` 表为空时，后端会自动创建默认管理员：
+  - 用户名：`admin`
+  - 密码：`123456`
+  - 显示名：`admin`
+
+## 5.2 账号操作
+
+- 右上角账号头像区域可点击展开菜单。
+- 账号菜单支持修改密码和退出系统。
+- 修改密码时需输入旧密码、新密码和确认密码。
+- 密码规则：
+  - 密码至少 6 个字符。
+  - 新密码不能与旧密码相同。
+  - 新密码必须与确认密码一致。
+
+## 5.3 添加 Agent
+
+- 在 Agent 页面填写名称、Endpoint、Token 和 TLS 校验选项。
+- 保存前可以先测试连接。
+- 保存后，后端会使用加密后的 Token 与 Agent 通信。
+
+## 5.4 查看资源
+
+- 仪表盘展示宿主机、虚拟机、资源利用率和趋势；活跃告警集中在右上角通知中心与“任务 / 审计 / 告警”页面查看。
+- 宿主机页面展示从 Agent 同步到的宿主机运行态，卡片底部显示 `virsh version` 第一行，悬浮提示展示完整版本输出，可点击单宿主机趋势入口查看 CPU、内存、存储历史曲线。
+- 虚拟机页面展示运行态 VM 列表，并支持：
+  - 按状态、关键词或宿主机筛选。
+  - 按当前筛选结果导出 `csv`、`txt`、`xlsx`、`xls` 文件，并可选择导出字段。
+  - 创建虚拟机。
+  - 表格多选后批量执行启动、暂停、停止、强制停止、关机、强制关机、重启、强制重启、删除、强制删除。
+  - 在单机操作列执行迁移。
+  - 在 CPU、内存、磁盘列查看规格和使用率。
+  - 悬浮磁盘列后查看每块磁盘的已用量和总量。
+  - 点击“监控”按钮打开居中监控窗口，按 `1h`、`24h`、`7d`、`30d` 或自定义开始/结束时间查看 CPU、内存、磁盘、磁盘 I/O、网络吞吐图形卡片。
+- 快照页面展示当前从 Agent 获取到的快照列表，并支持：
+  - 按快照创建权限创建快照。
+  - 创建快照时填写平台侧标签。
+  - 按 Agent 宿主机、虚拟机、快照状态、关键词筛选。
+  - 查看详情。
+  - 按快照编辑权限编辑平台备注与标签。
+  - 按快照恢复、删除权限显示对应操作并进行二次确认。
+  - 点击“刷新快照”仅刷新快照运行态缓存。
+
+## 5.5 刷新机制
+
+- 后端按 `RUNTIME_SYNC_INTERVAL` 周期性创建或复用 `runtime.refresh.fast` 全局运行态轻量刷新任务，默认 30 秒，设置为 `0` 可关闭。
+- fast 任务会更新宿主机运行态、VM 基础状态、CPU、内存使用率、磁盘 I/O 和网络吞吐指标样本。
+- 后端按 `RUNTIME_DEEP_SYNC_INTERVAL` 周期性创建或复用 `runtime.refresh.all` 低频深度刷新任务，默认 10 分钟，设置为 `0` 可关闭，用于补采 IP、操作系统、内存、磁盘和快照等较重详情。
+- 低频深度刷新等待第一个间隔到达后再排队，并会避让已有 queued 或 running 的 fast/full 刷新任务，避免与手动刷新或启动时 fast 刷新堆积。
+- 右上角全量刷新图标或手动 `POST /api/refresh` 创建或复用 `runtime.refresh.all` full 全量刷新任务，会采集更完整的 VM 详情并同步快照。
+- 前端已移除自动刷新间隔控件；页面通过 `/api/events` 接收 SSE 事件，收到运行态更新后重新读取后端缓存。
+- 如果已有 `queued` 或 `running` 的刷新任务，后端会复用该任务，避免刷新任务堆积。
+- 各页面按钮的刷新范围不同，例如单台 VM、快照、存储池、网络池、接口、监控曲线或验证码；详情见 `docs/frontend-refresh-functions.md`。
+
+## 5.6 运维记录与告警
+
+- “任务 / 审计 / 告警”页面统一展示：
+  - 后台刷新任务。
+  - VM、快照、存储卷等操作任务。
+  - 用户关键操作审计日志。
+  - 平台运行态告警。
+- 审计日志覆盖登录、Agent、虚拟机、快照、存储池、网络池、宿主机接口、系统配置、通知中心和异步任务失败等关键操作。
+- 告警用于记录 Agent 离线、资源阈值和虚拟机异常状态等持续性运行态问题。
+- 任务、审计和告警的详细边界与操作覆盖矩阵详见 `docs/operation-log-coverage.md`。
+- 列表可选择显示 30、50、100、200 或全部记录，并支持页数切换。
+- 任务、审计和告警均可按当前搜索、状态筛选和高级 JSON 字段筛选结果导出 `csv`、`txt`、`xlsx`、`xls` 文件，并可选择导出字段。
+- 详情弹窗以只读字段展示任务载荷、审计元数据和告警元数据；元数据按 JSON 原文展示，告警详情同时展示消息字段。
+- 刷新任务进度会在顶部栏随 SSE 事件展示。
+
+## 5.7 告警与离线判定
+
+- Agent 离线判定：
+  - 当 Agent 连续同步失败达到基础配置中的离线失败次数时，后端会将 Agent 标记为 `offline`。
+  - Agent 标记离线后，后端会生成“Agent 离线”活跃告警。
+  - 后续任意一次同步成功后，后端会恢复 Agent 状态并自动解决对应告警。
+- 资源阈值告警：
+  - 同步成功后，后端会检查宿主机 CPU、内存、存储使用率。
+  - 后端也会检查虚拟机 CPU、内存、磁盘使用率。
+  - 连续超过基础配置中的严重阈值达到指定次数后，后端会生成资源使用率告警。
+  - 任意一次低于阈值会重置连续计数，并自动解决对应阈值告警。
+- 虚拟机状态告警：
+  - 虚拟机状态为 `error` 或 `unknown` 时，后端会生成异常状态告警。
+  - 虚拟机恢复正常状态后，后端会自动解决对应告警。
+
+## 5.8 系统配置
+
+系统配置页面提供基础配置、用户配置、认证配置和通知媒介配置。
+
+基础配置按以下分组维护：
+
+- 品牌标识：维护网站名称、认证页品牌名称、控制台品牌名称、控制台品牌副标题和图标。
+- 安全时效：维护找回密码图形验证码有效期、找回密码验证码有效期、发送冷却与频率限制统计窗口。
+- 资源阈值：维护 CPU、内存、磁盘百分比条颜色阈值，并使用严重阈值作为后端资源告警触发线。
+- Agent 判定：维护资源告警连续次数和 Agent 离线失败次数。
+
+基础配置项生效范围：
+
+| 配置项 | 生效位置 |
+| :-: | :-: |
+| 网站名称 | 浏览器标题、启动加载动画名称、登录/找回密码页底部版权名称 |
+| 认证页品牌名称 | 登录页、找回密码页顶部品牌名称 |
+| 控制台品牌名称 | 登录后左侧顶部主名称、基础配置实时预览 |
+| 控制台品牌副标题 | 登录后左侧顶部副标题、基础配置实时预览 |
+| 网站图标 | 浏览器 favicon、启动加载动画图标、登录/找回密码页图标、登录后左侧顶部图标、实时预览 |
+| 找回密码验证码有效期 | 后端发送验证码后生成的验证码过期时间 |
+| 图形验证码有效期 | 找回密码第一步算式验证码的过期时间 |
+| 发送冷却时间 | 发送验证码成功后，后端返回给前端的按钮倒计时秒数；范围 0.5-10 分钟，按 0.5 分钟递增，刷新页面不会绕过后端冷却限制 |
+| 频率限制统计窗口 | 后端统计同一账号在该时间窗口内最多请求 5 次验证码；范围 5-10 分钟，按 1 分钟递增 |
+| 警告阈值 | 前端 CPU、内存、磁盘百分比条进入警告色的阈值 |
+| 严重阈值 | 前端 CPU、内存、磁盘百分比条进入严重色的阈值，同时作为后端资源告警触发线 |
+| 资源告警连续次数 | 后端资源告警需要连续超阈值多少次才生成告警 |
+| Agent 离线失败次数 | 后端 Agent 连续同步失败多少次后标记为离线并生成告警 |
+
+通知与认证配置规则：
+
+- 平台内告警默认通过右上角通知中心展示。
+- 外部通知媒介支持分别开启告警通知、恢复通知和找回密码用途。
+- 告警通知和恢复通知可分别配置内容模板，Webhook 可额外配置 JSON payload 模板。
+- Webhook 支持自定义请求方法和请求头。
+- 邮件通过 SMTP 发送。
+- 飞书、企业微信、钉钉通过群机器人 Webhook 推送。
+- 飞书和钉钉支持签名密钥。
+- 配置保存后可直接发送测试通知。
+
+# 六、安全说明
+
+- 生产环境必须显式设置 `JWT_SECRET` 和每台 Agent 的 `AGENT_TOKEN`。默认管理员密码为 `123456`，首次部署后应尽快修改或替换默认账号。
+- Agent Token 不保存明文；控制中心保存摘要用于校验，并保存加密密文用于后端自动同步。
+- 不要把 `.env`、数据库备份或 Token 写入仓库。
+- 建议对外只暴露前端和后端反向代理入口，Agent 仅允许控制中心所在网络访问。
+- Agent 不提供任意命令执行能力，只暴露白名单内的 KVM 管理接口。
+
+# 七、注意事项
+
+- 后端定时任务会创建全局运行态轻量刷新任务，手动 `/api/refresh` 会创建 full 全量刷新任务；任务完成并收到 `runtime.updated` 后，页面展示的是刷新任务写入缓存后的最新运行态。刷新类型和页面刷新范围详见 `docs/frontend-refresh-functions.md`。
+- 快照恢复、VM 配置/设备/XML/介质/自启动修改后，后端会定向刷新目标 VM 完整运行态；存储池、网络池和宿主机接口变更后，前端对应资源页会按宿主机自动重读。
+- Redis 是运行态缓存和指标 Stream 的必需依赖；如果 Redis 不可用，后端启动失败，需要先恢复 Redis 后再启动服务。
+- 如果未配置 `JWT_SECRET`，后端会在启动时生成临时值；重启后会变化，不适合生产使用。
+- 当前仓库暂未提供一键 Docker Compose 部署文件，部署时需要自行补齐镜像和编排配置。
+
+# 八、常见问题
+
+## 8.1 自动刷新间隔是针对什么的？
+
+自动刷新间隔由后端环境变量 `RUNTIME_SYNC_INTERVAL` 控制，默认 30 秒。到达间隔后，后端创建或复用面向所有 Agent 的 `runtime.refresh.fast` 全局运行态轻量刷新任务，更新 Redis 运行态缓存后通过 SSE 通知页面重新读取数据。fast 会更新 VM 内存使用率等指标样本，但不会执行 Guest Agent OS/IP 查询、磁盘明细和快照采集。低频深度刷新由 `RUNTIME_DEEP_SYNC_INTERVAL` 控制，默认 10 分钟，会创建或复用 `runtime.refresh.all` 任务补采 IP、操作系统、内存、磁盘和快照等较重详情。右上角全量刷新图标或手动 `/api/refresh` 也是 `runtime.refresh.all` full 全量刷新；快照页的 `POST /api/snapshots/refresh` 只刷新快照列表。详情见 `docs/frontend-refresh-functions.md`。
+
+## 8.2 前端点击刷新拿到的是最新数据吗？
+
+右上角全量刷新图标会触发 `POST /api/refresh`，用于刷新所有 Agent 的完整宿主机、VM 详情和快照缓存。当前页面上的其它“刷新”多为局部刷新：单台 VM 刷新会同步该 VM 最新运行态，快照页刷新只刷新快照缓存，存储池/网络池/接口页刷新只重新读取当前宿主机对应资源，监控刷新只重新读取指标曲线。快照恢复和 VM 配置类操作会自动定向刷新目标 VM，存储池/网络池/接口变更会自动刷新对应资源页。各入口是否触发 Agent 采集、刷新范围和接口详见 `docs/frontend-refresh-functions.md`。
+
+## 8.3 为什么数据库不保存宿主机、虚拟机和快照主数据？
+
+这些都是运行态资源，可以通过 Agent 实时获取。数据库更适合保存项目自身数据，例如用户、会话、Agent 登记、任务、审计日志和告警。
+
+## 8.4 Agent 离线如何判定？
+
+后端连续同步同一个 Agent 失败达到基础配置中的离线失败次数后，会标记该 Agent 离线并生成活跃告警；同步成功后自动恢复。默认阈值为 3 次。
+
+## 8.5 SSE 在反向代理后不刷新怎么办？
+
+检查 `/api/events` 的代理配置，确保允许长连接，并关闭或放宽代理缓冲和超时限制。Nginx 场景下需要重点检查 `proxy_buffering off`、`proxy_read_timeout`、`proxy_send_timeout` 和 `/api/` 路径转发是否指向后端服务。
+
+## 8.6 创建虚拟机时磁盘格式和 VMware 置备方式是否一一对应？
+
+不一一对应。KVM/libvirt 中的 `qcow2`、`raw` 主要表示磁盘文件格式，VMware 的精简置备、厚置备延迟置零、厚置备置零更偏向空间分配策略。当前项目中 `qcow2` 默认按需增长，更接近精简置备；创建虚拟机和添加镜像时 metadata 预分配默认关闭，勾选 `preallocMetadata` 后只预分配元数据，不等同于厚置备；`raw` 是否表现为精简或厚置备取决于创建命令、文件系统和后端存储能力。
+
+## 8.7 创建虚拟机时磁盘卷名已存在会怎样？
+
+后端会在创建任务排队前检查目标存储池中的卷名，发现同名卷时直接拒绝创建并提示更换磁盘卷名称。若并发场景下预检后又出现同名卷，Agent 执行 `virsh vol-create-as` 时也会失败，不会覆盖已有卷；已成功创建的本次新卷会在失败清理流程中删除。
+
+## 8.8 创建虚拟机多块磁盘必须使用同一种总线吗？
+
+需要保持一致。创建弹窗中添加数据盘时，数据盘的存储池、磁盘格式、磁盘总线、卷名称和 `preallocMetadata` 会继承系统盘配置并禁用编辑，只允许单独填写容量；后端和 Agent 也会校验数据盘配置必须与系统盘一致。实际使用中建议默认选择 `virtio` 以获得较好性能；Windows 虚拟机如果安装阶段缺少 VirtIO 驱动，可考虑系统盘先使用 `sata`，数据盘会随系统盘保持相同总线。
+
+## 8.9 创建虚拟机中的“创建后直接启动”是随宿主机开机自启吗？
+
+不是。创建弹窗中的该选项只表示虚拟机定义完成后立即执行一次 `virsh start <vm>`。虚拟机是否随宿主机启动，需要在编辑虚拟机配置中的自启动开关单独设置。
+
+## 8.10 找回密码为什么需要验证邮箱？
+
+验证邮箱用于确认当前操作者确实知道该用户配置的邮箱，避免只凭公开用户名触发重置流程。邮件媒介会把验证码发送到账号配置邮箱；Webhook、飞书、企业微信和钉钉机器人媒介会发送到对应外部系统，但提交发送前仍必须填写并匹配用户配置邮箱。AD/LDAP 用户不走本地找回密码流程，需要在目录服务侧重置密码。
+
+## 8.11 通知媒介的“告警通知”和“找回密码”开关有什么区别？
+
+告警通知开关决定活跃告警是否推送到该外部媒介；恢复通知开关决定告警解决时是否发送恢复内容，且仅在告警通知开启时生效；找回密码开关决定该媒介是否出现在忘记密码流程的发送选项中。Webhook、邮件、飞书、企业微信和钉钉都可以分别开启或关闭这些用途。
+
+## 8.12 为什么告警没有发送到外部媒介？
+
+优先检查通知媒介是否保存了有效配置、是否开启“告警通知”用途、测试通知是否成功，以及告警是否仍处于活跃状态。未配置外部告警媒介时，右上角通知中心的站内通知视为已触达，系统不会因为缺少外部媒介而反复重试同一活跃告警。
+
+# 九、API 文档
 
 以下接口除 `POST /api/auth/login` 登录、`GET /api/auth/providers` 登录方式列表、找回密码相关公开接口、`GET /api/public/base-config` 公开基础配置和 `GET /api/health` 健康检查外，均需要在请求头中携带 `Authorization: Bearer <token>`。
 
-## 5.1 Agent 管理
+## 9.1 Agent 管理
 
 - `GET /api/agents` - Agent 列表
 - `POST /api/agents` - 登记 Agent
@@ -838,11 +1254,17 @@ server {
 }
 ```
 
-## 5.2 告警、通知、任务与日志
+## 9.2 告警、通知、任务与日志
 
 任务、审计和告警分别用于记录后台任务进度、用户关键操作和平台运行态异常；具体覆盖范围、失败记录规则和后续开发同步要求详见 `docs/operation-log-coverage.md`。
 
-- `GET /api/alerts?status=active&q=严重&metadataKey=metric&metadataValue=disk&limit=50&page=1` - 获取告警列表，可按 `status`、`q` 与告警元数据 JSON 顶层字段搜索过滤，`q` 可匹配级别、状态、标题、消息、来源和外部通知状态，`metadataKey` 为空时 `metadataValue` 在整段元数据 JSON 中模糊搜索，`metadataValue` 为空时匹配存在该字段的告警，`limit` 支持 `30`、`50`、`100`、`200`、`all`，`page` 从 1 开始
+- `GET /api/alerts?status=active&q=严重&metadataKey=metric&metadataValue=disk&limit=50&page=1` - 获取告警列表
+  - 可按 `status`、`q` 与告警元数据 JSON 顶层字段搜索过滤
+  - `q` 可匹配级别、状态、标题、消息、来源和外部通知状态
+  - `metadataKey` 为空时 `metadataValue` 在整段元数据 JSON 中模糊搜索
+  - `metadataValue` 为空时匹配存在该字段的告警
+  - `limit` 支持 `30`、`50`、`100`、`200`、`all`
+  - `page` 从 1 开始
 - `GET /api/alerts/{id}/deliveries` - 获取指定告警的外部通知投递历史，包含告警 / 恢复事件、媒介、状态、重试次数、错误信息、下次重试时间和发送时间
 - `POST /api/alerts/{id}/resolve` - 手动解决活跃告警，并写入审计日志
 - `GET /api/notifications?limit=20` - 获取右上角通知中心消息，默认展示未清空的活跃告警
@@ -850,11 +1272,22 @@ server {
 - `POST /api/notifications/read-all` - 标记全部通知已读，并写入审计日志
 - `GET /api/notifications/unread-count` - 获取未读通知数量
 - `POST /api/notifications/{id}/read` - 标记单条通知已读，并写入审计日志
-- `GET /api/audit-logs?q=agent&metadataKey=name&metadataValue=test&limit=50&page=1` - 获取审计日志列表，可按 `q` 搜索动作、用户、资源、IP 和元数据，也可用 `metadataKey` / `metadataValue` 筛选元数据 JSON 顶层字段，`metadataKey` 为空时 `metadataValue` 在整段元数据 JSON 中模糊搜索，`metadataValue` 为空时匹配存在该字段的日志，`limit` 支持 `30`、`50`、`100`、`200`、`all`，`page` 从 1 开始
-- `GET /api/tasks?status=failed&q=runtime&payloadKey=vm&payloadValue=test&limit=50&page=1` - 获取任务列表，可按 `status`、`q` 与任务载荷 JSON 顶层字段搜索过滤，`payloadKey` 为空时 `payloadValue` 在整段载荷 JSON 中模糊搜索，`payloadValue` 为空时匹配存在该字段的任务，`limit` 支持 `30`、`50`、`100`、`200`、`all`，`page` 从 1 开始
+- `GET /api/audit-logs?q=agent&metadataKey=name&metadataValue=test&limit=50&page=1` - 获取审计日志列表
+  - 可按 `q` 搜索动作、用户、资源、IP 和元数据
+  - 也可用 `metadataKey` / `metadataValue` 筛选元数据 JSON 顶层字段
+  - `metadataKey` 为空时 `metadataValue` 在整段元数据 JSON 中模糊搜索
+  - `metadataValue` 为空时匹配存在该字段的日志
+  - `limit` 支持 `30`、`50`、`100`、`200`、`all`
+  - `page` 从 1 开始
+- `GET /api/tasks?status=failed&q=runtime&payloadKey=vm&payloadValue=test&limit=50&page=1` - 获取任务列表
+  - 可按 `status`、`q` 与任务载荷 JSON 顶层字段搜索过滤
+  - `payloadKey` 为空时 `payloadValue` 在整段载荷 JSON 中模糊搜索
+  - `payloadValue` 为空时匹配存在该字段的任务
+  - `limit` 支持 `30`、`50`、`100`、`200`、`all`
+  - `page` 从 1 开始
 - `GET /api/tasks/{id}` - 获取任务详情，刷新任务 payload 包含总数、成功数、失败数和当前 Agent
 
-## 5.3 认证
+## 9.3 认证
 
 - `POST /api/auth/login`  - 登录，返回访问令牌、用户信息、`expires_at` 最长有效期和 `last_seen_at` 最近活跃时间；会话连续超过 `SESSION_IDLE_TIMEOUT_HOURS` 未访问会自动失效
 - `POST /api/auth/logout`  - 注销当前会话
@@ -862,22 +1295,42 @@ server {
 - `PUT /api/auth/password`  - 修改当前用户密码，需提供旧密码、新密码和确认密码
 - `GET /api/auth/password-reset/captcha` - 获取找回密码图形验证码，图形验证码为加法、减法或乘法算式，1 分钟内有效，前端到期后会自动刷新
 - `POST /api/auth/password-reset/confirm` - 校验 10 分钟内有效的找回密码验证码并重置本地账号密码，成功后清理该用户已有会话
-- `POST /api/auth/password-reset/send-code` - 携带短期校验 Token 和验证邮箱，使用已启用找回密码用途的媒介发送 6 位找回密码验证码；验证邮箱必须与用户名对应的用户配置邮箱一致，邮件媒介发送到账号配置邮箱，Webhook 和机器人媒介直接发送到对应外部系统
-- `POST /api/auth/password-reset/verify` - 校验找回密码用户名和图形验证码，返回 10 分钟内有效的短期校验 Token 与已启用找回密码用途的 Webhook、邮件、飞书、企业微信和钉钉媒介
+- `POST /api/auth/password-reset/send-code` - 携带短期校验 Token 和验证邮箱
+  - 使用已启用找回密码用途的媒介发送 6 位找回密码验证码
+  - 验证邮箱必须与用户名对应的用户配置邮箱一致
+  - 邮件媒介发送到账号配置邮箱
+  - Webhook 和机器人媒介直接发送到对应外部系统
+- `POST /api/auth/password-reset/verify` - 校验找回密码用户名和图形验证码
+  - 返回 10 分钟内有效的短期校验 Token
+  - 返回已启用找回密码用途的 Webhook、邮件、飞书、企业微信和钉钉媒介
 - `GET /api/auth/providers` - 获取登录页可用的外部认证方式，本地账号登录始终可用
 
-## 5.4 实时资源与刷新
+## 9.4 实时资源与刷新
 
 - `GET /api/dashboard/summary` - 仪表盘汇总、资源统计、vCPU 已分配/总核心、最近记录和活跃告警
 - `GET /api/events` - SSE 事件流，前端用于实时刷新
 - `GET /api/host-interfaces/{agentId}` - 实时读取指定宿主机 Agent 上的物理网卡、loopback 和 bridge 接口列表；需要宿主机接口查看权限
-- `POST /api/host-interfaces/{agentId}` - 在指定宿主机 Agent 上创建 Linux bridge 接口，可选绑定已有设备并配置 STP、Delay、IPv4/IPv6，绑定设备已被其他接口使用时会拒绝创建，静态地址会拒绝重复 IP、重复或重叠子网，以及不在同一子网的网关；后端使用 30 秒接口操作超时转发创建请求；绑定已有设备时会在执行 virsh 前备份已存在的 ifcfg-bridge 和 ifcfg-device；开启 DNS 系统配置写入时会通过 nmcli 或 ifcfg 写入 DNS；需要宿主机接口管理权限
+- `POST /api/host-interfaces/{agentId}` - 在指定宿主机 Agent 上创建 Linux bridge 接口
+  - 可选绑定已有设备并配置 STP、Delay、IPv4/IPv6
+  - 绑定设备已被其他接口使用时会拒绝创建
+  - 静态地址会拒绝重复 IP、重复或重叠子网，以及不在同一子网的网关
+  - 后端使用 30 秒接口操作超时转发创建请求
+  - 绑定已有设备时会在执行 virsh 前备份已存在的 ifcfg-bridge 和 ifcfg-device
+  - 开启 DNS 系统配置写入时会通过 nmcli 或 ifcfg 写入 DNS
+  - 需要宿主机接口管理权限
 - `DELETE /api/host-interfaces/{agentId}/delete/{name}` - 删除已停止的指定宿主机接口；需要宿主机接口管理权限
 - `GET /api/host-interfaces/{agentId}/devices/list` - 读取指定宿主机 Agent 上可用于绑定的网卡设备候选列表；需要宿主机接口查看权限
 - `PUT /api/host-interfaces/{agentId}/state/{name}` - 启动或停止指定宿主机接口；需要宿主机接口管理权限
 - `GET /api/hosts` - 从运行态缓存读取宿主机列表，返回 `kvmVersion` 第一行展示值和 `kvmFullVersion` 完整版本输出；拥有宿主机、Agent、虚拟机、快照、存储池或网络池相关权限时可作为关联只读数据访问，用于资源页展示、筛选和下拉选择
-- `GET /api/metrics/hosts/{agentId}?range=1h` - 查询宿主机指标趋势，包含 CPU、内存、逻辑磁盘占用率、磁盘 I/O 和网络吞吐量；`agentId` 可传 `all` 聚合全部宿主机；`range` 支持 `1h`、`24h`、`7d`、`30d`，也支持 `custom&start=YYYY-MM-DDTHH:mm&end=YYYY-MM-DDTHH:mm`
-- `GET /api/metrics/vms/{vmId}?range=1h` - 查询虚拟机指标趋势，包含 CPU、内存、磁盘使用率、磁盘 I/O 和网络吞吐量；`range` 支持 `1h`、`24h`、`7d`、`30d`，也支持 `custom&start=YYYY-MM-DDTHH:mm&end=YYYY-MM-DDTHH:mm`
+- `GET /api/metrics/hosts/{agentId}?range=1h` - 查询宿主机指标趋势
+  - 包含 CPU、内存、逻辑磁盘占用率、磁盘 I/O 和网络吞吐量
+  - `agentId` 可传 `all` 聚合全部宿主机
+  - `range` 支持 `1h`、`24h`、`7d`、`30d`
+  - 也支持 `custom&start=YYYY-MM-DDTHH:mm&end=YYYY-MM-DDTHH:mm`
+- `GET /api/metrics/vms/{vmId}?range=1h` - 查询虚拟机指标趋势
+  - 包含 CPU、内存、磁盘使用率、磁盘 I/O 和网络吞吐量
+  - `range` 支持 `1h`、`24h`、`7d`、`30d`
+  - 也支持 `custom&start=YYYY-MM-DDTHH:mm&end=YYYY-MM-DDTHH:mm`
 - `GET /api/network-pools/{agentId}` - 读取指定宿主机 Agent 上的 libvirt 网络池列表；拥有网络池相关权限或虚拟机相关权限时可作为关联只读数据访问，用于虚拟机创建、编辑、克隆和迁移配置
 - `POST /api/network-pools/{agentId}` - 在指定宿主机 Agent 上创建网络池，支持 NAT、ROUTE、ISOLATE 和 BRIDGE；NAT/ROUTE 创建前检查 IPv4 转发，BRIDGE 创建前检查桥接设备存在
 - `PUT /api/network-pools/{agentId}/autostart/{pool}` - 启用或关闭指定宿主机网络池自启动
@@ -901,32 +1354,112 @@ server {
 - `DELETE /api/storage-pools/{agentId}/volumes/{pool}?name={volume}` - 删除指定存储池中的卷或光盘镜像
 - `POST /api/storage-pools/{agentId}/volumes/{pool}/clone` - 创建后台任务克隆指定存储卷，可选择转换为 raw、qcow、qcow2 或 qed，完成后通过 SSE 通知
 - `POST /api/storage-pools/{agentId}/volumes/{pool}/upload` - 创建后台任务上传 ISO 文件到指定存储池，完成后通过 SSE 通知
-- `GET /api/vms?status=running&q=web&hostId=agent-01` - 从运行态缓存读取虚拟机列表；拥有虚拟机、宿主机、Agent 或快照相关权限时可作为关联只读数据访问，支持状态、关键词和宿主机过滤，返回虚拟机描述 `description`、CPU、内存、磁盘使用率、磁盘 I/O、网络吞吐、磁盘明细以及模板标记字段 `isTemplate`、`templateId`、`templateName`、`templateDescription`
-- `POST /api/vms` - 创建后台任务，在指定宿主机创建虚拟机；前端提交成功后使用任务 toast 卡片跟踪排队、创建中、完成或失败状态，执行中固定展示并允许选中文本复制，任务完成或失败后约 5 秒自动隐藏；创建完成后后端先执行 fast 同步并广播 `runtime.updated`，让新虚拟机尽快出现在列表中，随后后台延迟 full 同步补齐重字段；常规模式下后端检查宿主机 CPU/内存上限、虚拟机名和磁盘卷名，Agent 创建一个或多个存储卷后调用 `virt-install --import --noautoconsole --print-xml --dry-run` 生成 XML，并通过 `virsh define` 定义虚拟机；后端仍兼容旧 `createMode=template` 的磁盘模板创建模式，排队前校验源模板存在、目标卷名不存在和目标卷扩展名合法，Agent 先克隆模板系统盘到自定义目标卷名再定义虚拟机；XML 模式可提交完整 libvirt XML，后端与 Agent 从 XML name 读取虚拟机名称，并校验宿主机、XML 非空、XML 可解析以及名称不重复后直接 `virsh define`；常规和旧磁盘模板模式默认写入 QEMU Guest Agent channel `org.qemu.guest_agent.0`；XML 模式不会自动注入 channel，需由提交的 XML 自行包含；bridge 转发网络池会按真实 bridge 设备写入 `--network bridge=<bridge>`，其他网络池按 libvirt 网络名写入 `--network network=<pool>`；未选择 ISO 镜像时仍会创建空 CDROM 设备，默认 `isoBus=sata`
+- `GET /api/vms?status=running&q=web&hostId=agent-01` - 从运行态缓存读取虚拟机列表
+  - 拥有虚拟机、宿主机、Agent 或快照相关权限时可作为关联只读数据访问
+  - 支持状态、关键词和宿主机过滤
+  - 返回虚拟机描述 `description`、CPU、内存、磁盘使用率、磁盘 I/O、网络吞吐和磁盘明细
+  - 返回模板标记字段 `isTemplate`、`templateId`、`templateName`、`templateDescription`
+- `POST /api/vms` - 创建后台任务，在指定宿主机创建虚拟机
+  - 前端提交成功后使用任务 toast 卡片跟踪排队、创建中、完成或失败状态
+  - 执行中固定展示并允许选中文本复制，任务完成或失败后约 5 秒自动隐藏
+  - 创建完成后后端先执行 fast 同步并广播 `runtime.updated`，让新虚拟机尽快出现在列表中
+  - 随后后台延迟 full 同步补齐重字段
+  - 常规模式下后端检查宿主机 CPU/内存上限、虚拟机名和磁盘卷名
+  - Agent 创建一个或多个存储卷后调用 `virt-install --import --noautoconsole --print-xml --dry-run` 生成 XML，并通过 `virsh define` 定义虚拟机
+  - 后端仍兼容旧 `createMode=template` 的磁盘模板创建模式，排队前校验源模板存在、目标卷名不存在和目标卷扩展名合法
+  - 旧磁盘模板创建模式下，Agent 先克隆模板系统盘到自定义目标卷名再定义虚拟机
+  - XML 模式可提交完整 libvirt XML，后端与 Agent 从 XML name 读取虚拟机名称
+  - XML 模式会校验宿主机、XML 非空、XML 可解析以及名称不重复后直接 `virsh define`
+  - 常规和旧磁盘模板模式默认写入 QEMU Guest Agent channel `org.qemu.guest_agent.0`
+  - XML 模式不会自动注入 channel，需由提交的 XML 自行包含
+  - bridge 转发网络池会按真实 bridge 设备写入 `--network bridge=<bridge>`
+  - 其他网络池按 libvirt 网络名写入 `--network network=<pool>`
+  - 未选择 ISO 镜像时仍会创建空 CDROM 设备，默认 `isoBus=sata`
 - `GET /api/vms/{id}` - 读取虚拟机详情，包含磁盘总量、已用量、每块磁盘名称和容量信息
 - `PUT /api/vms/{id}/autostart` - 单独修改虚拟机随宿主机同启配置；后端转发 Agent 执行并记录任务与审计日志
-- `POST /api/vms/{id}/clone` - 创建后台任务克隆已停止虚拟机，排队前会检查宿主机 CPU/内存上限、克隆虚拟机名称是否已存在、目标存储池中目标卷名是否已存在，并校验目标卷扩展名必须与源磁盘一致；前端使用任务 toast 以 3 秒间隔轮询克隆任务状态；克隆完成后后端先执行 fast 同步并广播 `runtime.updated`，让新虚拟机尽快出现在列表中，随后后台延迟 full 同步补齐重字段；支持设置克隆名称、描述、克隆后直接启动、CPU/内存、CDROM 继承/断开策略、多网卡 MAC/网络池、多磁盘目标卷名/存储池；后端转发 Agent 克隆磁盘卷并基于源 XML 定义新虚拟机，跨存储池克隆时使用 `qemu-img convert`，克隆后直接启动时会强制断开克隆定义中的 CDROM 介质并执行 `virsh start`
+- `POST /api/vms/{id}/clone` - 创建后台任务克隆已停止虚拟机
+  - 排队前会检查宿主机 CPU/内存上限、克隆虚拟机名称是否已存在、目标存储池中目标卷名是否已存在
+  - 校验目标卷扩展名必须与源磁盘一致
+  - 前端使用任务 toast 以 3 秒间隔轮询克隆任务状态
+  - 克隆完成后后端先执行 fast 同步并广播 `runtime.updated`，让新虚拟机尽快出现在列表中
+  - 随后后台延迟 full 同步补齐重字段
+  - 支持设置克隆名称、描述、克隆后直接启动、CPU/内存、CDROM 继承/断开策略、多网卡 MAC/网络池、多磁盘目标卷名/存储池
+  - 后端转发 Agent 克隆磁盘卷并基于源 XML 定义新虚拟机
+  - 跨存储池克隆时使用 `qemu-img convert`
+  - 克隆后直接启动时会强制断开克隆定义中的 CDROM 介质并执行 `virsh start`
 - `POST /api/vms/{id}/template-mark` - 将已停止虚拟机标记为模板；数据库只写入 `agent_id`、`vm_uuid`、模板名称、描述、创建人和时间戳，不保存 CPU、内存、磁盘等虚拟机详情；需要 `vms.update`
 - `DELETE /api/vms/{id}/template-mark` - 取消虚拟机模板标记，不删除虚拟机本体或磁盘卷；需要 `vms.update`
 - `POST /api/vms/{id}/template-create` - 从已标记的虚拟机模板创建新虚拟机；接口复用整机克隆参数和 Agent 克隆链路，要求模板虚拟机已停止，复制模板磁盘卷并基于模板 XML 重写名称、UUID、磁盘路径、MAC 和网络池；需要 `vms.create`
 - `GET /api/vms/{id}/config` - 实时读取虚拟机 libvirt 配置，使用当前 `dumpxml` 返回 CPU/内存上下限、XML 架构 `arch`、自启动、描述、CDROM、磁盘及其所属存储池、网卡配置、内存统计周期 `memoryStatsPeriod` 和 VNC 控制台密码启用状态，不返回密码明文
 - 虚拟机配置磁盘字段中，`path` 表示 libvirt 当前磁盘路径；`sourcePath` 表示从 `backingStore` 解析到的基础源盘路径，编辑窗口优先用于展示
-- `PUT /api/vms/{id}/config` - 修改虚拟机描述、vCPU 当前/最大分配、内存当前/最大分配和内存统计周期 `memoryStatsPeriod`；运行中的虚拟机支持在已预留上限内热扩容当前 CPU 与内存，最大 CPU 和最大内存仍需关机后修改；内存统计周期启用时执行 `virsh dommemstat <vm> --period <seconds>`，运行中追加 `--live --config`，已停止虚拟机追加 `--config`，传 `0` 表示关闭统计周期；运行中描述写入 live/config，已停止虚拟机描述写入 config，描述为空时通过 `desc --config --new-desc ""` 或 `desc --live --config --new-desc ""` 清空
+- `PUT /api/vms/{id}/config` - 修改虚拟机描述、vCPU 当前/最大分配、内存当前/最大分配和内存统计周期 `memoryStatsPeriod`
+  - 运行中的虚拟机支持在已预留上限内热扩容当前 CPU 与内存
+  - 最大 CPU 和最大内存仍需关机后修改
+  - 内存统计周期启用时执行 `virsh dommemstat <vm> --period <seconds>`
+  - 运行中追加 `--live --config`，已停止虚拟机追加 `--config`
+  - 传 `0` 表示关闭统计周期
+  - 运行中描述写入 live/config，已停止虚拟机描述写入 config
+  - 描述为空时通过 `desc --config --new-desc ""` 或 `desc --live --config --new-desc ""` 清空
 - `GET /api/vms/{id}/console` - 查询虚拟机 VNC 控制台类型、监听地址、端口和密码启用状态；如果已配置密码，仅返回 `passwordEnabled`，不返回密码明文
-- `PUT /api/vms/{id}/console` - 修改虚拟机的 VNC 控制台密码配置；运行中虚拟机支持启用或修改密码，通过 `virsh update-device --live --config` 同时更新当前会话与持久配置，不支持关闭已启用的密码；已停止虚拟机使用 `--config` 更新持久配置，启用时写入 libvirt graphics `passwd` 属性，关闭时移除该属性
+- `PUT /api/vms/{id}/console` - 修改虚拟机的 VNC 控制台密码配置
+  - 运行中虚拟机支持启用或修改密码
+  - 通过 `virsh update-device --live --config` 同时更新当前会话与持久配置
+  - 不支持关闭已启用的密码
+  - 已停止虚拟机使用 `--config` 更新持久配置
+  - 启用时写入 libvirt graphics `passwd` 属性，关闭时移除该属性
 - `GET /api/vms/{id}/console/ws` - 虚拟机 Web 控制台 WebSocket，后端使用已登记 Agent 的加密令牌转发到 Agent VNC 代理；若 VNC 已启用密码，前端会先要求输入密码并通过 noVNC credentials 发起连接
-- `PUT /api/vms/{id}/devices` - 修改虚拟机网卡网络池、新增/删除网卡、扩容已有磁盘、新增磁盘或删除磁盘；运行中的虚拟机仅支持通过 `virsh blockresize` 热扩容已有磁盘，并通过 `virsh attach-disk --live --config` 热添加新磁盘；已停止虚拟机扩容前 Agent 会执行 `qemu-img info --output=json <path>` 检查磁盘镜像，若 qcow2 镜像包含内部快照则拒绝扩容，避免 `qemu-img resize` 失败；网络设备和删除磁盘需关机后操作；新增网卡模型支持 `virtio`、`e1000`、`e1000e`、`rtl8139` 和 `vmxnet3`
+- `PUT /api/vms/{id}/devices` - 修改虚拟机网卡网络池、新增/删除网卡、扩容已有磁盘、新增磁盘或删除磁盘
+  - 运行中的虚拟机仅支持通过 `virsh blockresize` 热扩容已有磁盘
+  - 运行中的虚拟机可通过 `virsh attach-disk --live --config` 热添加新磁盘
+  - 已停止虚拟机扩容前 Agent 会执行 `qemu-img info --output=json <path>` 检查磁盘镜像
+  - 若 qcow2 镜像包含内部快照则拒绝扩容，避免 `qemu-img resize` 失败
+  - 网络设备和删除磁盘需关机后操作
+  - 新增网卡模型支持 `virtio`、`e1000`、`e1000e`、`rtl8139` 和 `vmxnet3`
 - `PUT /api/vms/{id}/media` - 为指定 CDROM 连接 ISO 镜像；运行中的虚拟机会被拒绝，已停止虚拟机使用 `virsh change-media --insert --config`，并把目标 CDROM 调整为第一启动项
 - `DELETE /api/vms/{id}/media` - 为指定 CDROM 断开当前 ISO 镜像；运行中的虚拟机会被拒绝，已停止虚拟机使用 `virsh change-media --eject --config`，并恢复第一块普通磁盘为第一启动项
-- `POST /api/vms/{id}/migrate` - 创建后台任务迁移虚拟机；请求字段 `copyDisks` 表示复制本地磁盘，不再映射 libvirt `--copy-storage-all` 参数。前端要求结构化预检通过后才启用迁移按钮，正式提交时后端只做请求格式、虚拟机、源目标 Agent、迁移方式和 URI 格式等基础校验，不重复执行完整远程预检，排队后由源 Agent 执行迁移并反馈最终结果。热迁移未勾选复制本地磁盘时按共享存储执行 `virsh migrate --live`；热迁移勾选复制本地磁盘时先由源 Agent 通过 SSH 按源磁盘原路径复制磁盘，再执行 `virsh migrate --live --unsafe` 并可追加自动收敛或 Post-copy 参数。冷迁移未勾选复制本地磁盘时仍走共享存储迁移；冷迁移勾选复制本地磁盘时由源 Agent 通过 SSH 复制磁盘、重写 XML 并远程 `virsh define`。复制本地磁盘并勾选清理源虚拟机时会删除源定义和源普通磁盘；共享存储迁移只取消源定义，不删除磁盘
-- `POST /api/vms/{id}/migrate-precheck` - 返回虚拟机迁移结构化预检清单，不创建后台任务；前端可在迁移窗口内查看每项通过、失败或跳过状态，且迁移按钮默认禁用，只有当前参数对应的预检通过后才允许执行迁移；重复预检或修复后自动预检期间迁移按钮保持禁用且文本仍为“迁移”，迁移窗口内其他配置、关闭和修复入口同步禁用；执行迁移时前端直接复用预检通过时保存的请求参数，不再重复执行弹窗内的目标宿主机、运行态和资源预判断；勾选复制本地磁盘时会检查目标宿主机是否存在每块源磁盘路径所在的存储池，并检查目标池中是否已存在同路径或同名磁盘卷，同时要求 `qemu+ssh://` 迁移 URI；迁移通道需要 SSH 密码或源宿主机尚未信任目标 SSH 指纹时，前端会在“迁移通道”预检卡片右侧显示配置免密按钮；迁移通道返回 `vm_migrate_target_hostname_localhost` 时，前端会显示修复主机名按钮；未勾选复制本地磁盘时会检查源目标存储池是否显示共享存储特征；非 `qemu+ssh://` 开头的迁移 URI 会跳过 SSH 免密检测
-- `POST /api/vms/{id}/migrate-ssh-key` - 当以 `qemu+ssh://` 开头的迁移通道预检发现源宿主机无法免密连接目标 libvirt 时，使用用户本次输入的目标 SSH 用户和密码，由源 Agent 生成或复用本机 SSH 公钥并写入目标宿主机 `authorized_keys`，配置成功后前端会自动重新执行迁移预检；密码只在本次请求中使用，不写入数据库、任务、审计或日志
-- `POST /api/vms/{id}/migrate-hostname` - 当热迁移通道预检发现目标宿主机主机名解析为 localhost 时，由前端提交目标主机名；后端转发源 Agent，通过 SSH 设置目标宿主机 hostname，并在源宿主机和目标宿主机 `/etc/hosts` 写入目标 IP 与主机名解析，配置成功后前端会自动重新执行迁移预检
+- `POST /api/vms/{id}/migrate` - 创建后台任务迁移虚拟机
+  - 请求字段 `copyDisks` 表示复制本地磁盘，不再映射 libvirt `--copy-storage-all` 参数
+  - 前端要求结构化预检通过后才启用迁移按钮
+  - 正式提交时后端只做请求格式、虚拟机、源目标 Agent、迁移方式和 URI 格式等基础校验
+  - 正式提交时不重复执行完整远程预检，排队后由源 Agent 执行迁移并反馈最终结果
+  - 热迁移未勾选复制本地磁盘时按共享存储执行 `virsh migrate --live`
+  - 热迁移勾选复制本地磁盘时先由源 Agent 通过 SSH 按源磁盘原路径复制磁盘
+  - 热迁移复制本地磁盘后，再执行 `virsh migrate --live --unsafe` 并可追加自动收敛或 Post-copy 参数
+  - 冷迁移未勾选复制本地磁盘时仍走共享存储迁移
+  - 冷迁移勾选复制本地磁盘时由源 Agent 通过 SSH 复制磁盘、重写 XML 并远程 `virsh define`
+  - 复制本地磁盘并勾选清理源虚拟机时会删除源定义和源普通磁盘
+  - 共享存储迁移只取消源定义，不删除磁盘
+- `POST /api/vms/{id}/migrate-precheck` - 返回虚拟机迁移结构化预检清单，不创建后台任务
+  - 前端可在迁移窗口内查看每项通过、失败或跳过状态
+  - 迁移按钮默认禁用，只有当前参数对应的预检通过后才允许执行迁移
+  - 重复预检或修复后自动预检期间迁移按钮保持禁用且文本仍为“迁移”
+  - 迁移窗口内其他配置、关闭和修复入口同步禁用
+  - 执行迁移时前端直接复用预检通过时保存的请求参数
+  - 执行迁移时不再重复执行弹窗内的目标宿主机、运行态和资源预判断
+  - 勾选复制本地磁盘时会检查目标宿主机是否存在每块源磁盘路径所在的存储池
+  - 勾选复制本地磁盘时会检查目标池中是否已存在同路径或同名磁盘卷
+  - 勾选复制本地磁盘时要求 `qemu+ssh://` 迁移 URI
+  - 迁移通道需要 SSH 密码或源宿主机尚未信任目标 SSH 指纹时，前端会在“迁移通道”预检卡片右侧显示配置免密按钮
+  - 迁移通道返回 `vm_migrate_target_hostname_localhost` 时，前端会显示修复主机名按钮
+  - 未勾选复制本地磁盘时会检查源目标存储池是否显示共享存储特征
+  - 非 `qemu+ssh://` 开头的迁移 URI 会跳过 SSH 免密检测
+- `POST /api/vms/{id}/migrate-ssh-key` - 配置迁移通道 SSH 免密
+  - 当以 `qemu+ssh://` 开头的迁移通道预检发现源宿主机无法免密连接目标 libvirt 时使用
+  - 使用用户本次输入的目标 SSH 用户和密码
+  - 由源 Agent 生成或复用本机 SSH 公钥并写入目标宿主机 `authorized_keys`
+  - 配置成功后前端会自动重新执行迁移预检
+  - 密码只在本次请求中使用，不写入数据库、任务、审计或日志
+- `POST /api/vms/{id}/migrate-hostname` - 修复热迁移目标宿主机 hostname
+  - 当热迁移通道预检发现目标宿主机主机名解析为 localhost 时使用
+  - 由前端提交目标主机名
+  - 后端转发源 Agent，通过 SSH 设置目标宿主机 hostname
+  - 在源宿主机和目标宿主机 `/etc/hosts` 写入目标 IP 与主机名解析
+  - 配置成功后前端会自动重新执行迁移预检
 - `POST /api/vms/{id}/refresh` - 刷新单台虚拟机运行态信息；后端仅同步该虚拟机所属宿主机上的当前 VM 信息，会重新读取 Guest Agent OS、`domifaddr` IP、磁盘明细、CPU/内存使用率和 I/O 速率，并更新运行态缓存；快照恢复、VM 配置、设备、XML、介质和自启动修改后也会复用定向 VM 刷新
 - `PUT /api/vms/{id}/rename` - 修改已停止虚拟机名称；运行中的虚拟机会被拒绝，后端会检查同宿主机 Agent 上是否已有重名虚拟机
 - `PUT /api/vms/{id}/xml` - 修改已停止虚拟机的完整 libvirt XML，运行中的虚拟机会被拒绝；Agent 校验 XML 后执行 `virsh define`
 
-## 5.5 健康检查、系统配置、用户权限、告警通知与认证
+## 9.5 健康检查、系统配置、用户权限、告警通知与认证
 
 - `GET /api/health` - 健康检查，包含数据库状态
 
@@ -936,8 +1469,21 @@ server {
 - `POST /api/settings/auth-providers/{id}/test` - 使用已保存认证配置测试连接，并返回匹配用户数量
 - `GET /api/settings/base-config` - 获取基础配置，包含网站名称、认证页品牌名称、控制台品牌名称、控制台品牌副标题、图标、安全时效、资源阈值和 Agent 判定参数；需要基础配置查看或管理权限
 - `PUT /api/settings/base-config` - 更新基础配置，图标支持站内路径或图片 Data URL；可调整找回密码安全时效、前端 CPU/内存/磁盘百分比条颜色阈值、后端资源告警阈值、资源告警连续次数和 Agent 离线判定次数；需要基础配置管理权限
-- `GET /api/settings/notifications` - 获取通知媒介列表，包含 Webhook、邮件、飞书、企业微信和钉钉，以及告警通知与找回密码两个用途开关、自定义告警模板、恢复模板和恢复通知开关；需要通知配置查看或管理权限；邮件 `password`、飞书/钉钉 `secret` 不返回明文，已配置时分别返回 `hasPassword=true` 或 `hasSecret=true`
-- `PUT /api/settings/notifications/{id}` - 更新指定通知媒介的告警通知开关、找回密码开关和配置，`id` 支持 `webhook`、`email`、`lark`、`wechat`、`dingtalk`；配置可包含 `problemTemplate`、`recoveryTemplate`、`problemSubjectTemplate`、`recoverySubjectTemplate`、`sendRecovery`，邮件可包含 `emailContentType`，飞书、企业微信和钉钉可分别包含 `larkMessageType`、`wechatMessageType`、`dingtalkMessageType`，Webhook 还可包含 `webhookProblemPayload`、`webhookRecoveryPayload`；两个用途都关闭时允许保存空配置以清空已保存配置；邮件 `password`、飞书/钉钉 `secret` 留空时保留已保存值，填写新值时替换
+- `GET /api/settings/notifications` - 获取通知媒介列表
+  - 包含 Webhook、邮件、飞书、企业微信和钉钉
+  - 包含告警通知与找回密码两个用途开关
+  - 包含自定义告警模板、恢复模板和恢复通知开关
+  - 需要通知配置查看或管理权限
+  - 邮件 `password`、飞书/钉钉 `secret` 不返回明文
+  - 已配置时分别返回 `hasPassword=true` 或 `hasSecret=true`
+- `PUT /api/settings/notifications/{id}` - 更新指定通知媒介的告警通知开关、找回密码开关和配置
+  - `id` 支持 `webhook`、`email`、`lark`、`wechat`、`dingtalk`
+  - 配置可包含 `problemTemplate`、`recoveryTemplate`、`problemSubjectTemplate`、`recoverySubjectTemplate`、`sendRecovery`
+  - 邮件可包含 `emailContentType`
+  - 飞书、企业微信和钉钉可分别包含 `larkMessageType`、`wechatMessageType`、`dingtalkMessageType`
+  - Webhook 还可包含 `webhookProblemPayload`、`webhookRecoveryPayload`
+  - 两个用途都关闭时允许保存空配置以清空已保存配置
+  - 邮件 `password`、飞书/钉钉 `secret` 留空时保留已保存值，填写新值时替换
 - `POST /api/settings/notifications/{id}/test` - 使用已保存配置发送一条测试通知
 - `POST /api/settings/notifications/{id}/preview` - 使用示例告警预览当前配置中的告警模板、恢复模板、邮件主题模板和 Webhook JSON 模板，不发送外部通知
 - `GET /api/settings/permissions` - 获取可分配到角色的权限点，返回权限 key、名称、描述、分类和可选的 `impliedReadPermission` 操作权限补齐查看权限规则；需要用户配置查看或管理权限
@@ -955,7 +1501,7 @@ server {
 - `DELETE /api/settings/users/{id}` - 删除已禁用的平台用户，并清理该用户会话、直接角色和群组成员关系；不能删除当前登录用户和默认 `admin` 管理员
 - `POST /api/settings/users/{id}/disabled` - 启用或禁用平台用户；默认 `admin` 管理员不能禁用
 
-## 5.6 虚拟机操作
+## 9.6 虚拟机操作
 
 启动、恢复、暂停、关机、停止、强制关机、重启和强制重启成功后，后端会先更新当前 VM 的运行态缓存状态并广播 `runtime.updated`，再延迟 8 秒后台 full 同步所属 Agent；删除和强制删除成功后，后端会先从运行态缓存移除当前 VM 并广播 `runtime.updated`，再延迟 8 秒后台 full 同步所属 Agent 兜底校准。
 
@@ -981,25 +1527,35 @@ server {
 
 默认角色：
 
-| 角色 | 权限范围 |
-| :-: | :-: |
-| `admin` | 系统配置、Agent 管理、删除/强制操作、所有资源操作 |
+|    角色    |                           权限范围                           |
+| :--------: | :----------------------------------------------------------: |
+|  `admin`   |      系统配置、Agent 管理、删除/强制操作、所有资源操作       |
 | `operator` | 虚拟机启停、编辑、快照创建/编辑/恢复、宿主机接口、存储池/网络池日常操作，不能修改系统配置、Agent 和删除快照 |
-| `viewer` | 只读查看，不能执行写操作 |
+|  `viewer`  |                   只读查看，不能执行写操作                   |
 
-系统配置权限已拆分为基础配置、用户配置、认证配置和通知配置的查看/管理权限；快照权限已拆分为查看、创建、编辑、恢复和删除权限。虚拟机模板列表复用 `vms.read`，模板标记 / 取消模板复用 `vms.update`，从模板创建虚拟机复用 `vms.create`。只具备某个配置的查看权限时，系统配置页仅显示对应配置栏且不展示写操作按钮。Agent、宿主机接口、虚拟机、快照、存储池、网络池、系统配置等操作权限保存时会自动补齐对应查看权限，`alerts.manage` 会自动补齐 `operations.read`；前端优先使用 `GET /api/settings/permissions` 返回的 `impliedReadPermission` 元数据，并保留本地兜底规则。
+系统配置与权限规则：
+
+- 系统配置权限已拆分为基础配置、用户配置、认证配置和通知配置的查看/管理权限。
+- 快照权限已拆分为查看、创建、编辑、恢复和删除权限。
+- 虚拟机模板列表复用 `vms.read`。
+- 模板标记 / 取消模板复用 `vms.update`。
+- 从模板创建虚拟机复用 `vms.create`。
+- 只具备某个配置的查看权限时，系统配置页仅显示对应配置栏且不展示写操作按钮。
+- Agent、宿主机接口、虚拟机、快照、存储池、网络池、系统配置等操作权限保存时会自动补齐对应查看权限。
+- `alerts.manage` 会自动补齐 `operations.read`。
+- 前端优先使用 `GET /api/settings/permissions` 返回的 `impliedReadPermission` 元数据，并保留本地兜底规则。
 
 前端会根据当前用户权限隐藏不可访问菜单，并对虚拟机创建、编辑、控制台、克隆、迁移、电源、删除和强制操作，以及 Agent、宿主机接口、存储池、网络池、快照创建、快照编辑、快照恢复、快照删除和告警等主要写操作入口做权限限制；后端仍以接口级权限校验为准。
 
 通知媒介配置项：
 
-| 媒介 | 必填配置 | 可选配置 |
-| :-: | :-: | :-: |
-| Webhook | `url` | `method`（`POST`、`PUT`、`PATCH`，默认 `POST`）、`headers` |
+|   媒介   |                           必填配置                           |                           可选配置                           |
+| :------: | :----------------------------------------------------------: | :----------------------------------------------------------: |
+| Webhook  |                            `url`                             |  `method`（`POST`、`PUT`、`PATCH`，默认 `POST`）、`headers`  |
 | 邮件通知 | `smtpHost`、`smtpPort`、`username`、`password`、`from`、`to` | `fromName`、`useTLS` 或 `startTLS`；`fromName` 配置后发件人显示为 `发件人名称 <from>`，TLS 与 STARTTLS 不能同时启用；TLS 常用 465 端口，STARTTLS 常用 587 端口 |
-| 飞书 | `webhookUrl` | `secret`，配置后按飞书机器人规则加签 |
-| 企业微信 | `webhookUrl` | 无 |
-| 钉钉 | `webhookUrl` | `secret`，配置后按钉钉机器人规则加签 |
+|   飞书   |                         `webhookUrl`                         |             `secret`，配置后按飞书机器人规则加签             |
+| 企业微信 |                         `webhookUrl`                         |                              无                              |
+|   钉钉   |                         `webhookUrl`                         |             `secret`，配置后按钉钉机器人规则加签             |
 
 通知媒介用途规则：
 
@@ -1016,7 +1572,22 @@ server {
 - 飞书告警 / 恢复消息类型可选 `text`、`post` 或 `interactive`，默认 `text`；飞书 `post` 和 `interactive` 会使用邮件主题模板同源的标题作为富文本或卡片标题。
 - 企业微信和钉钉告警 / 恢复消息类型可选 `text` 或 `markdown`，默认 `text`；钉钉 Markdown 会使用邮件主题模板同源的标题作为消息标题。
 - Webhook 默认发送 JSON 对象，也可通过 `webhookProblemPayload` 和 `webhookRecoveryPayload` 自定义 JSON 模板。
-- 模板支持事件变量 `{{event.type}}`、`{{event.statusText}}`，告警变量 `{{alert.id}}`、`{{alert.level}}`、`{{alert.levelText}}`、`{{alert.status}}`、`{{alert.title}}`、`{{alert.message}}`、`{{alert.sourceType}}`、`{{alert.sourceId}}`、`{{alert.firstSeenAt}}`、`{{alert.lastSeenAt}}`、`{{alert.resolvedAt}}`、`{{alert.duration}}`。
+- 模板支持事件变量：
+  - `{{event.type}}`
+  - `{{event.statusText}}`
+- 模板支持告警变量：
+  - `{{alert.id}}`
+  - `{{alert.level}}`
+  - `{{alert.levelText}}`
+  - `{{alert.status}}`
+  - `{{alert.title}}`
+  - `{{alert.message}}`
+  - `{{alert.sourceType}}`
+  - `{{alert.sourceId}}`
+  - `{{alert.firstSeenAt}}`
+  - `{{alert.lastSeenAt}}`
+  - `{{alert.resolvedAt}}`
+  - `{{alert.duration}}`
 - 元数据变量支持 `{{metadata.<字段名>}}` 动态引用；当前内置告警会写入 `agent`、`endpoint`、`lastError`、`failureCount`、`vm`、`status`、`metric`、`value`、`limit`、`consecutive` 等字段。
 - 文本模板留空时使用系统默认模板；Webhook JSON 模板留空时使用系统默认 JSON 结构。
 - 前端通知配置页通过“变量说明”按钮展示全部变量说明，并可用“预览”按钮查看示例告警渲染结果。
@@ -1035,9 +1606,9 @@ server {
 
 认证配置项：
 
-| 认证方式 | 必填配置 | 可选配置 |
-| :-: | :-: | :-: |
-| AD/LDAP | `host`、`port`、`baseDN`、`userFilter`、`bindDN`、`bindPassword` | `useTLS`、`startTLS`、`insecureSkipVerify`、`timeoutSeconds`、`groupFilter` |
+| 认证方式 |                           必填配置                           |                           可选配置                           |
+| :------: | :----------------------------------------------------------: | :----------------------------------------------------------: |
+| AD/LDAP  | `host`、`port`、`baseDN`、`userFilter`、`bindDN`、`bindPassword` | `useTLS`、`startTLS`、`insecureSkipVerify`、`timeoutSeconds`、`groupFilter` |
 
 认证配置保存与连接：
 
@@ -1071,7 +1642,7 @@ AD/LDAP 登录规则：
 - 投递失败会按退避策略重试，最多重试 6 次，单次退避最长 15 分钟；告警详情弹窗可查看每个媒介的投递状态、错误原因和下次重试时间。
 - 未配置告警通知外部媒介时，站内通知展示视为已触达，避免同一活跃告警反复尝试发送。
 
-## 5.7 Agent API
+## 9.7 Agent API
 
 以下接口由部署在宿主机上的 Agent 服务提供，不属于后端控制中心 Swagger 文档范围。
 
@@ -1080,10 +1651,47 @@ Agent 除 `GET /health` 外，所有 `/v1/*` 接口都需要携带 `Authorizatio
 - `GET /health` - Agent 健康检查
 - `GET /v1/host` - 读取宿主机信息，`kvmVersion` 为 `virsh version` 第一行，`kvmFullVersion` 为完整输出，`cpuModel` 来自 `virsh nodeinfo` 的 `CPU model:`
 - `GET /v1/host/interfaces` - 读取宿主机物理网卡、loopback 和 bridge 接口列表
-- `POST /v1/host/interfaces` - 创建宿主机 Linux bridge 接口，可选绑定已有设备、设置 STP/Delay 和静态 IPv4/IPv6，绑定设备已被其他接口使用时会拒绝创建，静态地址会拒绝重复 IP、重复或重叠子网，以及不在同一子网的网关；绑定已有设备时会在执行 virsh 前备份已存在的 ifcfg-bridge 和 ifcfg-device；开启 DNS 系统配置写入时会通过 nmcli 或 ifcfg 写入 DNS
-- `GET /v1/vms` - 读取虚拟机列表，Agent 通过 `virsh`、`virt-df --csv`、`virt-filesystems --csv --all --long`、QEMU Guest Agent OS 查询和 `domifaddr` IP 查询采集运行态信息；虚拟机描述来自 `dumpxml` 的 `<description>`；磁盘总容量来自 `domblkinfo Capacity`，磁盘使用大小和使用率来自可归属的客户机文件系统 Used，Agent 执行 libguestfs 命令时默认使用 `LIBGUESTFS_BACKEND=direct`，包含磁盘 I/O 与网络吞吐速率
-- `GET /v1/vms?level=fast` - 轻量读取虚拟机列表，跳过 Guest Agent、磁盘明细、内存配置明细和快照采集，用于后端定时刷新；仍保留 CPU、内存使用率、磁盘 I/O 和网络吞吐采样以支撑趋势图；运行中虚拟机的内存使用率通过 `dommemstat <vm>` 采集，优先按 `actual - usable` 计算，缺少 `usable` 时用 `available` 兜底，已停止虚拟机直接返回 `0%`
-- `POST /v1/vms` - 创建虚拟机；常规模式下 Agent 先校验最大 CPU/最大内存不超过本机 `nodeinfo` 上限，再创建一个或多个存储卷，调用 `virt-install --import --noautoconsole --print-xml --dry-run` 生成 XML，并通过 `virsh define` 定义虚拟机；创建完成后无论是否直接启动，都会默认执行 `virsh dommemstat <vm> --period 5 --config`，使编辑资源页默认显示已启用 5 秒内存统计周期；模板模式下 Agent 使用现有存储卷克隆能力从 `template.sourcePool/template.sourceName` 克隆到 `template.targetPool/template.targetName`，再把目标卷作为系统盘传给 `virt-install --import`，定义失败会删除刚克隆出的目标卷；XML 模式下 Agent 从 XML name 读取虚拟机名称，校验 XML 非空、可解析以及名称不重复后直接执行 `virsh define`；CPU、内存和操作系统类型由 `virt-install` 参数写入生成的 XML，其中操作系统类型写入 `--os-type`；常规和模板模式默认写入 QEMU Guest Agent channel `--channel unix,target_type=virtio,name=org.qemu.guest_agent.0`，XML 模式不自动改写用户 XML；bridge 转发网络池会按真实 bridge 设备写入 `--network bridge=<bridge>`，其他网络池按 libvirt 网络名写入 `--network network=<pool>`；CDROM 设备始终通过 `--disk device=cdrom,readonly=on,bus=<isoBus>` 写入，选择 ISO 时追加 `path=<isoPath>`，未传 `isoBus` 时默认 `sata`；当前控制台类型只支持 `vnc`，可通过 `consolePassword` 写入 VNC graphics 密码；`autostart` 为 true 时表示创建后直接启动，不修改虚拟机随宿主机同启配置；`qcow2` 的 `preallocMetadata` 仅预分配元数据，不等同于 VMware 厚置备
+- `POST /v1/host/interfaces` - 创建宿主机 Linux bridge 接口
+  - 可选绑定已有设备、设置 STP/Delay 和静态 IPv4/IPv6
+  - 绑定设备已被其他接口使用时会拒绝创建
+  - 静态地址会拒绝重复 IP、重复或重叠子网，以及不在同一子网的网关
+  - 绑定已有设备时会在执行 virsh 前备份已存在的 ifcfg-bridge 和 ifcfg-device
+  - 开启 DNS 系统配置写入时会通过 nmcli 或 ifcfg 写入 DNS
+- `GET /v1/vms` - 读取虚拟机列表
+  - Agent 通过 `virsh`、`virt-df --csv`、`virt-filesystems --csv --all --long`、QEMU Guest Agent OS 查询和 `domifaddr` IP 查询采集运行态信息
+  - 虚拟机描述来自 `dumpxml` 的 `<description>`
+  - 磁盘总容量来自 `domblkinfo Capacity`
+  - 磁盘使用大小和使用率来自可归属的客户机文件系统 Used
+  - Agent 执行 libguestfs 命令时默认使用 `LIBGUESTFS_BACKEND=direct`
+  - 包含磁盘 I/O 与网络吞吐速率
+- `GET /v1/vms?level=fast` - 轻量读取虚拟机列表
+  - 跳过 Guest Agent、磁盘明细、内存配置明细和快照采集，用于后端定时刷新
+  - 仍保留 CPU、内存使用率、磁盘 I/O 和网络吞吐采样以支撑趋势图
+  - 运行中虚拟机的内存使用率通过 `dommemstat <vm>` 采集
+  - 优先按 `actual - usable` 计算，缺少 `usable` 时用 `available` 兜底
+  - 已停止虚拟机直接返回 `0%`
+- `POST /v1/vms` - 创建虚拟机
+  - 常规模式下 Agent 先校验最大 CPU/最大内存不超过本机 `nodeinfo` 上限
+  - 常规模式下再创建一个或多个存储卷
+  - 调用 `virt-install --import --noautoconsole --print-xml --dry-run` 生成 XML，并通过 `virsh define` 定义虚拟机
+  - 创建完成后无论是否直接启动，都会默认执行 `virsh dommemstat <vm> --period 5 --config`
+  - 编辑资源页默认显示已启用 5 秒内存统计周期
+  - 模板模式下 Agent 使用现有存储卷克隆能力从 `template.sourcePool/template.sourceName` 克隆到 `template.targetPool/template.targetName`
+  - 模板模式下再把目标卷作为系统盘传给 `virt-install --import`
+  - 模板模式定义失败会删除刚克隆出的目标卷
+  - XML 模式下 Agent 从 XML name 读取虚拟机名称
+  - XML 模式校验 XML 非空、可解析以及名称不重复后直接执行 `virsh define`
+  - CPU、内存和操作系统类型由 `virt-install` 参数写入生成的 XML，其中操作系统类型写入 `--os-type`
+  - 常规和模板模式默认写入 QEMU Guest Agent channel `--channel unix,target_type=virtio,name=org.qemu.guest_agent.0`
+  - XML 模式不自动改写用户 XML
+  - bridge 转发网络池会按真实 bridge 设备写入 `--network bridge=<bridge>`
+  - 其他网络池按 libvirt 网络名写入 `--network network=<pool>`
+  - CDROM 设备始终通过 `--disk device=cdrom,readonly=on,bus=<isoBus>` 写入
+  - 选择 ISO 时追加 `path=<isoPath>`，未传 `isoBus` 时默认 `sata`
+  - 当前控制台类型只支持 `vnc`
+  - 可通过 `consolePassword` 写入 VNC graphics 密码
+  - `autostart` 为 true 时表示创建后直接启动，不修改虚拟机随宿主机同启配置
+  - `qcow2` 的 `preallocMetadata` 仅预分配元数据，不等同于 VMware 厚置备
 - `GET /v1/storage-pools` - 读取宿主机 libvirt 存储池列表，目录池会返回 `capacitySource` 标识容量来源，便于前端顶部总容量和已分配按同一文件系统去重
 - `POST /v1/storage-pools` - 创建宿主机 libvirt 存储池
 - `GET /v1/storage-pools/{pool}/iso-files` - 读取指定存储池中的 `.iso` 文件
@@ -1100,17 +1708,48 @@ Agent 除 `GET /health` 外，所有 `/v1/*` 接口都需要携带 `Authorizatio
 - `DELETE /v1/network-pools/{pool}/delete` - 删除已停止的宿主机 libvirt 网络池定义
 - `PUT /v1/network-pools/{pool}/state` - 启动或停止宿主机 libvirt 网络池
 - `PUT /v1/network-pools/{pool}/autostart` - 启用或关闭宿主机 libvirt 网络池自启动
-- `GET /v1/vms/{name}/config` - 读取虚拟机真实配置，执行当前 `dumpxml`，再执行 `dominfo`、`nodeinfo` 和磁盘容量探测，返回编辑窗口所需字段；会从 `<memballoon><stats period="...">` 解析 `memoryStatsPeriod`；VNC graphics 仅返回密码启用状态，不返回密码明文
+- `GET /v1/vms/{name}/config` - 读取虚拟机真实配置
+  - 执行当前 `dumpxml`
+  - 再执行 `dominfo`、`nodeinfo` 和磁盘容量探测，返回编辑窗口所需字段
+  - 会从 `<memballoon><stats period="...">` 解析 `memoryStatsPeriod`
+  - VNC graphics 仅返回密码启用状态，不返回密码明文
 - Agent 虚拟机配置磁盘字段中，`path` 保留当前活动层用于扩容、删除等操作校验，`sourcePath` 用于展示基础源盘路径；没有外部 backing 链时两者相同
 - `PUT /v1/vms/{name}/config` - 修改虚拟机描述、vCPU 和内存配置；运行中的虚拟机支持在已预留上限内热扩容当前 CPU 与内存，最大 CPU 和最大内存仍需关机后修改；修改后返回轻量配置，跳过磁盘容量探测
 - `GET /v1/vms/{name}/console` - 查询虚拟机 VNC 控制台监听地址、端口和密码启用状态，不返回密码明文
-- `PUT /v1/vms/{name}/console` - 修改虚拟机的 VNC 控制台密码配置；运行中虚拟机支持启用或修改密码并执行 `virsh update-device --live --config`，不支持关闭已启用的密码；已停止虚拟机执行 `virsh update-device --config`，启用时写入 graphics `passwd` 属性，关闭时移除该属性
+- `PUT /v1/vms/{name}/console` - 修改虚拟机的 VNC 控制台密码配置
+  - 运行中虚拟机支持启用或修改密码并执行 `virsh update-device --live --config`
+  - 不支持关闭已启用的密码
+  - 已停止虚拟机执行 `virsh update-device --config`
+  - 启用时写入 graphics `passwd` 属性，关闭时移除该属性
 - `PUT /v1/vms/{name}/rename` - 修改已停止虚拟机名称，执行 `virsh domrename`
 - `PUT /v1/vms/{name}/xml` - 修改已停止虚拟机完整 XML，校验 XML 非空、可解析且名称一致后执行 `virsh define`；定义前会从 `dumpxml --security-info` 保留现有 VNC 密码，避免普通 XML 保存误清控制台密码
-- `PUT /v1/vms/{name}/devices` - 修改虚拟机磁盘与网卡配置；运行中仅支持通过 `virsh blockresize` 热扩容已有磁盘，并通过 `virsh attach-disk --live --config` 热添加新磁盘；已停止虚拟机扩容前会执行 `qemu-img info --output=json <path>` 检查磁盘镜像，若 qcow2 镜像包含内部快照则拒绝扩容；网络设备和删除磁盘需关机后操作；新增网卡模型支持 `virtio`、`e1000`、`e1000e`、`rtl8139` 和 `vmxnet3`
-- `POST /v1/vms/{name}/clone` - 克隆已停止虚拟机，先校验最大 CPU/最大内存不超过本机 `nodeinfo` 上限，再执行存储卷克隆、重写源 XML 中的名称/UUID/CPU/内存/磁盘路径/MAC/网卡网络池/CDROM 后通过 `virsh define` 定义新虚拟机，并按需执行 `desc` 与克隆后 `start`
-- `POST /v1/vms/{name}/migrate` - 迁移虚拟机；请求字段 `copyDisks` 表示由平台复制本地磁盘文件，Agent 不再拼接 `--copy-storage-all`。热迁移未复制本地磁盘时执行 `virsh migrate --live` 并按需追加 `--persistent`、`--undefinesource`、`--auto-converge` 和 `--postcopy`；热迁移复制本地磁盘时先通过 SSH 读取目标存储池、复制源磁盘到目标同路径，再执行 `virsh migrate --live --unsafe` 并可追加热迁移优化参数，成功后按需清理源定义和源普通磁盘。冷迁移复制本地磁盘时复用同一套 SSH 磁盘复制能力，重写 XML 后远程 `virsh define`；冷迁移不复制本地磁盘时按共享存储执行普通 `virsh migrate`
-- `POST /v1/migration/check` - 当迁移 URI 以 `qemu+ssh://` 开头时，Agent 在源宿主机执行 `virsh --connect <destinationUri?no_tty=1> list --all`，检测迁移通道是否可非交互连接，避免迁移任务卡在 SSH 密码输入；其他 URI 直接返回跳过 SSH 检测
+- `PUT /v1/vms/{name}/devices` - 修改虚拟机磁盘与网卡配置
+  - 运行中仅支持通过 `virsh blockresize` 热扩容已有磁盘
+  - 运行中可通过 `virsh attach-disk --live --config` 热添加新磁盘
+  - 已停止虚拟机扩容前会执行 `qemu-img info --output=json <path>` 检查磁盘镜像
+  - 若 qcow2 镜像包含内部快照则拒绝扩容
+  - 网络设备和删除磁盘需关机后操作
+  - 新增网卡模型支持 `virtio`、`e1000`、`e1000e`、`rtl8139` 和 `vmxnet3`
+- `POST /v1/vms/{name}/clone` - 克隆已停止虚拟机
+  - 先校验最大 CPU/最大内存不超过本机 `nodeinfo` 上限
+  - 再执行存储卷克隆
+  - 重写源 XML 中的名称/UUID/CPU/内存/磁盘路径/MAC/网卡网络池/CDROM
+  - 通过 `virsh define` 定义新虚拟机
+  - 按需执行 `desc` 与克隆后 `start`
+- `POST /v1/vms/{name}/migrate` - 迁移虚拟机
+  - 请求字段 `copyDisks` 表示由平台复制本地磁盘文件
+  - Agent 不再拼接 `--copy-storage-all`
+  - 热迁移未复制本地磁盘时执行 `virsh migrate --live`
+  - 热迁移未复制本地磁盘时按需追加 `--persistent`、`--undefinesource`、`--auto-converge` 和 `--postcopy`
+  - 热迁移复制本地磁盘时先通过 SSH 读取目标存储池、复制源磁盘到目标同路径
+  - 热迁移复制本地磁盘时再执行 `virsh migrate --live --unsafe` 并可追加热迁移优化参数
+  - 成功后按需清理源定义和源普通磁盘
+  - 冷迁移复制本地磁盘时复用同一套 SSH 磁盘复制能力，重写 XML 后远程 `virsh define`
+  - 冷迁移不复制本地磁盘时按共享存储执行普通 `virsh migrate`
+- `POST /v1/migration/check` - 检测迁移通道是否可非交互连接
+  - 当迁移 URI 以 `qemu+ssh://` 开头时，Agent 在源宿主机执行 `virsh --connect <destinationUri?no_tty=1> list --all`
+  - 避免迁移任务卡在 SSH 密码输入
+  - 其他 URI 直接返回跳过 SSH 检测
 - `POST /v1/migration/ssh-key` - Agent 仅支持为以 `qemu+ssh://` 开头的迁移 URI 配置 SSH 免密，使用本次请求提供的目标 SSH 用户和密码，将源宿主机公钥安装到目标宿主机 `authorized_keys`，随后再次检测迁移通道；密码不落盘、不写日志
 - `POST /v1/migration/hostname` - Agent 根据迁移 URI 解析目标 SSH 主机，设置目标宿主机 hostname，并在源宿主机和目标宿主机 `/etc/hosts` 写入目标 IP 与主机名解析；用于修复热迁移目标 hostname 解析为 localhost 或源端无法解析目标 hostname 的问题
 - `PUT /v1/vms/{name}/autostart` - 单独修改虚拟机随宿主机同启配置，执行 `autostart` 或 `autostart --disable`
@@ -1129,136 +1768,7 @@ Agent 除 `GET /health` 外，所有 `/v1/*` 接口都需要携带 `Authorizatio
 - `POST /v1/vms/{name}/delete` - 删除虚拟机定义并移除普通磁盘存储卷；若虚拟机未停止则拒绝执行，连接到 CDROM 的 ISO 介质不会被删除
 - `POST /v1/vms/{name}/force-delete` - 强制关闭虚拟机后删除定义并移除普通磁盘存储卷；连接到 CDROM 的 ISO 介质不会被删除
 
-# 六、使用说明
-
-## 6.1 登录控制台
-
-- 启动后端和前端后访问 `http://localhost:5173/login`。
-- 当 `users` 表为空时，后端会自动创建默认管理员：
-  - 用户名：`admin`
-  - 密码：`123456`
-  - 显示名：`admin`
-
-## 6.2 账号操作
-
-- 右上角账号头像区域可点击展开菜单。
-- 账号菜单支持修改密码和退出系统。
-- 修改密码时需输入旧密码、新密码和确认密码。
-- 密码规则：
-  - 密码至少 6 个字符。
-  - 新密码不能与旧密码相同。
-  - 新密码必须与确认密码一致。
-
-## 6.3 添加 Agent
-
-- 在 Agent 页面填写名称、Endpoint、Token 和 TLS 校验选项。
-- 保存前可以先测试连接。
-- 保存后，后端会使用加密后的 Token 与 Agent 通信。
-
-## 6.4 查看资源
-
-- 仪表盘展示宿主机、虚拟机、资源利用率和趋势；活跃告警集中在右上角通知中心与“任务 / 审计 / 告警”页面查看。
-- 宿主机页面展示从 Agent 同步到的宿主机运行态，卡片底部显示 `virsh version` 第一行，悬浮提示展示完整版本输出，可点击单宿主机趋势入口查看 CPU、内存、存储历史曲线。
-- 虚拟机页面展示运行态 VM 列表，并支持：
-  - 按状态、关键词或宿主机筛选。
-  - 按当前筛选结果导出 `csv`、`txt`、`xlsx`、`xls` 文件，并可选择导出字段。
-  - 创建虚拟机。
-  - 表格多选后批量执行启动、暂停、停止、强制停止、关机、强制关机、重启、强制重启、删除、强制删除。
-  - 在单机操作列执行迁移。
-  - 在 CPU、内存、磁盘列查看规格和使用率。
-  - 悬浮磁盘列后查看每块磁盘的已用量和总量。
-  - 点击“监控”按钮打开居中监控窗口，按 `1h`、`24h`、`7d`、`30d` 或自定义开始/结束时间查看 CPU、内存、磁盘、磁盘 I/O、网络吞吐图形卡片。
-- 快照页面展示当前从 Agent 获取到的快照列表，并支持：
-  - 按快照创建权限创建快照。
-  - 创建快照时填写平台侧标签。
-  - 按 Agent 宿主机、虚拟机、快照状态、关键词筛选。
-  - 查看详情。
-  - 按快照编辑权限编辑平台备注与标签。
-  - 按快照恢复、删除权限显示对应操作并进行二次确认。
-  - 点击“刷新快照”仅刷新快照运行态缓存。
-
-## 6.5 刷新机制
-
-- 后端按 `RUNTIME_SYNC_INTERVAL` 周期性创建或复用 `runtime.refresh.fast` 全局运行态轻量刷新任务，默认 30 秒，设置为 `0` 可关闭。
-- fast 任务会更新宿主机运行态、VM 基础状态、CPU、内存使用率、磁盘 I/O 和网络吞吐指标样本。
-- 后端按 `RUNTIME_DEEP_SYNC_INTERVAL` 周期性创建或复用 `runtime.refresh.all` 低频深度刷新任务，默认 10 分钟，设置为 `0` 可关闭，用于补采 IP、操作系统、内存、磁盘和快照等较重详情。
-- 低频深度刷新等待第一个间隔到达后再排队，并会避让已有 queued 或 running 的 fast/full 刷新任务，避免与手动刷新或启动时 fast 刷新堆积。
-- 右上角全量刷新图标或手动 `POST /api/refresh` 创建或复用 `runtime.refresh.all` full 全量刷新任务，会采集更完整的 VM 详情并同步快照。
-- 前端已移除自动刷新间隔控件；页面通过 `/api/events` 接收 SSE 事件，收到运行态更新后重新读取后端缓存。
-- 如果已有 `queued` 或 `running` 的刷新任务，后端会复用该任务，避免刷新任务堆积。
-- 各页面按钮的刷新范围不同，例如单台 VM、快照、存储池、网络池、接口、监控曲线或验证码；详情见 `docs/frontend-refresh-functions.md`。
-
-## 6.6 运维记录与告警
-
-- “任务 / 审计 / 告警”页面统一展示：
-  - 后台刷新任务。
-  - VM、快照、存储卷等操作任务。
-  - 用户关键操作审计日志。
-  - 平台运行态告警。
-- 审计日志覆盖登录、Agent、虚拟机、快照、存储池、网络池、宿主机接口、系统配置、通知中心和异步任务失败等关键操作。
-- 告警用于记录 Agent 离线、资源阈值和虚拟机异常状态等持续性运行态问题。
-- 任务、审计和告警的详细边界与操作覆盖矩阵详见 `docs/operation-log-coverage.md`。
-- 列表可选择显示 30、50、100、200 或全部记录，并支持页数切换。
-- 任务、审计和告警均可按当前搜索、状态筛选和高级 JSON 字段筛选结果导出 `csv`、`txt`、`xlsx`、`xls` 文件，并可选择导出字段。
-- 详情弹窗以只读字段展示任务载荷、审计元数据和告警元数据；元数据按 JSON 原文展示，告警详情同时展示消息字段。
-- 刷新任务进度会在顶部栏随 SSE 事件展示。
-
-## 6.7 告警与离线判定
-
-- Agent 离线判定：
-  - 当 Agent 连续同步失败达到基础配置中的离线失败次数时，后端会将 Agent 标记为 `offline`。
-  - Agent 标记离线后，后端会生成“Agent 离线”活跃告警。
-  - 后续任意一次同步成功后，后端会恢复 Agent 状态并自动解决对应告警。
-- 资源阈值告警：
-  - 同步成功后，后端会检查宿主机 CPU、内存、存储使用率。
-  - 后端也会检查虚拟机 CPU、内存、磁盘使用率。
-  - 连续超过基础配置中的严重阈值达到指定次数后，后端会生成资源使用率告警。
-  - 任意一次低于阈值会重置连续计数，并自动解决对应阈值告警。
-- 虚拟机状态告警：
-  - 虚拟机状态为 `error` 或 `unknown` 时，后端会生成异常状态告警。
-  - 虚拟机恢复正常状态后，后端会自动解决对应告警。
-
-## 6.8 系统配置
-
-系统配置页面提供基础配置、用户配置、认证配置和通知媒介配置。
-
-基础配置按以下分组维护：
-
-- 品牌标识：维护网站名称、认证页品牌名称、控制台品牌名称、控制台品牌副标题和图标。
-- 安全时效：维护找回密码图形验证码有效期、找回密码验证码有效期、发送冷却与频率限制统计窗口。
-- 资源阈值：维护 CPU、内存、磁盘百分比条颜色阈值，并使用严重阈值作为后端资源告警触发线。
-- Agent 判定：维护资源告警连续次数和 Agent 离线失败次数。
-
-基础配置项生效范围：
-
-| 配置项 | 生效位置 |
-| :- | :- |
-| 网站名称 | 浏览器标题、启动加载动画名称、登录/找回密码页底部版权名称 |
-| 认证页品牌名称 | 登录页、找回密码页顶部品牌名称 |
-| 控制台品牌名称 | 登录后左侧顶部主名称、基础配置实时预览 |
-| 控制台品牌副标题 | 登录后左侧顶部副标题、基础配置实时预览 |
-| 网站图标 | 浏览器 favicon、启动加载动画图标、登录/找回密码页图标、登录后左侧顶部图标、实时预览 |
-| 找回密码验证码有效期 | 后端发送验证码后生成的验证码过期时间 |
-| 图形验证码有效期 | 找回密码第一步算式验证码的过期时间 |
-| 发送冷却时间 | 发送验证码成功后，后端返回给前端的按钮倒计时秒数；范围 0.5-10 分钟，按 0.5 分钟递增，刷新页面不会绕过后端冷却限制 |
-| 频率限制统计窗口 | 后端统计同一账号在该时间窗口内最多请求 5 次验证码；范围 5-10 分钟，按 1 分钟递增 |
-| 警告阈值 | 前端 CPU、内存、磁盘百分比条进入警告色的阈值 |
-| 严重阈值 | 前端 CPU、内存、磁盘百分比条进入严重色的阈值，同时作为后端资源告警触发线 |
-| 资源告警连续次数 | 后端资源告警需要连续超阈值多少次才生成告警 |
-| Agent 离线失败次数 | 后端 Agent 连续同步失败多少次后标记为离线并生成告警 |
-
-通知与认证配置规则：
-
-- 平台内告警默认通过右上角通知中心展示。
-- 外部通知媒介支持分别开启告警通知、恢复通知和找回密码用途。
-- 告警通知和恢复通知可分别配置内容模板，Webhook 可额外配置 JSON payload 模板。
-- Webhook 支持自定义请求方法和请求头。
-- 邮件通过 SMTP 发送。
-- 飞书、企业微信、钉钉通过群机器人 Webhook 推送。
-- 飞书和钉钉支持签名密钥。
-- 配置保存后可直接发送测试通知。
-
-# 七、版本历史
+# 十、版本历史
 
 ## 当前开发版本
 
@@ -1272,72 +1782,6 @@ Agent 除 `GET /health` 外，所有 `/v1/*` 接口都需要携带 `Authorizatio
 - 补充虚拟机磁盘 I/O、网络吞吐采集、落库和趋势查询。
 
 正式发布版本日志后，应在 `verchanglog/` 中维护对应 `vX.X.X.md`，并同步更新本章节。
-
-# 八、安全说明
-
-- 生产环境必须显式设置 `JWT_SECRET` 和每台 Agent 的 `AGENT_TOKEN`。默认管理员密码为 `123456`，首次部署后应尽快修改或替换默认账号。
-- Agent Token 不保存明文；控制中心保存摘要用于校验，并保存加密密文用于后端自动同步。
-- 不要把 `.env`、数据库备份或 Token 写入仓库。
-- 建议对外只暴露前端和后端反向代理入口，Agent 仅允许控制中心所在网络访问。
-- Agent 不提供任意命令执行能力，只暴露白名单内的 KVM 管理接口。
-
-# 九、注意事项
-
-- 后端定时任务会创建全局运行态轻量刷新任务，手动 `/api/refresh` 会创建 full 全量刷新任务；任务完成并收到 `runtime.updated` 后，页面展示的是刷新任务写入缓存后的最新运行态。刷新类型和页面刷新范围详见 `docs/frontend-refresh-functions.md`。
-- 快照恢复、VM 配置/设备/XML/介质/自启动修改后，后端会定向刷新目标 VM 完整运行态；存储池、网络池和宿主机接口变更后，前端对应资源页会按宿主机自动重读。
-- Redis 是运行态缓存和指标 Stream 的必需依赖；如果 Redis 不可用，后端启动失败，需要先恢复 Redis 后再启动服务。
-- 如果未配置 `JWT_SECRET`，后端会在启动时生成临时值；重启后会变化，不适合生产使用。
-- 当前仓库暂未提供一键 Docker Compose 部署文件，部署时需要自行补齐镜像和编排配置。
-
-# 十、常见问题
-
-## 10.1 自动刷新间隔是针对什么的？
-
-自动刷新间隔由后端环境变量 `RUNTIME_SYNC_INTERVAL` 控制，默认 30 秒。到达间隔后，后端创建或复用面向所有 Agent 的 `runtime.refresh.fast` 全局运行态轻量刷新任务，更新 Redis 运行态缓存后通过 SSE 通知页面重新读取数据。fast 会更新 VM 内存使用率等指标样本，但不会执行 Guest Agent OS/IP 查询、磁盘明细和快照采集。低频深度刷新由 `RUNTIME_DEEP_SYNC_INTERVAL` 控制，默认 10 分钟，会创建或复用 `runtime.refresh.all` 任务补采 IP、操作系统、内存、磁盘和快照等较重详情。右上角全量刷新图标或手动 `/api/refresh` 也是 `runtime.refresh.all` full 全量刷新；快照页的 `POST /api/snapshots/refresh` 只刷新快照列表。详情见 `docs/frontend-refresh-functions.md`。
-
-## 10.2 前端点击刷新拿到的是最新数据吗？
-
-右上角全量刷新图标会触发 `POST /api/refresh`，用于刷新所有 Agent 的完整宿主机、VM 详情和快照缓存。当前页面上的其它“刷新”多为局部刷新：单台 VM 刷新会同步该 VM 最新运行态，快照页刷新只刷新快照缓存，存储池/网络池/接口页刷新只重新读取当前宿主机对应资源，监控刷新只重新读取指标曲线。快照恢复和 VM 配置类操作会自动定向刷新目标 VM，存储池/网络池/接口变更会自动刷新对应资源页。各入口是否触发 Agent 采集、刷新范围和接口详见 `docs/frontend-refresh-functions.md`。
-
-## 10.3 为什么数据库不保存宿主机、虚拟机和快照主数据？
-
-这些都是运行态资源，可以通过 Agent 实时获取。数据库更适合保存项目自身数据，例如用户、会话、Agent 登记、任务、审计日志和告警。
-
-## 10.4 Agent 离线如何判定？
-
-后端连续同步同一个 Agent 失败达到基础配置中的离线失败次数后，会标记该 Agent 离线并生成活跃告警；同步成功后自动恢复。默认阈值为 3 次。
-
-## 10.5 SSE 在反向代理后不刷新怎么办？
-
-检查 `/api/events` 的代理配置，确保允许长连接，并关闭或放宽代理缓冲和超时限制。Nginx 场景下需要重点检查 `proxy_buffering off`、`proxy_read_timeout`、`proxy_send_timeout` 和 `/api/` 路径转发是否指向后端服务。
-
-## 10.6 创建虚拟机时磁盘格式和 VMware 置备方式是否一一对应？
-
-不一一对应。KVM/libvirt 中的 `qcow2`、`raw` 主要表示磁盘文件格式，VMware 的精简置备、厚置备延迟置零、厚置备置零更偏向空间分配策略。当前项目中 `qcow2` 默认按需增长，更接近精简置备；创建虚拟机和添加镜像时 metadata 预分配默认关闭，勾选 `preallocMetadata` 后只预分配元数据，不等同于厚置备；`raw` 是否表现为精简或厚置备取决于创建命令、文件系统和后端存储能力。
-
-## 10.7 创建虚拟机时磁盘卷名已存在会怎样？
-
-后端会在创建任务排队前检查目标存储池中的卷名，发现同名卷时直接拒绝创建并提示更换磁盘卷名称。若并发场景下预检后又出现同名卷，Agent 执行 `virsh vol-create-as` 时也会失败，不会覆盖已有卷；已成功创建的本次新卷会在失败清理流程中删除。
-
-## 10.8 创建虚拟机多块磁盘必须使用同一种总线吗？
-
-需要保持一致。创建弹窗中添加数据盘时，数据盘的存储池、磁盘格式、磁盘总线、卷名称和 `preallocMetadata` 会继承系统盘配置并禁用编辑，只允许单独填写容量；后端和 Agent 也会校验数据盘配置必须与系统盘一致。实际使用中建议默认选择 `virtio` 以获得较好性能；Windows 虚拟机如果安装阶段缺少 VirtIO 驱动，可考虑系统盘先使用 `sata`，数据盘会随系统盘保持相同总线。
-
-## 10.9 创建虚拟机中的“创建后直接启动”是随宿主机开机自启吗？
-
-不是。创建弹窗中的该选项只表示虚拟机定义完成后立即执行一次 `virsh start <vm>`。虚拟机是否随宿主机启动，需要在编辑虚拟机配置中的自启动开关单独设置。
-
-## 10.10 找回密码为什么需要验证邮箱？
-
-验证邮箱用于确认当前操作者确实知道该用户配置的邮箱，避免只凭公开用户名触发重置流程。邮件媒介会把验证码发送到账号配置邮箱；Webhook、飞书、企业微信和钉钉机器人媒介会发送到对应外部系统，但提交发送前仍必须填写并匹配用户配置邮箱。AD/LDAP 用户不走本地找回密码流程，需要在目录服务侧重置密码。
-
-## 10.11 通知媒介的“告警通知”和“找回密码”开关有什么区别？
-
-告警通知开关决定活跃告警是否推送到该外部媒介；恢复通知开关决定告警解决时是否发送恢复内容，且仅在告警通知开启时生效；找回密码开关决定该媒介是否出现在忘记密码流程的发送选项中。Webhook、邮件、飞书、企业微信和钉钉都可以分别开启或关闭这些用途。
-
-## 10.12 为什么告警没有发送到外部媒介？
-
-优先检查通知媒介是否保存了有效配置、是否开启“告警通知”用途、测试通知是否成功，以及告警是否仍处于活跃状态。未配置外部告警媒介时，右上角通知中心的站内通知视为已触达，系统不会因为缺少外部媒介而反复重试同一活跃告警。
 
 # 十一、许可证
 
