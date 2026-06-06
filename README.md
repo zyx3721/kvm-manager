@@ -1777,7 +1777,7 @@ Agent 除 `GET /health` 外，所有 `/v1/*` 接口都需要携带 `Authorizatio
 - 支持虚拟机、宿主机、快照、存储池、网络池、宿主机接口、任务、审计、告警和通知媒介管理。
 - 支持 RBAC 角色权限、账号修改密码、忘记密码验证码重置和系统基础配置。
 - 支持自定义告警通知模板、通知消息类型和告警通知投递记录。
-- 补充 Backend 与 Agent 发布二进制交叉编译产物。
+- 补充 Backend、Agent 发布二进制和 Frontend 静态资源包发布产物。
 
 详细更新日志见 [verchanglog/v1.0.0.md](verchanglog/v1.0.0.md)。
 

@@ -43,6 +43,13 @@ jobs:
           go-version: '1.25'
           cache-dependency-path: backend/go.sum
 
+      - name: 设置 Node 环境
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
       - name: 交叉编译 Backend 多平台二进制文件
         working-directory: backend
         run: |
@@ -132,6 +139,28 @@ jobs:
 
           echo "✅ Agent 编译完成"
 
+      - name: 构建 Frontend 静态资源包
+        working-directory: frontend
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/v}
+          mkdir -p dist-release
+
+          echo "📦 安装 Frontend 依赖..."
+          npm ci
+
+          echo "🔨 构建 Frontend 静态资源..."
+          npm run build
+
+          echo "📦 打包 Frontend 静态资源..."
+          tar -czf dist-release/kvm-manager-frontend_${VERSION}.tar.gz -C dist .
+
+          echo "📝 生成 Frontend 校验和..."
+          cd dist-release
+          sha256sum *.tar.gz > checksums.txt
+          cd ..
+
+          echo "✅ Frontend 构建完成"
+
       - name: 构建并推送 Docker 镜像
         uses: docker/build-push-action@v7
         with:
@@ -184,6 +213,7 @@ jobs:
           - Windows AMD64: \`kvm-manager_${VERSION}_windows_amd64.zip\`
           - Agent Linux AMD64: \`kvm-agent_${VERSION}_linux_amd64.tar.gz\`
           - Agent Linux ARM64: \`kvm-agent_${VERSION}_linux_arm64.tar.gz\`
+          - Frontend 静态资源包: \`kvm-manager-frontend_${VERSION}.tar.gz\`
 
           ### 🔐 校验和
           请下载对应的 \`checksums.txt\` 验证文件完整性。
@@ -205,3 +235,5 @@ jobs:
             backend/dist/checksums.txt
             agent/dist/*.tar.gz
             agent/dist/checksums.txt
+            frontend/dist-release/*.tar.gz
+            frontend/dist-release/checksums.txt
