@@ -171,6 +171,82 @@ func TestSanitizeEmailNotificationConfigKeepsPreviousPasswordWhenBlank(t *testin
 	}
 }
 
+func TestSanitizeEmailNotificationConfigKeepsPreviousPasswordWhenOnlyMarkerProvided(t *testing.T) {
+	config, err := sanitizeNotificationConfigWithPrevious("email", map[string]any{
+		"smtpHost":    "smtp.example.com",
+		"smtpPort":    float64(465),
+		"username":    "alert@example.com",
+		"hasPassword": true,
+		"from":        "alert@example.com",
+		"to":          "ops@example.com",
+	}, map[string]any{"password": "old-secret"}, true)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got := config["password"]; got != "old-secret" {
+		t.Fatalf("password = %#v, want old-secret", got)
+	}
+	if _, ok := config["hasPassword"]; ok {
+		t.Fatalf("expected hasPassword marker to be discarded, got %#v", config["hasPassword"])
+	}
+}
+
+func TestSanitizeRobotNotificationConfigKeepsPreviousSecretWhenOnlyMarkerProvided(t *testing.T) {
+	config, err := sanitizeNotificationConfigWithPrevious("dingtalk", map[string]any{
+		"webhookUrl": "https://example.com/dingtalk",
+		"hasSecret":  true,
+	}, map[string]any{"secret": "unit-test-placeholder-secret"}, true)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got := config["secret"]; got != "unit-test-placeholder-secret" {
+		t.Fatalf("secret = %#v, want retained placeholder secret", got)
+	}
+	if _, ok := config["hasSecret"]; ok {
+		t.Fatalf("expected hasSecret marker to be discarded, got %#v", config["hasSecret"])
+	}
+}
+
+func TestSanitizeDisabledNotificationConfigKeepsPreviousSecretUnlessClearing(t *testing.T) {
+	config, err := sanitizeNotificationConfigForUpdate("email", map[string]any{
+		"smtpHost":    "smtp.example.com",
+		"hasPassword": true,
+	}, map[string]any{"password": "old-secret"}, false, false)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got := config["password"]; got != "old-secret" {
+		t.Fatalf("password = %#v, want old-secret", got)
+	}
+
+	cleared, err := sanitizeNotificationConfigForUpdate("email", map[string]any{
+		"smtpHost":    "",
+		"hasPassword": true,
+	}, map[string]any{"password": "old-secret"}, false, true)
+	if err != nil {
+		t.Fatalf("unexpected clear error: %v", err)
+	}
+	if _, ok := cleared["password"]; ok {
+		t.Fatalf("expected password to be cleared, got %#v", cleared["password"])
+	}
+}
+
+func TestSanitizeNotificationConfigDisablesRecoveryWhenProblemNotificationDisabled(t *testing.T) {
+	config, err := sanitizeNotificationConfigForUpdate("email", map[string]any{
+		"sendRecovery": true,
+		"hasPassword":  true,
+	}, map[string]any{"password": "old-secret"}, false, false)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if _, ok := config["sendRecovery"]; ok {
+		t.Fatalf("expected sendRecovery to be removed, got %#v", config["sendRecovery"])
+	}
+	if got := config["password"]; got != "old-secret" {
+		t.Fatalf("password = %#v, want old-secret", got)
+	}
+}
+
 func TestRedactNotificationConfigSecrets(t *testing.T) {
 	item := redactNotificationChannel(testNotificationChannel("email", map[string]any{"password": "secret", "smtpHost": "smtp.example.com"}))
 	config := decodeRawConfig(t, item.Config)
@@ -202,6 +278,17 @@ func TestSanitizeRobotNotificationConfigKeepsPreviousSecretWhenBlank(t *testing.
 	}
 }
 
+func TestSanitizeLarkNotificationConfigRejectsInvalidCardTemplate(t *testing.T) {
+	_, err := sanitizeNotificationConfig("lark", map[string]any{
+		"webhookUrl":              "https://example.com/lark",
+		"larkMessageType":         "interactive",
+		"larkProblemCardTemplate": "black",
+	}, true)
+	if err == nil {
+		t.Fatal("expected invalid lark card template error")
+	}
+}
+
 func TestRedactRobotNotificationConfigSecrets(t *testing.T) {
 	item := redactNotificationChannel(testNotificationChannel("dingtalk", map[string]any{"secret": "unit-test-placeholder-secret", "webhookUrl": "https://example.com/dingtalk"}))
 	config := decodeRawConfig(t, item.Config)
@@ -213,6 +300,79 @@ func TestRedactRobotNotificationConfigSecrets(t *testing.T) {
 	}
 	if config["webhookUrl"] != "https://example.com/dingtalk" {
 		t.Fatalf("expected non-secret field to stay visible, got %#v", config["webhookUrl"])
+	}
+}
+
+func TestSanitizeLarkAppNotificationConfigRequiresFieldsWhenEnabled(t *testing.T) {
+	valid := map[string]any{
+		"appId":         "cli_xxx",
+		"appSecret":     "secret",
+		"receiveIdType": "chat_id",
+		"receiveId":     "oc_xxx",
+	}
+	for _, field := range []string{"appId", "appSecret", "receiveIdType", "receiveId"} {
+		config := make(map[string]any, len(valid))
+		for key, value := range valid {
+			config[key] = value
+		}
+		config[field] = ""
+		if _, err := sanitizeNotificationConfig("lark_app", config, true); err == nil {
+			t.Fatalf("expected required field error for %s", field)
+		}
+	}
+}
+
+func TestSanitizeAppNotificationConfigKeepsPreviousAppSecretWhenOnlyMarkerProvided(t *testing.T) {
+	config, err := sanitizeNotificationConfigWithPrevious("lark_app", map[string]any{
+		"appId":         "cli_xxx",
+		"hasAppSecret":  true,
+		"receiveIdType": "chat_id",
+		"receiveId":     "oc_xxx",
+	}, map[string]any{"appSecret": "unit-test-placeholder-secret"}, true)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got := config["appSecret"]; got != "unit-test-placeholder-secret" {
+		t.Fatalf("appSecret = %#v, want retained placeholder secret", got)
+	}
+	if _, ok := config["hasAppSecret"]; ok {
+		t.Fatalf("expected hasAppSecret marker to be discarded, got %#v", config["hasAppSecret"])
+	}
+}
+
+func TestSanitizeWechatAppNotificationConfigRequiresRecipient(t *testing.T) {
+	_, err := sanitizeNotificationConfig("wechat_app", map[string]any{
+		"corpId":  "ww_xxx",
+		"agentId": "1000002",
+		"secret":  "secret",
+	}, true)
+	if err == nil {
+		t.Fatal("expected recipient error")
+	}
+}
+
+func TestSanitizeDingTalkAppNotificationConfigRequiresRecipient(t *testing.T) {
+	_, err := sanitizeNotificationConfig("dingtalk_app", map[string]any{
+		"appKey":    "dingxxx",
+		"appSecret": "secret",
+		"agentId":   "1000002",
+	}, true)
+	if err == nil {
+		t.Fatal("expected recipient error")
+	}
+}
+
+func TestRedactAppNotificationConfigSecrets(t *testing.T) {
+	item := redactNotificationChannel(testNotificationChannel("dingtalk_app", map[string]any{"appSecret": "unit-test-placeholder-secret", "appKey": "dingxxx"}))
+	config := decodeRawConfig(t, item.Config)
+	if _, ok := config["appSecret"]; ok {
+		t.Fatalf("expected appSecret to be redacted, got %#v", config["appSecret"])
+	}
+	if config["hasAppSecret"] != true {
+		t.Fatalf("expected hasAppSecret marker, got %#v", config["hasAppSecret"])
+	}
+	if config["appKey"] != "dingxxx" {
+		t.Fatalf("expected non-secret field to stay visible, got %#v", config["appKey"])
 	}
 }
 

@@ -22,9 +22,11 @@ KVM Manager 是一个面向 KVM/libvirt 环境的虚拟化资源管理控制台�
 
 ## 1.1 项目简介
 
-KVM Manager 用于统一管理多台 KVM 宿主机上的虚拟化资源。控制中心负责用户登录、Agent 登记、任务记录、审计日志和告警；KVM Agent 运行在每台宿主机上，通过受控 API 提供宿主机、虚拟机、快照查询以及基础虚拟机操作能力。
+KVM Manager 是一个面向多宿主机 KVM/libvirt 环境的虚拟化资源管理平台，用于把分散在不同宿主机上的虚拟机、存储池、网络池、快照、运行态指标和运维操作集中到同一个控制台中管理。平台采用控制中心与宿主机 Agent 分离的架构：控制中心负责用户认证、权限、Agent 登记、运行态缓存、异步任务、审计日志、告警通知和系统配置；KVM Agent 部署在每台宿主机上，负责执行受控的 libvirt、virsh、virt-df、qemu-img 等本机采集与操作命令。
 
-项目当前采用“后端定时刷新任务 + Redis 运行态缓存 + SSE 通知”的实时架构：后端按 `RUNTIME_SYNC_INTERVAL` 创建或复用全局运行态轻量刷新任务，任务执行时向 Agent 拉取宿主机和虚拟机运行态数据并优先写入 Redis 缓存，再通过 SSE 通知页面更新；后端按 `RUNTIME_DEEP_SYNC_INTERVAL` 低频执行 full 深度刷新，用于补采 IP、操作系统、内存、磁盘和快照等重字段。右上角全量刷新图标或手动 `/api/refresh` 会触发 full 全量刷新并采集快照。虚拟机内存使用率按 `actual - usable` 计算，缺少 `usable` 时使用 `available` 兜底；虚拟机磁盘总容量来自 `domblkinfo Capacity`，使用大小和使用率来自 `virt-df --csv` 的客户机文件系统 Used。刷新入口、页面刷新范围和 fast/full 边界详见 `docs/frontend-refresh-functions.md`，虚拟机采集字段和计算口径详见 `docs/vm-info-collection.md`。
+项目不把宿主机、虚拟机和快照作为长期主数据写入 PostgreSQL，而是通过 Agent 按需采集，并将运行态优先维护在 Redis 缓存中。PostgreSQL 主要保存平台自身数据，例如用户、角色权限、会话、Agent 登记、任务、审计日志、告警、通知媒介、系统配置、指标样本和平台侧备注等。这样可以降低资源状态与真实 KVM 环境不一致的风险，也便于在 Agent 或缓存异常后重新从宿主机恢复运行态视图。
+
+平台面向日常虚拟化运维场景，覆盖宿主机资源观测、虚拟机创建与生命周期操作、在线扩容、迁移、克隆、快照、存储池、网络池、宿主机接口、运行态刷新、趋势指标、告警通知、操作审计和 RBAC 权限控制。前端提供深色 / 浅色主题、统一任务反馈、SSE 实时刷新、导出能力和系统配置页面；后端通过异步任务和审计链路把高风险操作、后台刷新和告警恢复过程串联起来，便于排查和追溯。
 
 ## 1.2 项目预览
 
@@ -38,7 +40,7 @@ KVM Manager 用于统一管理多台 KVM 宿主机上的虚拟化资源。控制
 
 
 
-## 1.2 核心功能
+## 1.3 核心功能
 
 - **用户认证**：管理员初始化、JWT 会话、登录状态校验、修改密码与注销。
 - **Agent 管理**：登记、删除、连接测试、手动同步 KVM Agent。
@@ -48,18 +50,32 @@ KVM Manager 用于统一管理多台 KVM 宿主机上的虚拟化资源。控制
 - **快照管理**：从 Agent 实时获取虚拟机快照列表，支持创建、恢复、删除快照，并在平台侧维护备注和标签。
 - **实时刷新**：后端按环境变量定时触发全局运行态轻量刷新任务，前端通过 SSE 事件更新页面，手动刷新接口仍可触发 full 全量任务。
 - **离线告警**：连续同步失败达到阈值后标记 Agent 离线并生成活跃告警，同步恢复后自动恢复。
-- **系统配置**：提供告警通知媒介与认证配置，支持 Webhook、邮件、飞书、企业微信、钉钉和 AD/LDAP。
+- **系统配置**：提供告警通知媒介与认证配置，支持 Webhook、邮件、飞书/企业微信/钉钉机器人、飞书/企业微信/钉钉应用通知和 AD/LDAP。
 - **任务与审计**：记录后台刷新任务、虚拟机操作任务、关键审计日志和平台告警，并提供统一运维页面查看。
 
-## 1.3 实时数据边界
+## 1.4 实时数据边界
 
 数据库保存项目自身数据，包括用户、会话、Agent 登记、Agent 运行状态、任务、审计日志和告警。
 
 数据库不创建也不维护宿主机、虚拟机、快照资源表。此类数据可由 Agent 随时重新获取，后端统一在 Redis 中维护运行态缓存，并通过 API 与 SSE 提供给前端展示。Redis 是必需依赖，后端启动时会校验连接，连接失败则服务启动失败。
 
-## 1.4 技术栈
+## 1.5 专题文档索引
 
-### 1.4.1 后端
+README 主要覆盖安装部署、常用操作和接口概览；更细的采集口径、刷新边界、操作日志覆盖和前端控件规范放在 `docs/` 目录：
+
+| 文档 | 适用场景 |
+| :-: | :-: |
+| [docs/frontend-refresh-functions.md](docs/frontend-refresh-functions.md) | 查看自动刷新、手动刷新、SSE 事件、fast/full 边界和各页面刷新入口 |
+| [docs/vm-info-collection.md](docs/vm-info-collection.md) | 查看虚拟机字段来源、采集命令、CPU/内存/磁盘/I/O 计算口径和回退策略 |
+| [docs/host-info-collection.md](docs/host-info-collection.md) | 查看宿主机字段来源、资源使用率、宿主机趋势和接口采集链路 |
+| [docs/operation-log-coverage.md](docs/operation-log-coverage.md) | 查看任务、审计日志、告警、通知投递记录的覆盖范围和失败记录边界 |
+| [docs/agent-command-timeout-and-temp-dirs.md](docs/agent-command-timeout-and-temp-dirs.md) | 排查 Agent 命令超时、`COMMAND_TIMEOUT_SECONDS` 作用范围和 `/tmp` 临时目录来源 |
+| [docs/network-interface-dns-bridge-implementation.md](docs/network-interface-dns-bridge-implementation.md) | 查看宿主机接口 DNS 写入、NAT/ROUTE/BRIDGE 网络池校验和桥接能力边界 |
+| [docs/frontend-select-dropdown-placement.md](docs/frontend-select-dropdown-placement.md) | 查看前端 Select/listbox 下拉展开方向、弹窗内下拉遮挡和控件维护规范 |
+
+## 1.6 技术栈
+
+### 1.6.1 后端
 
 - **语言**：Go 1.26+
 - **HTTP**：Go 标准库 `net/http` 路由
@@ -70,7 +86,7 @@ KVM Manager 用于统一管理多台 KVM 宿主机上的虚拟化资源。控制
 - **密码/令牌安全**：bcrypt、SHA-256、AES-GCM
 - **实时能力**：后端定时刷新任务、Redis 运行态缓存、SSE 事件流
 
-### 1.4.2 前端
+### 1.6.2 前端
 
 - **框架**：React 19
 - **构建工具**：Vite 7
@@ -81,14 +97,14 @@ KVM Manager 用于统一管理多台 KVM 宿主机上的虚拟化资源。控制
 - **图表**：recharts
 - **通知**：sonner
 
-### 1.4.3 Agent
+### 1.6.3 Agent
 
 - **语言**：Go 1.25+
 - **运行环境**：Linux KVM 宿主机
 - **虚拟化接口**：libvirt / virsh
 - **安全机制**：Bearer Token，可选 TLS
 
-## 1.5 项目结构
+## 1.7 项目结构
 
 ```text
 kvm-manager/
@@ -112,7 +128,7 @@ kvm-manager/
 │   │   └── service/                # 用户认证、通知和实时同步等业务服务
 │   └── pkg/                        # 后端基础设施与可复用能力
 │       ├── agent/                  # 访问 KVM Agent 的客户端与 VM 相关请求模型
-│       ├── database/               # PostgreSQL 连接与迁移
+│       ├── database/               # PostgreSQL 连接与初始化迁移
 │       └── tokencrypto/            # Agent Token 加密存储
 ├── deploy/                         # Docker Compose、Nginx、Supervisor 和容器入口配置
 ├── docs/                           # 项目设计、采集说明、网络配置实施记录与前端控件行为文档
@@ -234,7 +250,7 @@ docker exec -it pg-prod psql -U postgres
 CREATE DATABASE kvm;
 ```
 
-后端启动时会自动执行 `backend/pkg/database/migrations/` 下的迁移脚本。迁移记录保存在 `schema_migrations` 表中，重复启动会跳过已应用版本，不会重复初始化已有数据。当前数据库只保存用户、会话、Agent、任务、审计日志和告警等项目自身数据，不创建宿主机、虚拟机、快照资源表。
+后端启动时会自动执行 `backend/pkg/database/migrations/001_init.sql` 初始化数据库结构。迁移记录保存在 `schema_migrations` 表中，重复启动会跳过已应用版本，不会重复初始化已有数据。当前数据库保存用户、会话、角色权限、Agent、任务、审计日志、告警、通知渠道、系统配置、指标样本和快照/模板标注等项目自身数据，不创建宿主机、虚拟机、快照资源表。
 
 ## 2.4 后端配置与启动
 
@@ -409,6 +425,8 @@ nohup npm run dev > kvm-frontend.log 2>&1 &
 
 # 三、Docker Compose 快速部署（推荐）
 
+> 当前 Docker Compose 快速部署仅包含前端、后端、PostgreSQL 和 Redis，不包含部署在 KVM 宿主机上的 Agent。Agent 需在每台 KVM 宿主机上单独配置和启动：本地开发参考 [2.5 Agent 配置与启动](#25-agent-配置与启动)，生产部署参考 [4.4 Agent 构建与配置](#44-agent-构建与配置)。
+
 ## 3.1 部署目录结构
 
 所有相关文件统一放在 `deploy/` 目录下，单镜像包含前端（Nginx）、后端（backend），通过 supervisord 管理多进程。
@@ -545,7 +563,7 @@ server {
     server_name your-domain.com;
 
     # 限制上传文件大小（可选）
-    client_max_body_size 50m;
+    client_max_body_size 50g;
 
     # Gzip 压缩配置
     gzip on;
@@ -611,7 +629,7 @@ server {
     ssl_session_cache          shared:SSL:10m;
 
     # 限制上传文件大小（可选）
-    client_max_body_size 50m;
+    client_max_body_size 50g;
 
     # Gzip 压缩配置
     gzip on;
@@ -888,7 +906,7 @@ server {
     index index.html;
 
     # 限制上传文件大小（可选）
-    client_max_body_size 50m;
+    client_max_body_size 50g;
 
     # Gzip 压缩配置
     gzip on;
@@ -976,7 +994,7 @@ server {
     index index.html;
 
     # 限制上传文件大小（可选）
-    client_max_body_size 50m;
+    client_max_body_size 50g;
 
     # Gzip 压缩配置
     gzip on;
@@ -1069,6 +1087,7 @@ server {
 
 - 仪表盘展示宿主机、虚拟机、资源利用率和趋势；活跃告警集中在右上角通知中心与“任务 / 审计 / 告警”页面查看。
 - 宿主机页面展示从 Agent 同步到的宿主机运行态，卡片底部显示 `virsh version` 第一行，悬浮提示展示完整版本输出，可点击单宿主机趋势入口查看 CPU、内存、存储历史曲线。
+- 宿主机字段来源、采集命令和趋势指标口径详见 [docs/host-info-collection.md](docs/host-info-collection.md)。
 - 虚拟机页面展示运行态 VM 列表，并支持：
   - 按状态、关键词或宿主机筛选。
   - 按当前筛选结果导出 `csv`、`txt`、`xlsx`、`xls` 文件，并可选择导出字段。
@@ -1078,6 +1097,7 @@ server {
   - 在 CPU、内存、磁盘列查看规格和使用率。
   - 悬浮磁盘列后查看每块磁盘的已用量和总量。
   - 点击“监控”按钮打开居中监控窗口，按 `1h`、`24h`、`7d`、`30d` 或自定义开始/结束时间查看 CPU、内存、磁盘、磁盘 I/O、网络吞吐图形卡片。
+- 虚拟机字段来源、采集命令和 CPU/内存/磁盘/I/O 计算口径详见 [docs/vm-info-collection.md](docs/vm-info-collection.md)。
 - 快照页面展示当前从 Agent 获取到的快照列表，并支持：
   - 按快照创建权限创建快照。
   - 创建快照时填写平台侧标签。
@@ -1097,6 +1117,7 @@ server {
 - 前端已移除自动刷新间隔控件；页面通过 `/api/events` 接收 SSE 事件，收到运行态更新后重新读取后端缓存。
 - 如果已有 `queued` 或 `running` 的刷新任务，后端会复用该任务，避免刷新任务堆积。
 - 各页面按钮的刷新范围不同，例如单台 VM、快照、存储池、网络池、接口、监控曲线或验证码；详情见 `docs/frontend-refresh-functions.md`。
+- 若需要排查 Agent 外部命令耗时、`COMMAND_TIMEOUT_SECONDS` 和宿主机 `/tmp` 下 `go-build*`、`libguestfs*` 临时目录来源，详见 [docs/agent-command-timeout-and-temp-dirs.md](docs/agent-command-timeout-and-temp-dirs.md)。
 
 ## 5.6 运维记录与告警
 
@@ -1138,6 +1159,7 @@ server {
 - 安全时效：维护找回密码图形验证码有效期、找回密码验证码有效期、发送冷却与频率限制统计窗口。
 - 资源阈值：维护 CPU、内存、磁盘百分比条颜色阈值，并使用严重阈值作为后端资源告警触发线。
 - Agent 判定：维护资源告警连续次数和 Agent 离线失败次数。
+- 通知策略：维护告警通知发送超时、最大重试次数、重试基础间隔、重试最大间隔和单轮处理批量。
 
 基础配置项生效范围：
 
@@ -1156,6 +1178,11 @@ server {
 | 严重阈值 | 前端 CPU、内存、磁盘百分比条进入严重色的阈值，同时作为后端资源告警触发线 |
 | 资源告警连续次数 | 后端资源告警需要连续超阈值多少次才生成告警 |
 | Agent 离线失败次数 | 后端 Agent 连续同步失败多少次后标记为离线并生成告警 |
+| 告警通知发送超时 | 外部告警通知请求超过该秒数视为失败；默认 8 秒 |
+| 告警通知最大重试次数 | 外部告警或恢复通知投递失败后的最大重试次数；默认 6 次，设置为 0 时不重试 |
+| 告警通知重试基础间隔 | 投递失败后的指数退避基础间隔；默认 30 秒 |
+| 告警通知重试最大间隔 | 投递失败后的单次退避上限；默认 15 分钟 |
+| 告警通知单轮处理批量 | 每轮扫描待发送告警和待重试投递记录的数量；默认 50 条 |
 
 通知与认证配置规则：
 
@@ -1164,9 +1191,10 @@ server {
 - 告警通知和恢复通知可分别配置内容模板，Webhook 可额外配置 JSON payload 模板。
 - Webhook 支持自定义请求方法和请求头。
 - 邮件通过 SMTP 发送。
-- 飞书、企业微信、钉钉通过群机器人 Webhook 推送。
-- 飞书和钉钉支持签名密钥。
+- 飞书、企业微信、钉钉支持群机器人 Webhook 推送，也支持通过自建应用向指定接收对象发送通知。
+- 飞书和钉钉机器人支持签名密钥；飞书应用、企业微信应用和钉钉应用会使用应用凭证获取访问令牌后发送。
 - 配置保存后可直接发送测试通知。
+- 前端 Select/listbox 类控件的下拉方向、弹窗内遮挡处理和维护清单详见 [docs/frontend-select-dropdown-placement.md](docs/frontend-select-dropdown-placement.md)。
 
 # 六、安全说明
 
@@ -1224,15 +1252,15 @@ server {
 
 ## 8.10 找回密码为什么需要验证邮箱？
 
-验证邮箱用于确认当前操作者确实知道该用户配置的邮箱，避免只凭公开用户名触发重置流程。邮件媒介会把验证码发送到账号配置邮箱；Webhook、飞书、企业微信和钉钉机器人媒介会发送到对应外部系统，但提交发送前仍必须填写并匹配用户配置邮箱。AD/LDAP 用户不走本地找回密码流程，需要在目录服务侧重置密码。
+验证邮箱用于确认当前操作者确实知道该用户配置的邮箱，避免只凭公开用户名触发重置流程。邮件媒介会把验证码发送到账号配置邮箱；Webhook、飞书、企业微信、钉钉机器人和应用媒介会发送到对应外部系统，但提交发送前仍必须填写并匹配用户配置邮箱。AD/LDAP 用户不走本地找回密码流程，需要在目录服务侧重置密码。
 
 ## 8.11 通知媒介的“告警通知”和“找回密码”开关有什么区别？
 
-告警通知开关决定活跃告警是否推送到该外部媒介；恢复通知开关决定告警解决时是否发送恢复内容，且仅在告警通知开启时生效；找回密码开关决定该媒介是否出现在忘记密码流程的发送选项中。Webhook、邮件、飞书、企业微信和钉钉都可以分别开启或关闭这些用途。
+告警通知开关决定活跃告警是否推送到该外部媒介；恢复通知开关决定告警解决时是否发送恢复内容，且仅在告警通知开启时生效；找回密码开关决定该媒介是否出现在忘记密码流程的发送选项中。Webhook、邮件、飞书、企业微信、钉钉及其应用通知都可以分别开启或关闭这些用途。
 
 ## 8.12 为什么告警没有发送到外部媒介？
 
-优先检查通知媒介是否保存了有效配置、是否开启“告警通知”用途、测试通知是否成功，以及告警是否仍处于活跃状态。未配置外部告警媒介时，右上角通知中心的站内通知视为已触达，系统不会因为缺少外部媒介而反复重试同一活跃告警。
+优先检查通知媒介是否保存了有效配置、是否开启“告警通知”用途、测试通知是否成功，以及告警是否仍处于活跃状态。若外部媒介响应较慢或频繁失败，可检查基础配置中的通知策略是否设置了过短的发送超时、过低的重试次数或过小的单轮处理批量。未配置外部告警媒介时，右上角通知中心的站内通知视为已触达，系统不会因为缺少外部媒介而反复重试同一活跃告警。
 
 # 九、API 文档
 
@@ -1306,7 +1334,7 @@ server {
   - Webhook 和机器人媒介直接发送到对应外部系统
 - `POST /api/auth/password-reset/verify` - 校验找回密码用户名和图形验证码
   - 返回 10 分钟内有效的短期校验 Token
-  - 返回已启用找回密码用途的 Webhook、邮件、飞书、企业微信和钉钉媒介
+  - 返回已启用找回密码用途的 Webhook、邮件、飞书、企业微信、钉钉及其应用通知媒介
 - `GET /api/auth/providers` - 获取登录页可用的外部认证方式，本地账号登录始终可用
 
 ## 9.4 实时资源与刷新
@@ -1322,6 +1350,7 @@ server {
   - 绑定已有设备时会在执行 virsh 前备份已存在的 ifcfg-bridge 和 ifcfg-device
   - 开启 DNS 系统配置写入时会通过 nmcli 或 ifcfg 写入 DNS
   - 需要宿主机接口管理权限
+  - DNS 写入、ifcfg 备份和桥接能力边界详见 [docs/network-interface-dns-bridge-implementation.md](docs/network-interface-dns-bridge-implementation.md)
 - `DELETE /api/host-interfaces/{agentId}/delete/{name}` - 删除已停止的指定宿主机接口；需要宿主机接口管理权限
 - `GET /api/host-interfaces/{agentId}/devices/list` - 读取指定宿主机 Agent 上可用于绑定的网卡设备候选列表；需要宿主机接口查看权限
 - `PUT /api/host-interfaces/{agentId}/state/{name}` - 启动或停止指定宿主机接口；需要宿主机接口管理权限
@@ -1337,6 +1366,7 @@ server {
   - 也支持 `custom&start=YYYY-MM-DDTHH:mm&end=YYYY-MM-DDTHH:mm`
 - `GET /api/network-pools/{agentId}` - 读取指定宿主机 Agent 上的 libvirt 网络池列表；拥有网络池相关权限或虚拟机相关权限时可作为关联只读数据访问，用于虚拟机创建、编辑、克隆和迁移配置
 - `POST /api/network-pools/{agentId}` - 在指定宿主机 Agent 上创建网络池，支持 NAT、ROUTE、ISOLATE 和 BRIDGE；NAT/ROUTE 创建前检查 IPv4 转发，BRIDGE 创建前检查桥接设备存在
+  - NAT/ROUTE/BRIDGE 创建前校验和桥接能力边界详见 [docs/network-interface-dns-bridge-implementation.md](docs/network-interface-dns-bridge-implementation.md)
 - `PUT /api/network-pools/{agentId}/autostart/{pool}` - 启用或关闭指定宿主机网络池自启动
 - `DELETE /api/network-pools/{agentId}/delete/{pool}` - 删除已停止的指定宿主机网络池定义
 - `PUT /api/network-pools/{agentId}/state/{pool}` - 启动或停止指定宿主机网络池
@@ -1471,23 +1501,28 @@ server {
 - `GET /api/settings/auth-providers` - 获取认证配置列表；需要认证配置查看或管理权限；`bindPassword` 不返回明文，已配置时返回 `hasBindPassword=true`
 - `PUT /api/settings/auth-providers/{id}` - 更新指定认证配置，当前 `id` 支持 `ldap`；关闭认证时允许保存空配置以清空已保存配置；外部认证用户必须先在用户配置中创建并启用；`bindPassword` 留空时保留已保存密码，填写新值时替换
 - `POST /api/settings/auth-providers/{id}/test` - 使用已保存认证配置测试连接，并返回匹配用户数量
-- `GET /api/settings/base-config` - 获取基础配置，包含网站名称、认证页品牌名称、控制台品牌名称、控制台品牌副标题、图标、安全时效、资源阈值和 Agent 判定参数；需要基础配置查看或管理权限
-- `PUT /api/settings/base-config` - 更新基础配置，图标支持站内路径或图片 Data URL；可调整找回密码安全时效、前端 CPU/内存/磁盘百分比条颜色阈值、后端资源告警阈值、资源告警连续次数和 Agent 离线判定次数；需要基础配置管理权限
+- `GET /api/settings/base-config` - 获取基础配置，包含网站名称、认证页品牌名称、控制台品牌名称、控制台品牌副标题、图标、安全时效、资源阈值、Agent 判定参数和告警通知策略；需要基础配置查看或管理权限
+- `PUT /api/settings/base-config` - 更新基础配置，图标支持站内路径或图片 Data URL；可调整找回密码安全时效、前端 CPU/内存/磁盘百分比条颜色阈值、后端资源告警阈值、资源告警连续次数、Agent 离线判定次数和告警通知超时/重试/批量策略；需要基础配置管理权限
 - `GET /api/settings/notifications` - 获取通知媒介列表
-  - 包含 Webhook、邮件、飞书、企业微信和钉钉
+  - 包含 Webhook、邮件、飞书、企业微信、钉钉及其应用通知媒介
   - 包含告警通知与找回密码两个用途开关
   - 包含自定义告警模板、恢复模板和恢复通知开关
   - 需要通知配置查看或管理权限
-  - 邮件 `password`、飞书/钉钉 `secret` 不返回明文
-  - 已配置时分别返回 `hasPassword=true` 或 `hasSecret=true`
+  - 邮件 `password`、机器人 `secret`、应用 `appSecret` 或 `secret` 不返回明文
+  - 已配置时分别返回 `hasPassword=true`、`hasSecret=true` 或 `hasAppSecret=true`
 - `PUT /api/settings/notifications/{id}` - 更新指定通知媒介的告警通知开关、找回密码开关和配置
-  - `id` 支持 `webhook`、`email`、`lark`、`wechat`、`dingtalk`
+  - `id` 支持 `webhook`、`email`、`lark`、`lark_app`、`wechat`、`wechat_app`、`dingtalk`、`dingtalk_app`
   - 配置可包含 `problemTemplate`、`recoveryTemplate`、`problemSubjectTemplate`、`recoverySubjectTemplate`、`sendRecovery`
   - 邮件可包含 `emailContentType`
   - 飞书、企业微信和钉钉可分别包含 `larkMessageType`、`wechatMessageType`、`dingtalkMessageType`
+  - 飞书富文本和卡片可包含 `larkProblemTitleTemplate`、`larkRecoveryTitleTemplate`
+  - 飞书卡片可包含 `larkProblemCardTemplate`、`larkRecoveryCardTemplate`
   - Webhook 还可包含 `webhookProblemPayload`、`webhookRecoveryPayload`
-  - 两个用途都关闭时允许保存空配置以清空已保存配置
-  - 邮件 `password`、飞书/钉钉 `secret` 留空时保留已保存值，填写新值时替换
+  - 飞书应用需要 `appId`、`appSecret`、`receiveIdType`、`receiveId`
+  - 企业微信应用需要 `corpId`、`agentId`、`secret`，且 `toUser`、`toParty`、`toTag` 至少填写一项
+  - 钉钉应用需要 `appKey`、`appSecret`、`agentId`，且 `useridList`、`deptIdList` 至少填写一项
+  - 邮件 `password`、机器人 `secret`、应用 `appSecret` 或 `secret` 留空时保留已保存值，填写新值时替换
+  - 重复保存不会清空已保存敏感信息，仅请求 `clearConfig=true` 时允许清空配置和敏感信息
 - `POST /api/settings/notifications/{id}/test` - 使用已保存配置发送一条测试通知
 - `POST /api/settings/notifications/{id}/preview` - 使用示例告警预览当前配置中的告警模板、恢复模板、邮件主题模板和 Webhook JSON 模板，不发送外部通知
 - `GET /api/settings/permissions` - 获取可分配到角色的权限点，返回权限 key、名称、描述、分类和可选的 `impliedReadPermission` 操作权限补齐查看权限规则；需要用户配置查看或管理权限
@@ -1557,9 +1592,12 @@ server {
 | :------: | :----------------------------------------------------------: | :----------------------------------------------------------: |
 | Webhook  |                            `url`                             |  `method`（`POST`、`PUT`、`PATCH`，默认 `POST`）、`headers`  |
 | 邮件通知 | `smtpHost`、`smtpPort`、`username`、`password`、`from`、`to` | `fromName`、`useTLS` 或 `startTLS`；`fromName` 配置后发件人显示为 `发件人名称 <from>`，TLS 与 STARTTLS 不能同时启用；TLS 常用 465 端口，STARTTLS 常用 587 端口 |
-|   飞书   |                         `webhookUrl`                         |             `secret`，配置后按飞书机器人规则加签             |
+|   飞书   |                         `webhookUrl`                         | `secret`，配置后按飞书机器人规则加签；`larkMessageType`、`larkProblemTitleTemplate`、`larkRecoveryTitleTemplate`、`larkProblemCardTemplate`、`larkRecoveryCardTemplate` |
+| 飞书应用 |          `appId`、`appSecret`、`receiveIdType`、`receiveId`          | `larkMessageType`、`larkProblemTitleTemplate`、`larkRecoveryTitleTemplate`、`larkProblemCardTemplate`、`larkRecoveryCardTemplate`；`receiveIdType` 支持 `open_id`、`user_id`、`union_id`、`email`、`chat_id` |
 | 企业微信 |                         `webhookUrl`                         |                              无                              |
+| 企业微信应用 |              `corpId`、`agentId`、`secret`，且 `toUser`、`toParty`、`toTag` 至少一项              |                    `wechatMessageType`                    |
 |   钉钉   |                         `webhookUrl`                         |             `secret`，配置后按钉钉机器人规则加签             |
+| 钉钉应用 |             `appKey`、`appSecret`、`agentId`，且 `useridList`、`deptIdList` 至少一项             |                    `dingtalkMessageType`                    |
 
 通知媒介用途规则：
 
@@ -1567,14 +1605,15 @@ server {
 - 告警通知开关控制活跃告警是否推送到该外部媒介。
 - 恢复通知开关保存在 `config.sendRecovery`，仅在告警通知开启时生效，控制告警从活跃变为已解决时是否推送恢复内容。
 - 找回密码开关控制该媒介是否出现在找回密码发送选项中。
-- Webhook、邮件、飞书、企业微信和钉钉启用找回密码用途后，均可用于找回密码验证码发送。
+- Webhook、邮件、飞书、企业微信、钉钉及其应用通知启用找回密码用途后，均可用于找回密码验证码发送。
 
 告警模板规则：
 
-- 邮件、飞书、企业微信和钉钉使用文本模板，字段为 `problemTemplate` 与 `recoveryTemplate`；邮件可额外配置 `problemSubjectTemplate` 与 `recoverySubjectTemplate`。
+- 邮件、飞书、企业微信、钉钉及其应用通知使用文本模板，字段为 `problemTemplate` 与 `recoveryTemplate`；邮件可额外配置 `problemSubjectTemplate` 与 `recoverySubjectTemplate`。
 - 邮件告警 / 恢复内容类型可选 `text/plain` 或 `text/html`，默认 `text/plain`。
-- 飞书告警 / 恢复消息类型可选 `text`、`post` 或 `interactive`，默认 `text`；飞书 `post` 和 `interactive` 会使用邮件主题模板同源的标题作为富文本或卡片标题。
-- 企业微信和钉钉告警 / 恢复消息类型可选 `text` 或 `markdown`，默认 `text`；钉钉 Markdown 会使用邮件主题模板同源的标题作为消息标题。
+- 飞书机器人和飞书应用告警 / 恢复消息类型可选 `text`、`post` 或 `interactive`，默认 `text`；飞书 `post` 和 `interactive` 可配置独立标题模板，留空时使用邮件主题模板同源的标题作为富文本或卡片标题。
+- 飞书卡片 `interactive` 可分别配置告警与恢复标题颜色，支持 `red`、`green`、`blue`、`orange`、`yellow`、`purple`、`grey` 等常用颜色；留空时告警默认 `red`，恢复默认 `green`。
+- 企业微信、企业微信应用、钉钉和钉钉应用告警 / 恢复消息类型可选 `text` 或 `markdown`，默认 `text`；钉钉 Markdown 会使用邮件主题模板同源的标题作为消息标题。
 - Webhook 默认发送 JSON 对象，也可通过 `webhookProblemPayload` 和 `webhookRecoveryPayload` 自定义 JSON 模板。
 - 模板支持事件变量：
   - `{{event.type}}`
@@ -1592,7 +1631,8 @@ server {
   - `{{alert.lastSeenAt}}`
   - `{{alert.resolvedAt}}`
   - `{{alert.duration}}`
-- 元数据变量支持 `{{metadata.<字段名>}}` 动态引用；当前内置告警会写入 `agent`、`endpoint`、`lastError`、`failureCount`、`vm`、`status`、`metric`、`value`、`limit`、`consecutive` 等字段。
+- 元数据变量支持 `{{metadata.<字段名>}}` 动态引用；当前内置告警会写入 `agent`、`endpoint`、`lastError`、`failureCount`、`vm`、`vmIp`、`vmDescription`、`status`、`metric`、`value`、`limit`、`consecutive` 等字段。
+- 虚拟机告警的 `vmIp` 和 `vmDescription` 为空时会写入 `-`，便于模板直接展示。
 - 文本模板留空时使用系统默认模板；Webhook JSON 模板留空时使用系统默认 JSON 结构。
 - 前端通知配置页通过“变量说明”按钮展示全部变量说明，并可用“预览”按钮查看示例告警渲染结果。
 
@@ -1643,7 +1683,7 @@ AD/LDAP 登录规则：
 - 告警触发后，后端会写入告警表并在右上角通知中心展示。
 - 若通知媒介启用了告警通知用途，会为每个启用的外部媒介写入通知投递记录并发送告警内容，触发通知发送成功后记录 `notificationSentAt`。
 - 若通知媒介启用了恢复通知，告警自动恢复或手动解决时会写入恢复通知投递记录，并按恢复模板发送恢复内容。
-- 投递失败会按退避策略重试，最多重试 6 次，单次退避最长 15 分钟；告警详情弹窗可查看每个媒介的投递状态、错误原因和下次重试时间。
+- 投递失败会按基础配置中的通知策略退避重试，默认最多重试 6 次、基础间隔 30 秒、单次退避最长 15 分钟；告警详情弹窗可查看每个媒介的投递状态、错误原因和下次重试时间。
 - 未配置告警通知外部媒介时，站内通知展示视为已触达，避免同一活跃告警反复尝试发送。
 
 ## 9.7 Agent API

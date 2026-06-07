@@ -205,6 +205,7 @@ type passwordResetSendCodeResponse struct {
 type notificationChannelRequestDoc struct {
 	Enabled              bool           `json:"enabled" example:"true"`
 	PasswordResetEnabled bool           `json:"passwordResetEnabled" example:"false"`
+	ClearConfig          bool           `json:"clearConfig" example:"false"`
 	Config               map[string]any `json:"config" swaggertype:"object"`
 }
 
@@ -217,6 +218,10 @@ type notificationTemplatePreviewDoc struct {
 	RecoveryWebhook map[string]any `json:"recoveryWebhook,omitempty" swaggertype:"object"`
 	ContentType     string         `json:"contentType,omitempty"`
 	MessageType     string         `json:"messageType,omitempty"`
+	ProblemTitle    string         `json:"problemTitle,omitempty"`
+	RecoveryTitle   string         `json:"recoveryTitle,omitempty"`
+	ProblemColor    string         `json:"problemColor,omitempty"`
+	RecoveryColor   string         `json:"recoveryColor,omitempty"`
 }
 
 type authProviderRequestDoc struct {
@@ -226,19 +231,24 @@ type authProviderRequestDoc struct {
 }
 
 type systemBaseConfigRequestDoc struct {
-	SiteName                         string  `json:"siteName" example:"KVM Manager"`
-	LoginName                        string  `json:"loginName" example:"KVM Manager"`
-	AppName                          string  `json:"appName" example:"KVM Manager"`
-	AppSubtitle                      string  `json:"appSubtitle" example:"VIRTUALIZATION OPS"`
-	IconData                         string  `json:"iconData" example:"/favicon.svg"`
-	PasswordResetCodeTTLMinutes      int     `json:"passwordResetCodeTtlMinutes" example:"10"`
-	PasswordResetCaptchaTTLMinutes   int     `json:"passwordResetCaptchaTtlMinutes" example:"1"`
-	PasswordResetSendCooldownMinutes float64 `json:"passwordResetSendCooldownMinutes" example:"0.5"`
-	PasswordResetRateLimitMinutes    int     `json:"passwordResetRateLimitMinutes" example:"5"`
-	ResourceWarningThreshold         int     `json:"resourceWarningThreshold" example:"70"`
-	ResourceCriticalThreshold        int     `json:"resourceCriticalThreshold" example:"85"`
-	ResourceAlertConsecutiveCount    int     `json:"resourceAlertConsecutiveCount" example:"3"`
-	AgentOfflineFailureCount         int     `json:"agentOfflineFailureCount" example:"3"`
+	SiteName                          string  `json:"siteName" example:"KVM Manager"`
+	LoginName                         string  `json:"loginName" example:"KVM Manager"`
+	AppName                           string  `json:"appName" example:"KVM Manager"`
+	AppSubtitle                       string  `json:"appSubtitle" example:"VIRTUALIZATION OPS"`
+	IconData                          string  `json:"iconData" example:"/favicon.svg"`
+	PasswordResetCodeTTLMinutes       int     `json:"passwordResetCodeTtlMinutes" example:"10"`
+	PasswordResetCaptchaTTLMinutes    int     `json:"passwordResetCaptchaTtlMinutes" example:"1"`
+	PasswordResetSendCooldownMinutes  float64 `json:"passwordResetSendCooldownMinutes" example:"0.5"`
+	PasswordResetRateLimitMinutes     int     `json:"passwordResetRateLimitMinutes" example:"5"`
+	ResourceWarningThreshold          int     `json:"resourceWarningThreshold" example:"70"`
+	ResourceCriticalThreshold         int     `json:"resourceCriticalThreshold" example:"85"`
+	ResourceAlertConsecutiveCount     int     `json:"resourceAlertConsecutiveCount" example:"3"`
+	AgentOfflineFailureCount          int     `json:"agentOfflineFailureCount" example:"3"`
+	AlertNotificationTimeoutSeconds   int     `json:"alertNotificationTimeoutSeconds" example:"8"`
+	AlertNotificationMaxRetryCount    int     `json:"alertNotificationMaxRetryCount" example:"6"`
+	AlertNotificationRetryBaseSeconds int     `json:"alertNotificationRetryBaseSeconds" example:"30"`
+	AlertNotificationRetryMaxMinutes  int     `json:"alertNotificationRetryMaxMinutes" example:"15"`
+	AlertNotificationBatchSize        int     `json:"alertNotificationBatchSize" example:"50"`
 }
 
 type managedUserRequestDoc struct {
