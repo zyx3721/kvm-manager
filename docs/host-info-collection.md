@@ -689,9 +689,22 @@ GET /api/dashboard/summary
 | `averageCpu` | 所有宿主机 `cpuUsage` 的平均值 |
 | `averageMemory` | 所有宿主机 `memoryUsage` 的平均值 |
 
+后端基于当前运行态缓存中的虚拟机列表聚合时，会先合并数据库中的模板标记，并排除 `isTemplate == true` 的虚拟机模板：
+
+| 汇总字段 | 计算方式 |
+| :-: | :-: |
+| `totalVMs` | 非模板虚拟机数量 |
+| `runningVMs` | 非模板虚拟机中 `status == running` 的数量 |
+| `stoppedVMs` | 非模板虚拟机中 `status == stopped` 的数量 |
+| `pausedVMs` | 非模板虚拟机中 `status == paused` 的数量 |
+| `errorVMs` | 非模板虚拟机中 `status == error` 的数量 |
+| `usedVCPUs` | 累加非模板虚拟机 `cpuCores` |
+| `recentVMs` | 非模板虚拟机列表前 6 条 |
+
 说明：
 
 - 总览资源统计读取的是运行态缓存，不直接触发 Agent 采集。
+- 虚拟机模板标记与取消标记只更新后端数据库标记表并广播 `runtime.updated`，总览重新读取后会立即按最新模板标记调整虚拟机统计口径。
 - 总览页不再展示全局“资源利用率”和聚合“资源趋势”。当前布局将虚拟机与宿主机拆成两组：虚拟机状态分布右侧展示在线虚拟机资源利用率，并按选中的在线 VM 调用 `/api/metrics/vms/{vmId}?range=1h` 显示最近 1 小时趋势；宿主机组展示在线宿主机资源利用率、宿主机状态分布，并按选中的在线宿主机调用 `/api/metrics/hosts/{agentId}?range=1h` 显示最近 1 小时趋势。
 - 宿主机 `/v1/host` 已采集宿主机级磁盘 I/O 和网络吞吐，趋势查询返回对应速率字段。
 

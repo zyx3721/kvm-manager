@@ -131,7 +131,7 @@ func swaggerChangePassword() {}
 
 // swaggerDashboardSummary godoc
 // @Summary 获取仪表盘汇总
-// @Description 从运行态缓存和日志告警数据聚合仪表盘信息。
+// @Description 从运行态缓存和日志告警数据聚合仪表盘信息。虚拟机运行/总数、状态分布、vCPU 已分配和最近虚拟机列表均排除已标记的模板。
 // @Tags realtime
 // @Produce json
 // @Security BearerAuth

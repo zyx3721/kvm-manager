@@ -97,21 +97,26 @@ export default function Hosts() {
     setAgentBusy('create');
     setError('');
     setAgentProbeResult(null);
-    let created: AgentRecord | null = null;
     try {
       await probeAgentConnection({
         endpoint: agentForm.endpoint,
         token: agentForm.token,
         tlsInsecure: agentForm.tlsInsecure,
       });
-      created = await createAgent(agentForm);
-      await syncAgent(created.id, agentForm.token);
+      const created = await createAgent(agentForm);
+      const token = agentForm.token;
       setAgentForm({ name: '', endpoint: '', token: '', tlsInsecure: false });
       await loadHosts();
+      toast.success(`${created.name} 已保存，正在后台同步`);
+      void syncAgent(created.id, token)
+        .then(async () => {
+          await loadHosts();
+          toast.success(`${created.name} 同步完成`);
+        })
+        .catch(err => {
+          toast.error(err instanceof Error ? err.message : 'Agent 同步失败');
+        });
     } catch (err) {
-      if (created) {
-        await deleteAgent(created.id).catch(() => undefined);
-      }
       setAgentProbeResult({
         type: 'error',
         message: err instanceof Error ? err.message : 'Agent 操作失败',

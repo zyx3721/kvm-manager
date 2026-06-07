@@ -1178,6 +1178,7 @@ server {
 - 后端按 `RUNTIME_DEEP_SYNC_INTERVAL` 周期性创建或复用 `runtime.refresh.all` 低频深度刷新任务，默认 10 分钟，设置为 `0` 可关闭，用于补采 IP、操作系统、内存、磁盘和快照等较重详情。
 - 低频深度刷新等待第一个间隔到达后再排队，并会避让已有 queued 或 running 的 fast/full 刷新任务，避免与手动刷新或启动时 fast 刷新堆积。
 - 右上角全量刷新图标或手动 `POST /api/refresh` 创建或复用 `runtime.refresh.all` full 全量刷新任务，会采集更完整的 VM 详情并同步快照。
+- 宿主机页新增 Agent 保存时会先测试连接并登记 Agent，保存成功后立即释放按钮，再后台触发该 Agent 的 full 同步并通过 SSE 更新页面。
 - 前端已移除自动刷新间隔控件；页面通过 `/api/events` 接收 SSE 事件，收到运行态更新后重新读取后端缓存。
 - 如果已有 `queued` 或 `running` 的刷新任务，后端会复用该任务，避免刷新任务堆积。
 - 各页面按钮的刷新范围不同，例如单台 VM、快照、存储池、网络池、接口、监控曲线或验证码；详情见 `docs/frontend-refresh-functions.md`。
@@ -1402,7 +1403,7 @@ server {
 
 ## 9.4 实时资源与刷新
 
-- `GET /api/dashboard/summary` - 仪表盘汇总、资源统计、vCPU 已分配/总核心、最近记录和活跃告警
+- `GET /api/dashboard/summary` - 仪表盘汇总、资源统计、vCPU 已分配/总核心、最近记录和活跃告警；虚拟机运行/总数、状态分布、vCPU 已分配和最近虚拟机列表排除已标记模板
 - `GET /api/events` - SSE 事件流，前端用于实时刷新
 - `GET /api/host-interfaces/{agentId}` - 实时读取指定宿主机 Agent 上的物理网卡、loopback 和 bridge 接口列表；需要宿主机接口查看权限
 - `POST /api/host-interfaces/{agentId}` - 在指定宿主机 Agent 上创建 Linux bridge 接口

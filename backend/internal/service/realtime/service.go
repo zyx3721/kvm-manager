@@ -735,10 +735,7 @@ func (s *Service) applyTemplateMarkToVM(ctx context.Context, vm domain.VirtualMa
 func (s *Service) DashboardSummary(recentEvents []domain.AuditLog, activeAlerts []domain.Alert) domain.DashboardSummary {
 	hosts := s.ListHosts()
 	vms := s.ListVMs("", "")
-	summary := domain.DashboardSummary{StatusCounts: map[string]int{}, RecentEvents: recentEvents, RecentVMs: vms, ActiveAlerts: activeAlerts}
-	if len(summary.RecentVMs) > 6 {
-		summary.RecentVMs = summary.RecentVMs[:6]
-	}
+	summary := domain.DashboardSummary{StatusCounts: map[string]int{}, RecentEvents: recentEvents, ActiveAlerts: activeAlerts}
 	summary.TotalHosts = len(hosts)
 	for _, host := range hosts {
 		if host.Status == "online" {
@@ -756,16 +753,29 @@ func (s *Service) DashboardSummary(recentEvents []domain.AuditLog, activeAlerts 
 		summary.AverageCPU = summary.AverageCPU / len(hosts)
 		summary.AverageMemory = summary.AverageMemory / len(hosts)
 	}
+	applyDashboardVMStats(&summary, vms)
+	return summary
+}
+
+func applyDashboardVMStats(summary *domain.DashboardSummary, vms []domain.VirtualMachine) {
+	nonTemplateVMs := make([]domain.VirtualMachine, 0, len(vms))
 	for _, vm := range vms {
+		if vm.IsTemplate {
+			continue
+		}
+		nonTemplateVMs = append(nonTemplateVMs, vm)
 		summary.StatusCounts[vm.Status]++
 		summary.TotalVMs++
 		summary.UsedVCPUs += vm.CPUCores
+	}
+	summary.RecentVMs = nonTemplateVMs
+	if len(summary.RecentVMs) > 6 {
+		summary.RecentVMs = summary.RecentVMs[:6]
 	}
 	summary.RunningVMs = summary.StatusCounts["running"]
 	summary.StoppedVMs = summary.StatusCounts["stopped"]
 	summary.PausedVMs = summary.StatusCounts["paused"]
 	summary.ErrorVMs = summary.StatusCounts["error"]
-	return summary
 }
 
 func snapshotRuntimeID(vmID string, name string) string {
