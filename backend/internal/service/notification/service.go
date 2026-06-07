@@ -21,23 +21,32 @@ import (
 	"time"
 
 	"kvm-manager/backend/internal/domain"
+	"kvm-manager/backend/internal/repository"
 )
 
 type Store interface {
 	ListNotificationChannels(ctx context.Context) ([]domain.NotificationChannel, error)
+	GetSystemBaseConfig(ctx context.Context) (domain.SystemBaseConfig, error)
 	MarkAlertNotificationSent(ctx context.Context, id string) error
 	MarkAlertNotificationDeliverySent(ctx context.Context, id string) error
 	MarkAlertNotificationDeliveryFailed(ctx context.Context, id string, message string) error
+	MarkAlertNotificationDeliveryFailedWithConfig(ctx context.Context, id string, message string, config repository.AlertNotificationRetryConfig) error
 }
 
 type Service struct {
-	store  Store
-	logger *slog.Logger
-	http   *http.Client
+	store            Store
+	logger           *slog.Logger
+	http             *http.Client
+	alertHTTPTimeout time.Duration
 }
 
 func NewService(store Store, logger *slog.Logger) *Service {
 	return &Service{store: store, logger: logger, http: &http.Client{Timeout: 8 * time.Second}}
+}
+
+type alertNotificationRuntimeConfig struct {
+	Timeout time.Duration
+	Retry   repository.AlertNotificationRetryConfig
 }
 
 func (s *Service) NotifyAlert(ctx context.Context, alert domain.Alert) {
@@ -45,6 +54,8 @@ func (s *Service) NotifyAlert(ctx context.Context, alert domain.Alert) {
 }
 
 func (s *Service) NotifyAlertEvent(ctx context.Context, event AlertNotificationEvent) {
+	config := s.alertNotificationRuntimeConfig(ctx)
+	s = s.withAlertHTTPTimeout(config.Timeout)
 	channels, err := s.store.ListNotificationChannels(ctx)
 	if err != nil {
 		s.logger.Warn("list notification channels failed", "error", err)
@@ -72,6 +83,8 @@ func (s *Service) NotifyAlertEvent(ctx context.Context, event AlertNotificationE
 }
 
 func (s *Service) NotifyDelivery(ctx context.Context, delivery domain.AlertNotificationDelivery) {
+	config := s.alertNotificationRuntimeConfig(ctx)
+	s = s.withAlertHTTPTimeout(config.Timeout)
 	event := AlertNotificationEvent{Type: delivery.EventType, Alert: delivery.Alert}
 	channel, ok, err := s.notificationChannel(ctx, delivery.ChannelID)
 	if err != nil {
@@ -87,7 +100,7 @@ func (s *Service) NotifyDelivery(ctx context.Context, delivery domain.AlertNotif
 	}
 	if err := s.send(ctx, channel, event); err != nil {
 		s.logger.Warn("send alert notification failed", "channel", channel.ID, "alert", event.Alert.ID, "event", event.Type, "error", err)
-		_ = s.store.MarkAlertNotificationDeliveryFailed(ctx, delivery.ID, UserFacingErrorMessage(err))
+		_ = s.store.MarkAlertNotificationDeliveryFailedWithConfig(ctx, delivery.ID, UserFacingErrorMessage(err), config.Retry)
 		return
 	}
 	_ = s.store.MarkAlertNotificationDeliverySent(ctx, delivery.ID)
@@ -113,6 +126,66 @@ func (s *Service) SendTest(ctx context.Context, channel domain.NotificationChann
 	now := time.Now().UTC()
 	alert := domain.Alert{ID: "test", Level: "info", Status: "active", Title: "KVM Manager 测试通知", Message: "这是一条通知媒介测试消息", SourceType: "system", SourceID: "notification-test", FirstSeenAt: now, LastSeenAt: now}
 	return s.send(ctx, channel, AlertNotificationEvent{Type: EventTypeProblem, Alert: alert})
+}
+
+func (s *Service) alertNotificationRuntimeConfig(ctx context.Context) alertNotificationRuntimeConfig {
+	config := alertNotificationRuntimeConfig{
+		Timeout: 8 * time.Second,
+		Retry: repository.AlertNotificationRetryConfig{
+			MaxRetryCount:    6,
+			BaseDelaySeconds: 30,
+			MaxDelayMinutes:  15,
+		},
+	}
+	if s == nil || s.store == nil {
+		return config
+	}
+	baseConfig, err := s.store.GetSystemBaseConfig(ctx)
+	if err != nil {
+		if s.logger != nil {
+			s.logger.Warn("load alert notification settings failed", "error", err)
+		}
+		return config
+	}
+	config.Timeout = time.Duration(clampConfigInt(baseConfig.AlertNotificationTimeoutSeconds, 3, 60, 8)) * time.Second
+	config.Retry = repository.AlertNotificationRetryConfig{
+		MaxRetryCount:    clampConfigInt(baseConfig.AlertNotificationMaxRetryCount, 0, 10, 6),
+		BaseDelaySeconds: clampConfigInt(baseConfig.AlertNotificationRetryBaseSeconds, 10, 300, 30),
+		MaxDelayMinutes:  clampConfigInt(baseConfig.AlertNotificationRetryMaxMinutes, 1, 120, 15),
+	}
+	return config
+}
+
+func (s *Service) httpClient(ctx context.Context) *http.Client {
+	timeout := s.alertHTTPTimeout
+	if timeout <= 0 {
+		timeout = 8 * time.Second
+	}
+	if s == nil || s.http == nil {
+		return &http.Client{Timeout: timeout}
+	}
+	if s.http.Timeout == timeout {
+		return s.http
+	}
+	next := *s.http
+	next.Timeout = timeout
+	return &next
+}
+
+func (s *Service) withAlertHTTPTimeout(timeout time.Duration) *Service {
+	if s == nil || timeout <= 0 {
+		return s
+	}
+	next := *s
+	next.alertHTTPTimeout = timeout
+	return &next
+}
+
+func clampConfigInt(value int, min int, max int, fallback int) int {
+	if value < min || value > max {
+		return fallback
+	}
+	return value
 }
 
 type PasswordResetMessage struct {
@@ -143,18 +216,36 @@ func (s *Service) SendPasswordReset(ctx context.Context, channel domain.Notifica
 			return err
 		}
 		return s.sendLarkPasswordResetCard(ctx, cfg, message)
+	case "lark_app":
+		var cfg larkAppConfig
+		if err := decodeConfig(channel.Config, &cfg); err != nil {
+			return err
+		}
+		return s.sendLarkAppPasswordReset(ctx, cfg, message)
 	case "wechat":
 		var cfg robotConfig
 		if err := decodeConfig(channel.Config, &cfg); err != nil {
 			return err
 		}
 		return s.sendWechatMarkdown(ctx, cfg, passwordResetRobotText(message))
+	case "wechat_app":
+		var cfg wechatAppConfig
+		if err := decodeConfig(channel.Config, &cfg); err != nil {
+			return err
+		}
+		return s.sendWechatAppPasswordReset(ctx, cfg, message)
 	case "dingtalk":
 		var cfg robotConfig
 		if err := decodeConfig(channel.Config, &cfg); err != nil {
 			return err
 		}
 		return s.sendDingTalkMarkdown(ctx, cfg, "KVM Manager 密码找回", dingtalkMarkdownLineBreaks(passwordResetRobotText(message)))
+	case "dingtalk_app":
+		var cfg dingTalkAppConfig
+		if err := decodeConfig(channel.Config, &cfg); err != nil {
+			return err
+		}
+		return s.sendDingTalkAppPasswordReset(ctx, cfg, message)
 	default:
 		return fmt.Errorf("不支持的通知媒介 %s", channel.ID)
 	}
@@ -174,18 +265,36 @@ func (s *Service) send(ctx context.Context, channel domain.NotificationChannel, 
 			return err
 		}
 		return s.sendLark(ctx, cfg, event)
+	case "lark_app":
+		var cfg larkAppConfig
+		if err := decodeConfig(channel.Config, &cfg); err != nil {
+			return err
+		}
+		return s.sendLarkApp(ctx, cfg, event)
 	case "wechat":
 		var cfg robotConfig
 		if err := decodeConfig(channel.Config, &cfg); err != nil {
 			return err
 		}
 		return s.sendWechat(ctx, cfg, event)
+	case "wechat_app":
+		var cfg wechatAppConfig
+		if err := decodeConfig(channel.Config, &cfg); err != nil {
+			return err
+		}
+		return s.sendWechatApp(ctx, cfg, event)
 	case "dingtalk":
 		var cfg robotConfig
 		if err := decodeConfig(channel.Config, &cfg); err != nil {
 			return err
 		}
 		return s.sendDingTalk(ctx, cfg, event)
+	case "dingtalk_app":
+		var cfg dingTalkAppConfig
+		if err := decodeConfig(channel.Config, &cfg); err != nil {
+			return err
+		}
+		return s.sendDingTalkApp(ctx, cfg, event)
 	case "email":
 		var cfg emailConfig
 		if err := decodeConfig(channel.Config, &cfg); err != nil {
@@ -303,7 +412,7 @@ func (s *Service) sendLark(ctx context.Context, cfg robotConfig, event AlertNoti
 }
 
 func larkAlertPayload(event AlertNotificationEvent, cfg templateConfig) map[string]any {
-	subject := alertSubject(event, cfg)
+	subject := larkTitle(event, cfg)
 	text := alertText(event, cfg)
 	switch larkMessageType(cfg) {
 	case "post":
@@ -324,7 +433,7 @@ func larkAlertPayload(event AlertNotificationEvent, cfg templateConfig) map[stri
 			"card": map[string]any{
 				"config": map[string]bool{"wide_screen_mode": true},
 				"header": map[string]any{
-					"template": larkCardTemplate(event),
+					"template": larkCardTemplate(event, cfg),
 					"title":    map[string]string{"tag": "plain_text", "content": subject},
 				},
 				"elements": []map[string]any{
@@ -346,18 +455,29 @@ func larkPostContent(text string) [][]map[string]string {
 	return content
 }
 
-func larkCardTemplate(event AlertNotificationEvent) string {
+func larkTitle(event AlertNotificationEvent, cfg templateConfig) string {
+	template := strings.TrimSpace(cfg.LarkProblemTitleTemplate)
+	if event.Type == EventTypeRecovery {
+		template = strings.TrimSpace(cfg.LarkRecoveryTitleTemplate)
+	}
+	if template == "" {
+		return alertSubject(event, cfg)
+	}
+	return renderAlertTemplate(template, event)
+}
+
+func larkCardTemplate(event AlertNotificationEvent, cfg templateConfig) string {
+	template := strings.TrimSpace(cfg.LarkProblemCardTemplate)
+	if event.Type == EventTypeRecovery {
+		template = strings.TrimSpace(cfg.LarkRecoveryCardTemplate)
+	}
+	if IsLarkCardTemplate(template) {
+		return template
+	}
 	if event.Type == EventTypeRecovery {
 		return "green"
 	}
-	switch event.Alert.Level {
-	case "critical":
-		return "red"
-	case "warning":
-		return "orange"
-	default:
-		return "blue"
-	}
+	return "red"
 }
 
 func (s *Service) sendLarkMarkdown(ctx context.Context, cfg robotConfig, text string) error {
@@ -452,7 +572,7 @@ func (s *Service) postJSON(ctx context.Context, method string, targetURL string,
 			req.Header.Set(key, value)
 		}
 	}
-	resp, err := s.http.Do(req)
+	resp, err := s.httpClient(ctx).Do(req)
 	if err != nil {
 		return err
 	}
@@ -521,6 +641,15 @@ func larkMessageType(cfg templateConfig) string {
 		return strings.ToLower(strings.TrimSpace(cfg.LarkMessageType))
 	default:
 		return "text"
+	}
+}
+
+func IsLarkCardTemplate(value string) bool {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "red", "green", "blue", "orange", "yellow", "purple", "wathet", "turquoise", "indigo", "grey":
+		return true
+	default:
+		return false
 	}
 }
 

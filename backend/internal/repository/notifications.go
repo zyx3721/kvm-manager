@@ -18,8 +18,11 @@ func (s *Store) ListNotificationChannels(ctx context.Context) ([]domain.Notifica
 			WHEN 'webhook' THEN 1
 			WHEN 'email' THEN 2
 			WHEN 'lark' THEN 3
-			WHEN 'wechat' THEN 4
-			WHEN 'dingtalk' THEN 5
+			WHEN 'lark_app' THEN 4
+			WHEN 'wechat' THEN 5
+			WHEN 'wechat_app' THEN 6
+			WHEN 'dingtalk' THEN 7
+			WHEN 'dingtalk_app' THEN 8
 			ELSE 9
 		END, id
 	`)

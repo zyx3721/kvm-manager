@@ -7,10 +7,12 @@ import {
   LockIcon,
   MailIcon,
   MessageSquareIcon,
+  MessagesSquareIcon,
   MoonIcon,
   RadioTowerIcon,
   RefreshCwIcon,
   SendIcon,
+  SmartphoneIcon,
   SunIcon,
   UserIcon,
 } from 'lucide-react';
@@ -38,8 +40,11 @@ type ResetStep = 'identity' | 'delivery';
 const channelIcons: Record<string, typeof MailIcon> = {
   email: MailIcon,
   lark: SendIcon,
+  lark_app: MessagesSquareIcon,
   wechat: MessageSquareIcon,
+  wechat_app: SmartphoneIcon,
   dingtalk: RadioTowerIcon,
+  dingtalk_app: RadioTowerIcon,
 };
 
 export default function ForgotPasswordPage() {

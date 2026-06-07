@@ -280,7 +280,7 @@ function labelAlertLevel(level: string) { return { info: "信息", warning: "警
 function alertLevelColor(level: string) { return { info: "#93c5fd", warning: "#fcd34d", critical: "#fca5a5" }[level] ?? "var(--kvm-text)"; }
 function labelResource(type: string) { return { agent: "Agent", host: "宿主机", virtual_machine: "虚拟机", system: "系统", snapshot: "快照" }[type] ?? type; }
 function labelNotificationStatus(item: Alert) { return item.notificationSentAt ? "已触达" : "待发送"; }
-function labelChannel(id: string) { return { webhook: "Webhook", email: "邮件", lark: "飞书", wechat: "企业微信", dingtalk: "钉钉" }[id] ?? id; }
+function labelChannel(id: string) { return { webhook: "Webhook", email: "邮件", lark: "飞书", lark_app: "飞书应用", wechat: "企业微信", wechat_app: "企业微信应用", dingtalk: "钉钉", dingtalk_app: "钉钉应用" }[id] ?? id; }
 function labelDeliveryStatus(status: string) { return { pending: "待发送", sent: "已发送", failed: "失败" }[status] ?? status; }
 function deliveryTone(status: string): "green" | "red" | "yellow" | "blue" | "gray" { if (status === "sent") return "green"; if (status === "failed") return "red"; if (status === "pending") return "yellow"; return "gray"; }
 function labelTaskType(type: string) { return type; }

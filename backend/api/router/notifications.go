@@ -14,16 +14,20 @@ import (
 )
 
 var notificationChannelIDs = map[string]struct{}{
-	"webhook":  {},
-	"email":    {},
-	"lark":     {},
-	"wechat":   {},
-	"dingtalk": {},
+	"webhook":      {},
+	"email":        {},
+	"lark":         {},
+	"wechat":       {},
+	"dingtalk":     {},
+	"lark_app":     {},
+	"wechat_app":   {},
+	"dingtalk_app": {},
 }
 
 type notificationChannelRequest struct {
 	Enabled              bool           `json:"enabled"`
 	PasswordResetEnabled bool           `json:"passwordResetEnabled"`
+	ClearConfig          bool           `json:"clearConfig"`
 	Config               map[string]any `json:"config"`
 }
 
@@ -69,7 +73,7 @@ func (r *router) handleUpdateNotificationChannel(w http.ResponseWriter, req *htt
 		return
 	}
 	previous, _ := r.store.GetNotificationChannel(req.Context(), id)
-	config, err := sanitizeNotificationConfigWithPrevious(id, body.Config, notificationConfigMap(previous.Config), body.Enabled || body.PasswordResetEnabled)
+	config, err := sanitizeNotificationConfigForUpdate(id, body.Config, notificationConfigMap(previous.Config), body.Enabled || body.PasswordResetEnabled, body.ClearConfig)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, "invalid_notification_config", notification.UserFacingErrorMessage(err))
 		return
@@ -158,6 +162,10 @@ func sanitizeNotificationConfig(id string, config map[string]any, enabled bool) 
 }
 
 func sanitizeNotificationConfigWithPrevious(id string, config map[string]any, previous map[string]any, enabled bool) (map[string]any, error) {
+	return sanitizeNotificationConfigForUpdate(id, config, previous, enabled, false)
+}
+
+func sanitizeNotificationConfigForUpdate(id string, config map[string]any, previous map[string]any, enabled bool, clearConfig bool) (map[string]any, error) {
 	if config == nil {
 		config = map[string]any{}
 	}
@@ -166,11 +174,19 @@ func sanitizeNotificationConfigWithPrevious(id string, config map[string]any, pr
 			config[key] = strings.TrimSpace(text)
 		}
 	}
+	retainedSecrets := retainedNotificationSecretMarkers(id, config)
 	discardSecretPresenceMarkers(config, notificationSecretKeys(id))
 	if !enabled {
-		return removeEmptyConfigValues(config), nil
+		delete(config, "sendRecovery")
+		config = removeEmptyConfigValues(config)
+		if !clearConfig {
+			mergeRetainedNotificationSecrets(id, config, previous, retainedSecrets)
+		}
+		return config, nil
 	}
-	mergeRetainedNotificationSecrets(id, config, previous)
+	if !clearConfig {
+		mergeRetainedNotificationSecrets(id, config, previous, retainedSecrets)
+	}
 	switch id {
 	case "webhook":
 		if strings.TrimSpace(stringValue(config["url"])) == "" {
@@ -244,6 +260,33 @@ func sanitizeNotificationConfigWithPrevious(id string, config map[string]any, pr
 		if messageType := stringValue(config["larkMessageType"]); messageType != "" && messageType != "text" && messageType != "post" && messageType != "interactive" {
 			return nil, fmt.Errorf("飞书消息类型仅支持 text、post 或 interactive")
 		}
+		if err := validateLarkCardTemplateFields(config); err != nil {
+			return nil, err
+		}
+	case "lark_app":
+		requiredFields := []struct {
+			key   string
+			label string
+		}{
+			{key: "appId", label: "飞书 App ID"},
+			{key: "appSecret", label: "飞书 App Secret"},
+			{key: "receiveIdType", label: "接收 ID 类型"},
+			{key: "receiveId", label: "接收 ID"},
+		}
+		for _, field := range requiredFields {
+			if stringValue(config[field.key]) == "" {
+				return nil, fmt.Errorf("%s不能为空", field.label)
+			}
+		}
+		if !isAllowedValue(stringValue(config["receiveIdType"]), "open_id", "user_id", "union_id", "email", "chat_id") {
+			return nil, fmt.Errorf("飞书接收 ID 类型仅支持 open_id、user_id、union_id、email 或 chat_id")
+		}
+		if messageType := stringValue(config["larkMessageType"]); messageType != "" && messageType != "text" && messageType != "post" && messageType != "interactive" {
+			return nil, fmt.Errorf("飞书消息类型仅支持 text、post 或 interactive")
+		}
+		if err := validateLarkCardTemplateFields(config); err != nil {
+			return nil, err
+		}
 	case "wechat":
 		if strings.TrimSpace(stringValue(config["webhookUrl"])) == "" {
 			return nil, fmt.Errorf("机器人 Webhook 不能为空")
@@ -251,9 +294,49 @@ func sanitizeNotificationConfigWithPrevious(id string, config map[string]any, pr
 		if messageType := stringValue(config["wechatMessageType"]); messageType != "" && messageType != "text" && messageType != "markdown" {
 			return nil, fmt.Errorf("企业微信消息类型仅支持 text 或 markdown")
 		}
+	case "wechat_app":
+		requiredFields := []struct {
+			key   string
+			label string
+		}{
+			{key: "corpId", label: "企业 ID"},
+			{key: "agentId", label: "应用 AgentId"},
+			{key: "secret", label: "应用 Secret"},
+		}
+		for _, field := range requiredFields {
+			if stringValue(config[field.key]) == "" {
+				return nil, fmt.Errorf("%s不能为空", field.label)
+			}
+		}
+		if stringValue(config["toUser"]) == "" && stringValue(config["toParty"]) == "" && stringValue(config["toTag"]) == "" {
+			return nil, fmt.Errorf("企业微信接收人、部门或标签至少填写一项")
+		}
+		if messageType := stringValue(config["wechatMessageType"]); messageType != "" && messageType != "text" && messageType != "markdown" {
+			return nil, fmt.Errorf("企业微信消息类型仅支持 text 或 markdown")
+		}
 	case "dingtalk":
 		if strings.TrimSpace(stringValue(config["webhookUrl"])) == "" {
 			return nil, fmt.Errorf("机器人 Webhook 不能为空")
+		}
+		if messageType := stringValue(config["dingtalkMessageType"]); messageType != "" && messageType != "text" && messageType != "markdown" {
+			return nil, fmt.Errorf("钉钉消息类型仅支持 text 或 markdown")
+		}
+	case "dingtalk_app":
+		requiredFields := []struct {
+			key   string
+			label string
+		}{
+			{key: "appKey", label: "钉钉 AppKey"},
+			{key: "appSecret", label: "钉钉 AppSecret"},
+			{key: "agentId", label: "应用 AgentId"},
+		}
+		for _, field := range requiredFields {
+			if stringValue(config[field.key]) == "" {
+				return nil, fmt.Errorf("%s不能为空", field.label)
+			}
+		}
+		if stringValue(config["useridList"]) == "" && stringValue(config["deptIdList"]) == "" {
+			return nil, fmt.Errorf("钉钉用户列表或部门列表至少填写一项")
 		}
 		if messageType := stringValue(config["dingtalkMessageType"]); messageType != "" && messageType != "text" && messageType != "markdown" {
 			return nil, fmt.Errorf("钉钉消息类型仅支持 text 或 markdown")
@@ -266,12 +349,12 @@ func sanitizeNotificationConfigWithPrevious(id string, config map[string]any, pr
 	return config, nil
 }
 
-func mergeRetainedNotificationSecrets(id string, config map[string]any, previous map[string]any) {
+func mergeRetainedNotificationSecrets(id string, config map[string]any, previous map[string]any, retained map[string]bool) {
 	if len(previous) == 0 {
 		return
 	}
 	for _, key := range notificationSecretKeys(id) {
-		if stringValue(config[key]) == "" {
+		if stringValue(config[key]) == "" || retained[key] {
 			if value := stringValue(previous[key]); value != "" {
 				config[key] = value
 			}
@@ -279,11 +362,25 @@ func mergeRetainedNotificationSecrets(id string, config map[string]any, previous
 	}
 }
 
+func retainedNotificationSecretMarkers(id string, config map[string]any) map[string]bool {
+	retained := map[string]bool{}
+	for _, key := range notificationSecretKeys(id) {
+		if boolValue(config[secretPresenceKey(key)]) && stringValue(config[key]) == "" {
+			retained[key] = true
+		}
+	}
+	return retained
+}
+
 func notificationSecretKeys(id string) []string {
 	switch id {
 	case "email":
 		return []string{"password"}
 	case "lark", "dingtalk":
+		return []string{"secret"}
+	case "lark_app", "dingtalk_app":
+		return []string{"appSecret"}
+	case "wechat_app":
 		return []string{"secret"}
 	default:
 		return nil
@@ -306,6 +403,25 @@ func redactNotificationChannel(item domain.NotificationChannel) domain.Notificat
 func stringValue(value any) string {
 	text, _ := value.(string)
 	return strings.TrimSpace(text)
+}
+
+func isAllowedValue(value string, allowed ...string) bool {
+	for _, item := range allowed {
+		if value == item {
+			return true
+		}
+	}
+	return false
+}
+
+func validateLarkCardTemplateFields(config map[string]any) error {
+	for _, key := range []string{"larkProblemCardTemplate", "larkRecoveryCardTemplate"} {
+		value := stringValue(config[key])
+		if value != "" && !notification.IsLarkCardTemplate(value) {
+			return fmt.Errorf("飞书卡片标题颜色不正确")
+		}
+	}
+	return nil
 }
 
 func removeEmptyConfigValues(config map[string]any) map[string]any {

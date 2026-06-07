@@ -33,17 +33,21 @@ type AlertNotificationEvent struct {
 }
 
 type templateConfig struct {
-	ProblemTemplate         string `json:"problemTemplate"`
-	RecoveryTemplate        string `json:"recoveryTemplate"`
-	ProblemSubjectTemplate  string `json:"problemSubjectTemplate"`
-	RecoverySubjectTemplate string `json:"recoverySubjectTemplate"`
-	EmailContentType        string `json:"emailContentType"`
-	LarkMessageType         string `json:"larkMessageType"`
-	WechatMessageType       string `json:"wechatMessageType"`
-	DingTalkMessageType     string `json:"dingtalkMessageType"`
-	SendRecovery            bool   `json:"sendRecovery"`
-	WebhookProblemPayload   string `json:"webhookProblemPayload"`
-	WebhookRecoveryPayload  string `json:"webhookRecoveryPayload"`
+	ProblemTemplate           string `json:"problemTemplate"`
+	RecoveryTemplate          string `json:"recoveryTemplate"`
+	ProblemSubjectTemplate    string `json:"problemSubjectTemplate"`
+	RecoverySubjectTemplate   string `json:"recoverySubjectTemplate"`
+	LarkProblemTitleTemplate  string `json:"larkProblemTitleTemplate"`
+	LarkRecoveryTitleTemplate string `json:"larkRecoveryTitleTemplate"`
+	LarkProblemCardTemplate   string `json:"larkProblemCardTemplate"`
+	LarkRecoveryCardTemplate  string `json:"larkRecoveryCardTemplate"`
+	EmailContentType          string `json:"emailContentType"`
+	LarkMessageType           string `json:"larkMessageType"`
+	WechatMessageType         string `json:"wechatMessageType"`
+	DingTalkMessageType       string `json:"dingtalkMessageType"`
+	SendRecovery              bool   `json:"sendRecovery"`
+	WebhookProblemPayload     string `json:"webhookProblemPayload"`
+	WebhookRecoveryPayload    string `json:"webhookRecoveryPayload"`
 }
 
 func notificationTemplateConfig(data []byte) templateConfig {
@@ -94,6 +98,10 @@ type TemplatePreview struct {
 	RecoveryWebhook map[string]any `json:"recoveryWebhook,omitempty"`
 	ContentType     string         `json:"contentType,omitempty"`
 	MessageType     string         `json:"messageType,omitempty"`
+	ProblemTitle    string         `json:"problemTitle,omitempty"`
+	RecoveryTitle   string         `json:"recoveryTitle,omitempty"`
+	ProblemColor    string         `json:"problemColor,omitempty"`
+	RecoveryColor   string         `json:"recoveryColor,omitempty"`
 }
 
 func PreviewTemplateConfig(channelID string, data []byte) (TemplatePreview, error) {
@@ -110,11 +118,19 @@ func PreviewTemplateConfig(channelID string, data []byte) (TemplatePreview, erro
 	switch channelID {
 	case "email":
 		preview.ContentType = emailContentType(cfg)
-	case "lark":
+	case "lark", "lark_app":
 		preview.MessageType = larkMessageType(cfg)
-	case "wechat":
+		if preview.MessageType == "post" || preview.MessageType == "interactive" {
+			preview.ProblemTitle = larkTitle(problem, cfg)
+			preview.RecoveryTitle = larkTitle(recovery, cfg)
+		}
+		if preview.MessageType == "interactive" {
+			preview.ProblemColor = larkCardTemplate(problem, cfg)
+			preview.RecoveryColor = larkCardTemplate(recovery, cfg)
+		}
+	case "wechat", "wechat_app":
 		preview.MessageType = wechatMessageType(cfg)
-	case "dingtalk":
+	case "dingtalk", "dingtalk_app":
 		preview.MessageType = dingTalkMessageType(cfg)
 	case "webhook":
 		payload, err := alertWebhookPayload(problem, cfg)
@@ -143,7 +159,7 @@ func templatePreviewAlerts() (domain.Alert, domain.Alert) {
 		SourceID:    "vm-demo:cpu",
 		Title:       "虚拟机CPU使用率过高",
 		Message:     "虚拟机 demo CPU 使用率达到 90%",
-		Metadata:    json.RawMessage(`{"agent":"node-a","vm":"demo","metric":"cpu","value":90,"limit":85,"consecutive":3}`),
+		Metadata:    json.RawMessage(`{"agent":"node-a","vm":"demo","vmIp":"192.168.1.106","vmDescription":"demo","metric":"cpu","value":90,"limit":85,"consecutive":3}`),
 		FirstSeenAt: firstSeen,
 		LastSeenAt:  lastSeen,
 	}
