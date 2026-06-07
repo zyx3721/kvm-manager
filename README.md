@@ -77,7 +77,7 @@ README 主要覆盖安装部署、常用操作和接口概览；更细的采集�
 
 ### 1.6.1 后端
 
-- **语言**：Go 1.26+
+- **语言**：Go 1.25+
 - **HTTP**：Go 标准库 `net/http` 路由
 - **数据库**：PostgreSQL
 - **数据库驱动**：pgxpool
@@ -489,7 +489,7 @@ METRIC_STREAM_MAXLEN=10000
 # 在 deploy/ 目录下构建（构建上下文为项目根目录）
 cd deploy
 docker build \
-  -f deploy/Dockerfile \
+  -f Dockerfile \
   -t kvm-manager:latest \
   --build-arg ALPINE_MIRROR=mirrors.aliyun.com \
   ..
