@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent } from "react";
 import { toast } from "sonner";
-import { ImageIcon, KeyRoundIcon, MonitorCogIcon, RadioTowerIcon, SaveIcon, UploadCloudIcon } from "lucide-react";
+import { BellRingIcon, ImageIcon, KeyRoundIcon, MonitorCogIcon, RadioTowerIcon, SaveIcon, UploadCloudIcon } from "lucide-react";
 
 import { fetchSystemBaseConfig, updateSystemBaseConfig, type SystemBaseConfig } from "../../../lib/api";
 import { defaultBaseConfig, normalizeBaseConfig, setBaseConfigSnapshot } from "../../../lib/branding";
 import { MetricBar } from "../../../components/kvm/StatusBadge";
 
-type BaseConfigTab = "brand" | "security" | "thresholds" | "agent";
+type BaseConfigTab = "brand" | "security" | "thresholds" | "agent" | "notifications";
 type BaseForm = SystemBaseConfig;
 
 const configCards: Array<{ id: BaseConfigTab; title: string; description: string; icon: React.ElementType; color: string }> = [
@@ -14,11 +14,13 @@ const configCards: Array<{ id: BaseConfigTab; title: string; description: string
   { id: "security", title: "安全时效", description: "找回密码验证码、发送冷却与限流窗口", icon: KeyRoundIcon, color: "#22c55e" },
   { id: "thresholds", title: "资源阈值", description: "CPU、内存、磁盘百分比条颜色阈值", icon: MonitorCogIcon, color: "#f59e0b" },
   { id: "agent", title: "Agent 判定", description: "离线失败次数和资源告警连续次数", icon: RadioTowerIcon, color: "#8b5cf6" },
+  { id: "notifications", title: "通知策略", description: "告警通知超时、重试节奏和处理批量", icon: BellRingIcon, color: "#14b8a6" },
 ];
 
 export function BaseSettingsPanel({ canManage = true }: { canManage?: boolean }) {
   const [active, setActive] = useState<BaseConfigTab>("brand");
   const [form, setForm] = useState<BaseForm>(defaultBaseConfig);
+  const [savedForm, setSavedForm] = useState<BaseForm>(defaultBaseConfig);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [dragging, setDragging] = useState(false);
@@ -29,6 +31,7 @@ export function BaseSettingsPanel({ canManage = true }: { canManage?: boolean })
     try {
       const config = normalizeBaseConfig(await fetchSystemBaseConfig());
       setForm(config);
+      setSavedForm(config);
       setBaseConfigSnapshot(config);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "读取基础配置失败");
@@ -39,13 +42,13 @@ export function BaseSettingsPanel({ canManage = true }: { canManage?: boolean })
 
   useEffect(() => { void load(); }, [load]);
 
-  const preview = useMemo(() => normalizeBaseConfig(form), [form]);
+  const preview = useMemo(() => normalizeBaseConfig(savedForm), [savedForm]);
   const selectedCard = configCards.find(card => card.id === active) ?? configCards[0];
   const ActiveIcon = selectedCard.icon;
 
   const save = async () => {
-    const payload = normalizeBaseConfig(form);
-    const validationError = validateBaseConfig(payload);
+    const payload = mergeBaseConfigTab(savedForm, form, active);
+    const validationError = validateBaseConfigTab(active, payload);
     if (validationError) {
       toast.error(validationError);
       return;
@@ -54,6 +57,7 @@ export function BaseSettingsPanel({ canManage = true }: { canManage?: boolean })
     try {
       const saved = normalizeBaseConfig(await updateSystemBaseConfig(stripReadonlyFields(payload)));
       setForm(saved);
+      setSavedForm(saved);
       setBaseConfigSnapshot(saved);
       toast.success("基础配置已保存");
     } catch (err) {
@@ -64,6 +68,10 @@ export function BaseSettingsPanel({ canManage = true }: { canManage?: boolean })
   };
 
   const update = (patch: Partial<BaseForm>) => setForm(current => ({ ...current, ...patch }));
+  const selectTab = (tab: BaseConfigTab) => {
+    setActive(tab);
+    setForm(savedForm);
+  };
 
   const updateFile = async (file: File | undefined) => {
     if (!file) return;
@@ -87,7 +95,7 @@ export function BaseSettingsPanel({ canManage = true }: { canManage?: boolean })
   return (
     <div className="grid min-h-0 flex-1 grid-cols-1 items-stretch gap-4 overflow-hidden xl:grid-cols-[430px_minmax(0,1fr)]">
       <nav className="kvm-hidden-scrollbar max-h-64 min-h-0 space-y-2 overflow-y-auto rounded-lg p-2 xl:max-h-none" style={{ background: "rgba(255,255,255,0.035)", border: "1px solid var(--kvm-border)" }} aria-label="基础配置">
-        {configCards.map(card => <BaseConfigCard key={card.id} card={card} active={active === card.id} value={cardValue(card.id, preview)} onClick={() => setActive(card.id)} />)}
+        {configCards.map(card => <BaseConfigCard key={card.id} card={card} active={active === card.id} value={cardValue(card.id, preview)} onClick={() => selectTab(card.id)} />)}
       </nav>
       <aside className="flex min-h-0 flex-col overflow-hidden rounded-lg p-4" style={{ background: "rgba(255,255,255,0.035)", border: "1px solid var(--kvm-border)" }}>
         <div className="mb-4 flex items-center gap-3">
@@ -103,6 +111,7 @@ export function BaseSettingsPanel({ canManage = true }: { canManage?: boolean })
             {active === "security" && <SecurityPanel form={form} canManage={canManage} onUpdate={update} />}
             {active === "thresholds" && <ThresholdPanel form={form} canManage={canManage} onUpdate={update} />}
             {active === "agent" && <AgentPanel form={form} canManage={canManage} onUpdate={update} />}
+            {active === "notifications" && <NotificationPolicyPanel form={form} canManage={canManage} onUpdate={update} />}
           </div>
         )}
         {canManage && <div className="mt-5 flex shrink-0 justify-end gap-2 border-t pt-4" style={{ borderColor: "var(--kvm-border)" }}>
@@ -136,6 +145,10 @@ function AgentPanel({ form, canManage, onUpdate }: { form: BaseForm; canManage: 
   return <div className="grid gap-3 lg:grid-cols-2"><NumberControl label="资源告警连续次数" unit="次" value={form.resourceAlertConsecutiveCount} min={1} max={20} disabled={!canManage} onChange={value => onUpdate({ resourceAlertConsecutiveCount: value })} /><NumberControl label="Agent 离线失败次数" unit="次" value={form.agentOfflineFailureCount} min={1} max={20} disabled={!canManage} onChange={value => onUpdate({ agentOfflineFailureCount: value })} /></div>;
 }
 
+function NotificationPolicyPanel({ form, canManage, onUpdate }: { form: BaseForm; canManage: boolean; onUpdate: (patch: Partial<BaseForm>) => void }) {
+  return <div className="grid gap-3 lg:grid-cols-2"><NumberControl label="通知发送超时" description={`外部通知请求超过 ${form.alertNotificationTimeoutSeconds} 秒视为失败`} unit="秒" value={form.alertNotificationTimeoutSeconds} min={3} max={60} disabled={!canManage} onChange={value => onUpdate({ alertNotificationTimeoutSeconds: value })} /><NumberControl label="最大重试次数" description="设置为 0 时发送失败后不再重试" unit="次" value={form.alertNotificationMaxRetryCount} min={0} max={10} disabled={!canManage} onChange={value => onUpdate({ alertNotificationMaxRetryCount: value })} /><NumberControl label="重试基础间隔" description="失败后按基础间隔指数退避重试" unit="秒" value={form.alertNotificationRetryBaseSeconds} min={10} max={300} step={10} disabled={!canManage} onChange={value => onUpdate({ alertNotificationRetryBaseSeconds: value })} /><NumberControl label="重试最大间隔" description="指数退避不会超过该间隔" unit="分钟" value={form.alertNotificationRetryMaxMinutes} min={1} max={120} disabled={!canManage} onChange={value => onUpdate({ alertNotificationRetryMaxMinutes: value })} /><NumberControl label="单轮处理批量" description="每次扫描待通知告警和待重试投递的数量" unit="条" value={form.alertNotificationBatchSize} min={10} max={100} step={5} disabled={!canManage} onChange={value => onUpdate({ alertNotificationBatchSize: value })} /></div>;
+}
+
 function BrandPreview({ config }: { config: BaseForm }) {
   return <div className="flex min-h-44 flex-col rounded-xl border p-5" style={{ borderColor: "var(--kvm-border)", background: "rgba(255,255,255,0.026)" }}><div className="text-sm font-semibold" style={{ color: "var(--kvm-text-muted)" }}>实时预览</div><div className="flex flex-1 items-center"><div className="flex min-w-0 items-center gap-4"><img src={config.iconData} alt={config.appName} className="h-16 w-16 shrink-0 rounded-xl object-contain" /><div className="min-w-0"><div className="kvm-gradient-text truncate text-xl font-bold">{config.appName}</div><div className="mt-1 truncate text-sm tracking-widest" style={{ color: "var(--kvm-text-muted)" }}>{config.appSubtitle}</div></div></div></div></div>;
 }
@@ -154,6 +167,7 @@ function cardValue(tab: BaseConfigTab, config: BaseForm) {
   if (tab === "brand") return config.appName;
   if (tab === "security") return `${config.passwordResetCodeTtlMinutes} 分钟`;
   if (tab === "thresholds") return `${config.resourceWarningThreshold}/${config.resourceCriticalThreshold}%`;
+  if (tab === "notifications") return `${config.alertNotificationMaxRetryCount} 次`;
   return `${config.agentOfflineFailureCount} 次`;
 }
 
@@ -162,9 +176,33 @@ function stripReadonlyFields(config: SystemBaseConfig): SystemBaseConfig {
   return payload;
 }
 
-function validateBaseConfig(config: SystemBaseConfig) {
-  if (!config.siteName.trim() || !config.loginName.trim() || !config.appName.trim() || !config.appSubtitle.trim()) return "名称配置不能为空";
-  if (config.resourceWarningThreshold >= config.resourceCriticalThreshold) return "警告阈值必须小于严重阈值";
+function mergeBaseConfigTab(saved: BaseForm, form: BaseForm, tab: BaseConfigTab) {
+  const payload = { ...saved };
+  for (const key of baseConfigTabKeys(tab)) {
+    payload[key] = form[key] as never;
+  }
+  return normalizeBaseConfig(payload);
+}
+
+function baseConfigTabKeys(tab: BaseConfigTab): Array<keyof BaseForm> {
+  switch (tab) {
+    case "brand":
+      return ["siteName", "loginName", "appName", "appSubtitle", "iconData"];
+    case "security":
+      return ["passwordResetCodeTtlMinutes", "passwordResetCaptchaTtlMinutes", "passwordResetSendCooldownMinutes", "passwordResetRateLimitMinutes"];
+    case "thresholds":
+      return ["resourceWarningThreshold", "resourceCriticalThreshold"];
+    case "agent":
+      return ["resourceAlertConsecutiveCount", "agentOfflineFailureCount"];
+    case "notifications":
+      return ["alertNotificationTimeoutSeconds", "alertNotificationMaxRetryCount", "alertNotificationRetryBaseSeconds", "alertNotificationRetryMaxMinutes", "alertNotificationBatchSize"];
+  }
+}
+
+function validateBaseConfigTab(tab: BaseConfigTab, config: SystemBaseConfig) {
+  if (tab === "brand" && (!config.siteName.trim() || !config.loginName.trim() || !config.appName.trim() || !config.appSubtitle.trim())) return "名称配置不能为空";
+  if (tab === "thresholds" && config.resourceWarningThreshold >= config.resourceCriticalThreshold) return "警告阈值必须小于严重阈值";
+  if (tab === "notifications" && config.alertNotificationRetryMaxMinutes * 60 < config.alertNotificationRetryBaseSeconds) return "告警通知重试最大间隔不能小于基础间隔";
   return "";
 }
 

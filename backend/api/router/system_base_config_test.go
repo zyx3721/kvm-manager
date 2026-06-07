@@ -41,6 +41,21 @@ func TestSanitizeSystemBaseConfigDefaultsIcon(t *testing.T) {
 	if got := config["agentOfflineFailureCount"]; got != 3 {
 		t.Fatalf("agentOfflineFailureCount = %#v, want 3", got)
 	}
+	if got := config["alertNotificationTimeoutSeconds"]; got != 8 {
+		t.Fatalf("alertNotificationTimeoutSeconds = %#v, want 8", got)
+	}
+	if got := config["alertNotificationMaxRetryCount"]; got != 6 {
+		t.Fatalf("alertNotificationMaxRetryCount = %#v, want 6", got)
+	}
+	if got := config["alertNotificationRetryBaseSeconds"]; got != 30 {
+		t.Fatalf("alertNotificationRetryBaseSeconds = %#v, want 30", got)
+	}
+	if got := config["alertNotificationRetryMaxMinutes"]; got != 15 {
+		t.Fatalf("alertNotificationRetryMaxMinutes = %#v, want 15", got)
+	}
+	if got := config["alertNotificationBatchSize"]; got != 50 {
+		t.Fatalf("alertNotificationBatchSize = %#v, want 50", got)
+	}
 }
 
 func TestSanitizeSystemBaseConfigRejectsEmptyName(t *testing.T) {
@@ -163,5 +178,50 @@ func TestSanitizeSystemBaseConfigRejectsInvalidAgentOfflineFailureCount(t *testi
 		AgentOfflineFailureCount: 21,
 	}); ok {
 		t.Fatal("expected invalid agent offline failure count to be rejected")
+	}
+}
+
+func TestSanitizeSystemBaseConfigAcceptsZeroAlertNotificationRetries(t *testing.T) {
+	recorder := httptest.NewRecorder()
+	maxRetries := 0
+	config, ok := sanitizeSystemBaseConfig(recorder, systemBaseConfigRequest{
+		SiteName:                       "KVM Manager",
+		LoginName:                      "KVM Manager",
+		AppName:                        "KVM Manager",
+		AppSubtitle:                    "VIRTUALIZATION OPS",
+		AlertNotificationMaxRetryCount: &maxRetries,
+	})
+	if !ok {
+		t.Fatal("expected zero retry count to be accepted")
+	}
+	if got := config["alertNotificationMaxRetryCount"]; got != 0 {
+		t.Fatalf("alertNotificationMaxRetryCount = %#v, want 0", got)
+	}
+}
+
+func TestSanitizeSystemBaseConfigRejectsInvalidAlertNotificationRetryWindow(t *testing.T) {
+	recorder := httptest.NewRecorder()
+	if _, ok := sanitizeSystemBaseConfig(recorder, systemBaseConfigRequest{
+		SiteName:                          "KVM Manager",
+		LoginName:                         "KVM Manager",
+		AppName:                           "KVM Manager",
+		AppSubtitle:                       "VIRTUALIZATION OPS",
+		AlertNotificationRetryBaseSeconds: 300,
+		AlertNotificationRetryMaxMinutes:  1,
+	}); ok {
+		t.Fatal("expected retry max window smaller than base delay to be rejected")
+	}
+}
+
+func TestSanitizeSystemBaseConfigRejectsInvalidAlertNotificationBatchSize(t *testing.T) {
+	recorder := httptest.NewRecorder()
+	if _, ok := sanitizeSystemBaseConfig(recorder, systemBaseConfigRequest{
+		SiteName:                   "KVM Manager",
+		LoginName:                  "KVM Manager",
+		AppName:                    "KVM Manager",
+		AppSubtitle:                "VIRTUALIZATION OPS",
+		AlertNotificationBatchSize: 101,
+	}); ok {
+		t.Fatal("expected invalid alert notification batch size to be rejected")
 	}
 }

@@ -10,6 +10,12 @@ import (
 
 const maxAlertNotificationRetryCount = 6
 
+type AlertNotificationRetryConfig struct {
+	MaxRetryCount    int
+	BaseDelaySeconds int
+	MaxDelayMinutes  int
+}
+
 func (s *Store) EnsureAlertNotificationDeliveries(ctx context.Context, alert domain.Alert, eventType string) error {
 	channels, err := s.ListNotificationChannels(ctx)
 	if err != nil {
@@ -142,16 +148,25 @@ func (s *Store) MarkAlertNotificationDeliverySent(ctx context.Context, id string
 }
 
 func (s *Store) MarkAlertNotificationDeliveryFailed(ctx context.Context, id string, message string) error {
+	return s.MarkAlertNotificationDeliveryFailedWithConfig(ctx, id, message, AlertNotificationRetryConfig{
+		MaxRetryCount:    maxAlertNotificationRetryCount,
+		BaseDelaySeconds: 30,
+		MaxDelayMinutes:  15,
+	})
+}
+
+func (s *Store) MarkAlertNotificationDeliveryFailedWithConfig(ctx context.Context, id string, message string, config AlertNotificationRetryConfig) error {
+	config = normalizeAlertNotificationRetryConfig(config)
 	_, err := s.pool.Exec(ctx, `
 		UPDATE alert_notification_deliveries
 		SET status=CASE WHEN retry_count + 1 >= $3 THEN 'failed' ELSE 'pending' END,
 		    error=$2,
 		    retry_count=retry_count + 1,
 		    last_attempt_at=now(),
-		    next_retry_at=now() + ((LEAST(900, (1 << LEAST(retry_count + 1, 8)) * 30))::text || ' seconds')::interval,
+		    next_retry_at=now() + ((LEAST($5, (1 << LEAST(retry_count + 1, 8)) * $4))::text || ' seconds')::interval,
 		    updated_at=now()
 		WHERE id=$1
-	`, id, message, maxAlertNotificationRetryCount)
+	`, id, message, config.MaxRetryCount, config.BaseDelaySeconds, config.MaxDelayMinutes*60)
 	return err
 }
 
@@ -171,15 +186,40 @@ func AlertNotificationRetryLimit() int {
 }
 
 func AlertNotificationRetryDelay(retryCount int) time.Duration {
+	return AlertNotificationRetryDelayWithConfig(retryCount, AlertNotificationRetryConfig{
+		BaseDelaySeconds: 30,
+		MaxDelayMinutes:  15,
+	})
+}
+
+func AlertNotificationRetryDelayWithConfig(retryCount int, config AlertNotificationRetryConfig) time.Duration {
+	config = normalizeAlertNotificationRetryConfig(config)
 	if retryCount < 0 {
 		retryCount = 0
 	}
 	if retryCount > 8 {
 		retryCount = 8
 	}
-	delay := time.Duration(1<<retryCount) * 30 * time.Second
-	if delay > 15*time.Minute {
-		return 15 * time.Minute
+	delay := time.Duration(1<<retryCount) * time.Duration(config.BaseDelaySeconds) * time.Second
+	maxDelay := time.Duration(config.MaxDelayMinutes) * time.Minute
+	if delay > maxDelay {
+		return maxDelay
 	}
 	return delay
+}
+
+func normalizeAlertNotificationRetryConfig(config AlertNotificationRetryConfig) AlertNotificationRetryConfig {
+	if config.MaxRetryCount < 0 || config.MaxRetryCount > 10 {
+		config.MaxRetryCount = maxAlertNotificationRetryCount
+	}
+	if config.BaseDelaySeconds < 10 || config.BaseDelaySeconds > 300 {
+		config.BaseDelaySeconds = 30
+	}
+	if config.MaxDelayMinutes < 1 || config.MaxDelayMinutes > 120 {
+		config.MaxDelayMinutes = 15
+	}
+	if config.MaxDelayMinutes*60 < config.BaseDelaySeconds {
+		config.MaxDelayMinutes = 15
+	}
+	return config
 }

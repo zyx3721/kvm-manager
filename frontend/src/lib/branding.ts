@@ -16,6 +16,11 @@ export const defaultBaseConfig: SystemBaseConfig = {
   resourceCriticalThreshold: 85,
   resourceAlertConsecutiveCount: 3,
   agentOfflineFailureCount: 3,
+  alertNotificationTimeoutSeconds: 8,
+  alertNotificationMaxRetryCount: 6,
+  alertNotificationRetryBaseSeconds: 30,
+  alertNotificationRetryMaxMinutes: 15,
+  alertNotificationBatchSize: 50,
 };
 
 let cachedBaseConfig: SystemBaseConfig = defaultBaseConfig;
@@ -97,6 +102,26 @@ export function normalizeBaseConfig(config: Partial<SystemBaseConfig>): SystemBa
       config.agentOfflineFailureCount,
       defaultBaseConfig.agentOfflineFailureCount
     ),
+    alertNotificationTimeoutSeconds: normalizeNumber(
+      config.alertNotificationTimeoutSeconds,
+      defaultBaseConfig.alertNotificationTimeoutSeconds
+    ),
+    alertNotificationMaxRetryCount: normalizeNumberAllowZero(
+      config.alertNotificationMaxRetryCount,
+      defaultBaseConfig.alertNotificationMaxRetryCount
+    ),
+    alertNotificationRetryBaseSeconds: normalizeNumber(
+      config.alertNotificationRetryBaseSeconds,
+      defaultBaseConfig.alertNotificationRetryBaseSeconds
+    ),
+    alertNotificationRetryMaxMinutes: normalizeNumber(
+      config.alertNotificationRetryMaxMinutes,
+      defaultBaseConfig.alertNotificationRetryMaxMinutes
+    ),
+    alertNotificationBatchSize: normalizeNumber(
+      config.alertNotificationBatchSize,
+      defaultBaseConfig.alertNotificationBatchSize
+    ),
     created_at: config.created_at,
     updated_at: config.updated_at,
   };
@@ -112,4 +137,9 @@ export function applyDocumentBranding(config: SystemBaseConfig) {
 function normalizeNumber(value: unknown, fallback: number) {
   const numberValue = Number(value);
   return Number.isFinite(numberValue) && numberValue > 0 ? numberValue : fallback;
+}
+
+function normalizeNumberAllowZero(value: unknown, fallback: number) {
+  const numberValue = Number(value);
+  return Number.isFinite(numberValue) && numberValue >= 0 ? numberValue : fallback;
 }

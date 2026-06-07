@@ -31,9 +31,10 @@ const (
 )
 
 type alertRuntimeConfig struct {
-	ResourceLimit       int
-	ConsecutiveLimit    int
-	OfflineFailureLimit int
+	ResourceLimit         int
+	ConsecutiveLimit      int
+	OfflineFailureLimit   int
+	NotificationBatchSize int
 }
 
 type Event struct {
@@ -426,7 +427,8 @@ func (s *Service) notifyPendingAlerts(ctx context.Context) {
 	if s.notifier == nil {
 		return
 	}
-	alerts, err := s.store.ListPendingAlertNotifications(ctx, 50)
+	config := s.loadAlertRuntimeConfig(ctx)
+	alerts, err := s.store.ListPendingAlertNotifications(ctx, config.NotificationBatchSize)
 	if err != nil {
 		s.logger.Warn("list pending alert notifications failed", "error", err)
 		return
@@ -434,7 +436,7 @@ func (s *Service) notifyPendingAlerts(ctx context.Context) {
 	for _, alert := range alerts {
 		s.queueProblemNotification(ctx, alert)
 	}
-	deliveries, err := s.store.ListPendingAlertNotificationDeliveries(ctx, 50)
+	deliveries, err := s.store.ListPendingAlertNotificationDeliveries(ctx, config.NotificationBatchSize)
 	if err != nil {
 		s.logger.Warn("list pending alert notifications failed", "error", err)
 		return
@@ -461,7 +463,7 @@ func (s *Service) evaluateHostThresholdAlert(ctx context.Context, item domain.Ag
 func (s *Service) evaluateVMStateAlert(ctx context.Context, item domain.Agent, vm domain.VirtualMachine) {
 	title := "虚拟机状态异常"
 	if vm.Status == "error" || vm.Status == "unknown" {
-		_ = s.store.UpsertActiveAlert(ctx, "critical", "virtual_machine", vm.ID+":state", title, fmt.Sprintf("虚拟机 %s 当前状态为 %s", vm.Name, vm.Status), map[string]any{"agent": item.Name, "vm": vm.Name, "status": vm.Status})
+		_ = s.store.UpsertActiveAlert(ctx, "critical", "virtual_machine", vm.ID+":state", title, fmt.Sprintf("虚拟机 %s 当前状态为 %s", vm.Name, vm.Status), vmAlertMetadata(item, vm, map[string]any{"status": vm.Status}))
 		return
 	}
 	s.resolveActiveAlert(ctx, "virtual_machine", vm.ID+":state", title)
@@ -473,7 +475,7 @@ func (s *Service) evaluateVMThresholdAlert(ctx context.Context, item domain.Agen
 	if available && value >= limit {
 		count := s.recordThresholdAlertSample("virtual_machine", sourceID, title, true)
 		if count >= consecutiveLimit {
-			_ = s.store.UpsertActiveAlert(ctx, "warning", "virtual_machine", sourceID, title, fmt.Sprintf("虚拟机 %s %s 使用率达到 %d%%", vm.Name, metric, value), map[string]any{"agent": item.Name, "vm": vm.Name, "metric": key, "value": value, "limit": limit, "consecutive": count})
+			_ = s.store.UpsertActiveAlert(ctx, "warning", "virtual_machine", sourceID, title, fmt.Sprintf("虚拟机 %s %s 使用率达到 %d%%", vm.Name, metric, value), vmAlertMetadata(item, vm, map[string]any{"metric": key, "value": value, "limit": limit, "consecutive": count}))
 		}
 		return
 	}
@@ -495,9 +497,10 @@ func (s *Service) recordThresholdAlertSample(sourceType string, sourceID string,
 
 func (s *Service) loadAlertRuntimeConfig(ctx context.Context) alertRuntimeConfig {
 	config := alertRuntimeConfig{
-		ResourceLimit:       resourceAlertLimit,
-		ConsecutiveLimit:    alertConsecutiveLimit,
-		OfflineFailureLimit: offlineFailureLimit,
+		ResourceLimit:         resourceAlertLimit,
+		ConsecutiveLimit:      alertConsecutiveLimit,
+		OfflineFailureLimit:   offlineFailureLimit,
+		NotificationBatchSize: 50,
 	}
 	if s == nil || s.store == nil {
 		return config
@@ -512,6 +515,7 @@ func (s *Service) loadAlertRuntimeConfig(ctx context.Context) alertRuntimeConfig
 	config.ResourceLimit = clampConfigInt(baseConfig.ResourceCriticalThreshold, 1, 100, resourceAlertLimit)
 	config.ConsecutiveLimit = clampConfigInt(baseConfig.ResourceAlertConsecutiveCount, 1, 20, alertConsecutiveLimit)
 	config.OfflineFailureLimit = clampConfigInt(baseConfig.AgentOfflineFailureCount, 1, 20, offlineFailureLimit)
+	config.NotificationBatchSize = clampConfigInt(baseConfig.AlertNotificationBatchSize, 10, 100, 50)
 	return config
 }
 

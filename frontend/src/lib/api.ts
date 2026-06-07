@@ -165,6 +165,11 @@ export type SystemBaseConfig = {
   resourceCriticalThreshold: number;
   resourceAlertConsecutiveCount: number;
   agentOfflineFailureCount: number;
+  alertNotificationTimeoutSeconds: number;
+  alertNotificationMaxRetryCount: number;
+  alertNotificationRetryBaseSeconds: number;
+  alertNotificationRetryMaxMinutes: number;
+  alertNotificationBatchSize: number;
   created_at?: string;
   updated_at?: string;
 };
@@ -758,6 +763,10 @@ export type NotificationTemplatePreview = {
   recoveryWebhook?: Record<string, unknown>;
   contentType?: string;
   messageType?: string;
+  problemTitle?: string;
+  recoveryTitle?: string;
+  problemColor?: string;
+  recoveryColor?: string;
 };
 
 export type AuthProvider = {
@@ -1469,7 +1478,7 @@ export function fetchNotificationChannels() {
 
 export function updateNotificationChannel(
   id: string,
-  payload: { enabled: boolean; passwordResetEnabled: boolean; config: Record<string, unknown> }
+  payload: { enabled: boolean; passwordResetEnabled: boolean; clearConfig?: boolean; config: Record<string, unknown> }
 ) {
   return apiRequest<NotificationChannel>(`/api/settings/notifications/${encodeURIComponent(id)}`, {
     method: 'PUT',

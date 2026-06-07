@@ -51,21 +51,26 @@ type Permission struct {
 }
 
 type SystemBaseConfig struct {
-	SiteName                         string    `json:"siteName"`
-	LoginName                        string    `json:"loginName"`
-	AppName                          string    `json:"appName"`
-	AppSubtitle                      string    `json:"appSubtitle"`
-	IconData                         string    `json:"iconData"`
-	PasswordResetCodeTTLMinutes      int       `json:"passwordResetCodeTtlMinutes"`
-	PasswordResetCaptchaTTLMinutes   int       `json:"passwordResetCaptchaTtlMinutes"`
-	PasswordResetSendCooldownMinutes float64   `json:"passwordResetSendCooldownMinutes"`
-	PasswordResetRateLimitMinutes    int       `json:"passwordResetRateLimitMinutes"`
-	ResourceWarningThreshold         int       `json:"resourceWarningThreshold"`
-	ResourceCriticalThreshold        int       `json:"resourceCriticalThreshold"`
-	ResourceAlertConsecutiveCount    int       `json:"resourceAlertConsecutiveCount"`
-	AgentOfflineFailureCount         int       `json:"agentOfflineFailureCount"`
-	CreatedAt                        time.Time `json:"created_at"`
-	UpdatedAt                        time.Time `json:"updated_at"`
+	SiteName                          string    `json:"siteName"`
+	LoginName                         string    `json:"loginName"`
+	AppName                           string    `json:"appName"`
+	AppSubtitle                       string    `json:"appSubtitle"`
+	IconData                          string    `json:"iconData"`
+	PasswordResetCodeTTLMinutes       int       `json:"passwordResetCodeTtlMinutes"`
+	PasswordResetCaptchaTTLMinutes    int       `json:"passwordResetCaptchaTtlMinutes"`
+	PasswordResetSendCooldownMinutes  float64   `json:"passwordResetSendCooldownMinutes"`
+	PasswordResetRateLimitMinutes     int       `json:"passwordResetRateLimitMinutes"`
+	ResourceWarningThreshold          int       `json:"resourceWarningThreshold"`
+	ResourceCriticalThreshold         int       `json:"resourceCriticalThreshold"`
+	ResourceAlertConsecutiveCount     int       `json:"resourceAlertConsecutiveCount"`
+	AgentOfflineFailureCount          int       `json:"agentOfflineFailureCount"`
+	AlertNotificationTimeoutSeconds   int       `json:"alertNotificationTimeoutSeconds"`
+	AlertNotificationMaxRetryCount    int       `json:"alertNotificationMaxRetryCount"`
+	AlertNotificationRetryBaseSeconds int       `json:"alertNotificationRetryBaseSeconds"`
+	AlertNotificationRetryMaxMinutes  int       `json:"alertNotificationRetryMaxMinutes"`
+	AlertNotificationBatchSize        int       `json:"alertNotificationBatchSize"`
+	CreatedAt                         time.Time `json:"created_at"`
+	UpdatedAt                         time.Time `json:"updated_at"`
 }
 
 type AuthProvider struct {

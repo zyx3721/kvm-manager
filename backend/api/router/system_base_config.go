@@ -10,19 +10,24 @@ import (
 )
 
 type systemBaseConfigRequest struct {
-	SiteName                         string  `json:"siteName"`
-	LoginName                        string  `json:"loginName"`
-	AppName                          string  `json:"appName"`
-	AppSubtitle                      string  `json:"appSubtitle"`
-	IconData                         string  `json:"iconData"`
-	PasswordResetCodeTTLMinutes      int     `json:"passwordResetCodeTtlMinutes"`
-	PasswordResetCaptchaTTLMinutes   int     `json:"passwordResetCaptchaTtlMinutes"`
-	PasswordResetSendCooldownMinutes float64 `json:"passwordResetSendCooldownMinutes"`
-	PasswordResetRateLimitMinutes    int     `json:"passwordResetRateLimitMinutes"`
-	ResourceWarningThreshold         int     `json:"resourceWarningThreshold"`
-	ResourceCriticalThreshold        int     `json:"resourceCriticalThreshold"`
-	ResourceAlertConsecutiveCount    int     `json:"resourceAlertConsecutiveCount"`
-	AgentOfflineFailureCount         int     `json:"agentOfflineFailureCount"`
+	SiteName                          string  `json:"siteName"`
+	LoginName                         string  `json:"loginName"`
+	AppName                           string  `json:"appName"`
+	AppSubtitle                       string  `json:"appSubtitle"`
+	IconData                          string  `json:"iconData"`
+	PasswordResetCodeTTLMinutes       int     `json:"passwordResetCodeTtlMinutes"`
+	PasswordResetCaptchaTTLMinutes    int     `json:"passwordResetCaptchaTtlMinutes"`
+	PasswordResetSendCooldownMinutes  float64 `json:"passwordResetSendCooldownMinutes"`
+	PasswordResetRateLimitMinutes     int     `json:"passwordResetRateLimitMinutes"`
+	ResourceWarningThreshold          int     `json:"resourceWarningThreshold"`
+	ResourceCriticalThreshold         int     `json:"resourceCriticalThreshold"`
+	ResourceAlertConsecutiveCount     int     `json:"resourceAlertConsecutiveCount"`
+	AgentOfflineFailureCount          int     `json:"agentOfflineFailureCount"`
+	AlertNotificationTimeoutSeconds   int     `json:"alertNotificationTimeoutSeconds"`
+	AlertNotificationMaxRetryCount    *int    `json:"alertNotificationMaxRetryCount"`
+	AlertNotificationRetryBaseSeconds int     `json:"alertNotificationRetryBaseSeconds"`
+	AlertNotificationRetryMaxMinutes  int     `json:"alertNotificationRetryMaxMinutes"`
+	AlertNotificationBatchSize        int     `json:"alertNotificationBatchSize"`
 }
 
 func (r *router) handlePublicSystemBaseConfig(w http.ResponseWriter, req *http.Request) {
@@ -36,19 +41,24 @@ func (r *router) handlePublicSystemBaseConfig(w http.ResponseWriter, req *http.R
 
 func defaultSystemBaseConfig() domain.SystemBaseConfig {
 	return domain.SystemBaseConfig{
-		SiteName:                         "KVM Manager",
-		LoginName:                        "KVM Manager",
-		AppName:                          "KVM Manager",
-		AppSubtitle:                      "VIRTUALIZATION OPS",
-		IconData:                         "/favicon.svg",
-		PasswordResetCodeTTLMinutes:      10,
-		PasswordResetCaptchaTTLMinutes:   1,
-		PasswordResetSendCooldownMinutes: 0.5,
-		PasswordResetRateLimitMinutes:    5,
-		ResourceWarningThreshold:         70,
-		ResourceCriticalThreshold:        85,
-		ResourceAlertConsecutiveCount:    3,
-		AgentOfflineFailureCount:         3,
+		SiteName:                          "KVM Manager",
+		LoginName:                         "KVM Manager",
+		AppName:                           "KVM Manager",
+		AppSubtitle:                       "VIRTUALIZATION OPS",
+		IconData:                          "/favicon.svg",
+		PasswordResetCodeTTLMinutes:       10,
+		PasswordResetCaptchaTTLMinutes:    1,
+		PasswordResetSendCooldownMinutes:  0.5,
+		PasswordResetRateLimitMinutes:     5,
+		ResourceWarningThreshold:          70,
+		ResourceCriticalThreshold:         85,
+		ResourceAlertConsecutiveCount:     3,
+		AgentOfflineFailureCount:          3,
+		AlertNotificationTimeoutSeconds:   8,
+		AlertNotificationMaxRetryCount:    6,
+		AlertNotificationRetryBaseSeconds: 30,
+		AlertNotificationRetryMaxMinutes:  15,
+		AlertNotificationBatchSize:        50,
 	}
 }
 
@@ -115,6 +125,11 @@ func sanitizeSystemBaseConfig(w http.ResponseWriter, body systemBaseConfigReques
 	resourceCriticalThreshold := positiveOrDefault(body.ResourceCriticalThreshold, 85)
 	resourceAlertConsecutiveCount := positiveOrDefault(body.ResourceAlertConsecutiveCount, 3)
 	agentOfflineFailureCount := positiveOrDefault(body.AgentOfflineFailureCount, 3)
+	alertNotificationTimeoutSeconds := positiveOrDefault(body.AlertNotificationTimeoutSeconds, 8)
+	alertNotificationMaxRetryCount := nonNegativePointerOrDefault(body.AlertNotificationMaxRetryCount, 6)
+	alertNotificationRetryBaseSeconds := positiveOrDefault(body.AlertNotificationRetryBaseSeconds, 30)
+	alertNotificationRetryMaxMinutes := positiveOrDefault(body.AlertNotificationRetryMaxMinutes, 15)
+	alertNotificationBatchSize := positiveOrDefault(body.AlertNotificationBatchSize, 50)
 	if passwordResetCodeTTLMinutes < 1 || passwordResetCodeTTLMinutes > 60 {
 		writeError(w, http.StatusBadRequest, "invalid_base_config", "找回密码验证码有效期需在 1 到 60 分钟之间")
 		return nil, false
@@ -143,20 +158,49 @@ func sanitizeSystemBaseConfig(w http.ResponseWriter, body systemBaseConfigReques
 		writeError(w, http.StatusBadRequest, "invalid_base_config", "Agent 离线失败次数需在 1 到 20 次之间")
 		return nil, false
 	}
+	if alertNotificationTimeoutSeconds < 3 || alertNotificationTimeoutSeconds > 60 {
+		writeError(w, http.StatusBadRequest, "invalid_base_config", "告警通知发送超时需在 3 到 60 秒之间")
+		return nil, false
+	}
+	if alertNotificationMaxRetryCount < 0 || alertNotificationMaxRetryCount > 10 {
+		writeError(w, http.StatusBadRequest, "invalid_base_config", "告警通知最大重试次数需在 0 到 10 次之间")
+		return nil, false
+	}
+	if alertNotificationRetryBaseSeconds < 10 || alertNotificationRetryBaseSeconds > 300 {
+		writeError(w, http.StatusBadRequest, "invalid_base_config", "告警通知重试基础间隔需在 10 到 300 秒之间")
+		return nil, false
+	}
+	if alertNotificationRetryMaxMinutes < 1 || alertNotificationRetryMaxMinutes > 120 {
+		writeError(w, http.StatusBadRequest, "invalid_base_config", "告警通知重试最大间隔需在 1 到 120 分钟之间")
+		return nil, false
+	}
+	if alertNotificationRetryMaxMinutes*60 < alertNotificationRetryBaseSeconds {
+		writeError(w, http.StatusBadRequest, "invalid_base_config", "告警通知重试最大间隔不能小于基础间隔")
+		return nil, false
+	}
+	if alertNotificationBatchSize < 10 || alertNotificationBatchSize > 100 {
+		writeError(w, http.StatusBadRequest, "invalid_base_config", "告警通知处理批量需在 10 到 100 条之间")
+		return nil, false
+	}
 	return map[string]any{
-		"siteName":                         siteName,
-		"loginName":                        loginName,
-		"appName":                          appName,
-		"appSubtitle":                      appSubtitle,
-		"iconData":                         iconData,
-		"passwordResetCodeTtlMinutes":      passwordResetCodeTTLMinutes,
-		"passwordResetCaptchaTtlMinutes":   passwordResetCaptchaTTLMinutes,
-		"passwordResetSendCooldownMinutes": passwordResetSendCooldownMinutes,
-		"passwordResetRateLimitMinutes":    passwordResetRateLimitMinutes,
-		"resourceWarningThreshold":         resourceWarningThreshold,
-		"resourceCriticalThreshold":        resourceCriticalThreshold,
-		"resourceAlertConsecutiveCount":    resourceAlertConsecutiveCount,
-		"agentOfflineFailureCount":         agentOfflineFailureCount,
+		"siteName":                          siteName,
+		"loginName":                         loginName,
+		"appName":                           appName,
+		"appSubtitle":                       appSubtitle,
+		"iconData":                          iconData,
+		"passwordResetCodeTtlMinutes":       passwordResetCodeTTLMinutes,
+		"passwordResetCaptchaTtlMinutes":    passwordResetCaptchaTTLMinutes,
+		"passwordResetSendCooldownMinutes":  passwordResetSendCooldownMinutes,
+		"passwordResetRateLimitMinutes":     passwordResetRateLimitMinutes,
+		"resourceWarningThreshold":          resourceWarningThreshold,
+		"resourceCriticalThreshold":         resourceCriticalThreshold,
+		"resourceAlertConsecutiveCount":     resourceAlertConsecutiveCount,
+		"agentOfflineFailureCount":          agentOfflineFailureCount,
+		"alertNotificationTimeoutSeconds":   alertNotificationTimeoutSeconds,
+		"alertNotificationMaxRetryCount":    alertNotificationMaxRetryCount,
+		"alertNotificationRetryBaseSeconds": alertNotificationRetryBaseSeconds,
+		"alertNotificationRetryMaxMinutes":  alertNotificationRetryMaxMinutes,
+		"alertNotificationBatchSize":        alertNotificationBatchSize,
 	}, true
 }
 
@@ -165,6 +209,13 @@ func positiveOrDefault(value int, fallback int) int {
 		return fallback
 	}
 	return value
+}
+
+func nonNegativePointerOrDefault(value *int, fallback int) int {
+	if value == nil || *value < 0 {
+		return fallback
+	}
+	return *value
 }
 
 func positiveFloatOrDefault(value float64, fallback float64) float64 {
