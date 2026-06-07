@@ -1,4 +1,0 @@
-ALTER TABLE users
-  ADD COLUMN IF NOT EXISTS email TEXT NOT NULL DEFAULT '';
-
-UPDATE users SET email = '' WHERE email IS NULL;
