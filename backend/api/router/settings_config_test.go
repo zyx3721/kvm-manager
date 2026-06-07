@@ -134,6 +134,58 @@ func TestSanitizeEmailNotificationConfigForcesTLSDefaultPorts(t *testing.T) {
 	}
 }
 
+func TestSanitizeEmailNotificationConfigAcceptsStringPort(t *testing.T) {
+	config, err := sanitizeNotificationConfig("email", map[string]any{
+		"smtpHost": "smtp.example.com",
+		"smtpPort": "2525",
+		"username": "alert@example.com",
+		"password": "secret",
+		"from":     "alert@example.com",
+		"to":       "ops@example.com",
+	}, true)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got := numberValue(config["smtpPort"]); got != 2525 {
+		t.Fatalf("smtpPort = %v, want 2525", got)
+	}
+}
+
+func TestSanitizeEmailNotificationConfigKeepsInsecureAuthOnlyWithoutEncryption(t *testing.T) {
+	config, err := sanitizeNotificationConfig("email", map[string]any{
+		"smtpHost":          "smtp.example.com",
+		"smtpPort":          "25",
+		"username":          "alert@example.com",
+		"password":          "secret",
+		"from":              "alert@example.com",
+		"to":                "ops@example.com",
+		"allowInsecureAuth": true,
+	}, true)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got := boolValue(config["allowInsecureAuth"]); !got {
+		t.Fatal("expected allowInsecureAuth to be kept without TLS")
+	}
+
+	config, err = sanitizeNotificationConfig("email", map[string]any{
+		"smtpHost":          "smtp.example.com",
+		"smtpPort":          "25",
+		"username":          "alert@example.com",
+		"password":          "secret",
+		"from":              "alert@example.com",
+		"to":                "ops@example.com",
+		"startTLS":          true,
+		"allowInsecureAuth": true,
+	}, true)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if _, ok := config["allowInsecureAuth"]; ok {
+		t.Fatal("expected allowInsecureAuth to be removed when STARTTLS is enabled")
+	}
+}
+
 func TestSanitizeEmailNotificationConfigRejectsMutualEncryptionModes(t *testing.T) {
 	_, err := sanitizeNotificationConfig("email", map[string]any{
 		"smtpHost": "smtp.example.com",
@@ -485,6 +537,23 @@ func TestSanitizeAuthProviderConfigForcesTLSDefaultPorts(t *testing.T) {
 				t.Fatalf("port = %v, want %d", got, input.want)
 			}
 		})
+	}
+}
+
+func TestSanitizeAuthProviderConfigAcceptsStringPort(t *testing.T) {
+	config, err := sanitizeAuthProviderConfig("ldap", map[string]any{
+		"host":         "ldap.example.com",
+		"port":         "1389",
+		"baseDN":       "dc=example,dc=com",
+		"userFilter":   "(sAMAccountName={username})",
+		"bindDN":       "cn=readonly,dc=example,dc=com",
+		"bindPassword": "secret",
+	}, true)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got := numberValue(config["port"]); got != 1389 {
+		t.Fatalf("port = %v, want 1389", got)
 	}
 }
 

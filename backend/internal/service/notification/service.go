@@ -125,7 +125,8 @@ func (s *Service) notificationChannel(ctx context.Context, id string) (domain.No
 func (s *Service) SendTest(ctx context.Context, channel domain.NotificationChannel) error {
 	now := time.Now().UTC()
 	alert := domain.Alert{ID: "test", Level: "info", Status: "active", Title: "KVM Manager 测试通知", Message: "这是一条通知媒介测试消息", SourceType: "system", SourceID: "notification-test", FirstSeenAt: now, LastSeenAt: now}
-	return s.send(ctx, channel, AlertNotificationEvent{Type: EventTypeProblem, Alert: alert})
+	config := s.alertNotificationRuntimeConfig(ctx)
+	return s.withAlertHTTPTimeout(config.Timeout).send(ctx, channel, AlertNotificationEvent{Type: EventTypeProblem, Alert: alert})
 }
 
 func (s *Service) alertNotificationRuntimeConfig(ctx context.Context) alertNotificationRuntimeConfig {
@@ -209,7 +210,7 @@ func (s *Service) SendPasswordReset(ctx context.Context, channel domain.Notifica
 		if err := decodeConfig(channel.Config, &cfg); err != nil {
 			return err
 		}
-		return sendPasswordResetEmail(cfg, message)
+		return s.sendPasswordResetEmail(ctx, cfg, message)
 	case "lark":
 		var cfg robotConfig
 		if err := decodeConfig(channel.Config, &cfg); err != nil {
@@ -300,7 +301,7 @@ func (s *Service) send(ctx context.Context, channel domain.NotificationChannel, 
 		if err := decodeConfig(channel.Config, &cfg); err != nil {
 			return err
 		}
-		return sendEmail(cfg, event)
+		return s.sendEmail(ctx, cfg, event)
 	default:
 		return fmt.Errorf("不支持的通知媒介 %s", channel.ID)
 	}
@@ -342,15 +343,16 @@ type robotConfig struct {
 }
 
 type emailConfig struct {
-	SMTPHost string   `json:"smtpHost"`
-	SMTPPort int      `json:"smtpPort"`
-	Username string   `json:"username"`
-	Password string   `json:"password"`
-	From     string   `json:"from"`
-	FromName string   `json:"fromName"`
-	To       []string `json:"to"`
-	UseTLS   bool     `json:"useTLS"`
-	StartTLS bool     `json:"startTLS"`
+	SMTPHost          string   `json:"smtpHost"`
+	SMTPPort          int      `json:"smtpPort"`
+	Username          string   `json:"username"`
+	Password          string   `json:"password"`
+	From              string   `json:"from"`
+	FromName          string   `json:"fromName"`
+	To                []string `json:"to"`
+	UseTLS            bool     `json:"useTLS"`
+	StartTLS          bool     `json:"startTLS"`
+	AllowInsecureAuth bool     `json:"allowInsecureAuth"`
 	templateConfig
 }
 
@@ -603,7 +605,7 @@ func signDingTalkURL(rawURL string, secret string) (string, error) {
 	return parsed.String(), nil
 }
 
-func sendEmail(cfg emailConfig, event AlertNotificationEvent) error {
+func (s *Service) sendEmail(ctx context.Context, cfg emailConfig, event AlertNotificationEvent) error {
 	if cfg.SMTPHost == "" {
 		return fmt.Errorf("SMTP 主机不能为空")
 	}
@@ -625,7 +627,7 @@ func sendEmail(cfg emailConfig, event AlertNotificationEvent) error {
 	addr := fmt.Sprintf("%s:%d", cfg.SMTPHost, cfg.SMTPPort)
 	subject := alertSubject(event, cfg.templateConfig)
 	message := []byte("From: " + formatMailFrom(cfg) + "\r\n" + "To: " + strings.Join(cfg.To, ",") + "\r\n" + "Subject: " + subject + "\r\n" + "Content-Type: " + emailContentType(cfg.templateConfig) + "; charset=UTF-8\r\n\r\n" + alertText(event, cfg.templateConfig))
-	return sendSMTPMessage(cfg, addr, cfg.To, message)
+	return s.sendSMTPMessage(ctx, cfg, addr, cfg.To, message)
 }
 
 func emailContentType(cfg templateConfig) string {
@@ -667,7 +669,7 @@ func dingTalkMessageType(cfg templateConfig) string {
 	return "text"
 }
 
-func sendPasswordResetEmail(cfg emailConfig, message PasswordResetMessage) error {
+func (s *Service) sendPasswordResetEmail(ctx context.Context, cfg emailConfig, message PasswordResetMessage) error {
 	if cfg.SMTPHost == "" {
 		return fmt.Errorf("SMTP 主机不能为空")
 	}
@@ -691,7 +693,7 @@ func sendPasswordResetEmail(cfg emailConfig, message PasswordResetMessage) error
 	subject := "KVM Manager 密码找回验证码"
 	body := passwordResetEmailHTML(message)
 	raw := []byte("From: " + formatMailFrom(cfg) + "\r\n" + "To: " + to + "\r\n" + "Subject: " + subject + "\r\n" + "MIME-Version: 1.0\r\n" + "Content-Type: text/html; charset=UTF-8\r\n\r\n" + body)
-	return sendSMTPMessage(cfg, addr, []string{to}, raw)
+	return s.sendSMTPMessage(ctx, cfg, addr, []string{to}, raw)
 }
 
 func formatMailFrom(cfg emailConfig) string {
@@ -702,29 +704,45 @@ func formatMailFrom(cfg emailConfig) string {
 	return (&mail.Address{Name: name, Address: cfg.From}).String()
 }
 
-func sendSMTPMessage(cfg emailConfig, addr string, recipients []string, message []byte) error {
+func (s *Service) sendSMTPMessage(ctx context.Context, cfg emailConfig, addr string, recipients []string, message []byte) error {
 	if cfg.UseTLS && cfg.StartTLS {
 		return fmt.Errorf("TLS 与 STARTTLS 不能同时启用")
 	}
+	timeout := s.alertHTTPTimeout
+	if timeout <= 0 {
+		timeout = 8 * time.Second
+	}
 	auth := smtp.PlainAuth("", cfg.Username, cfg.Password, cfg.SMTPHost)
 	if !cfg.UseTLS && !cfg.StartTLS {
-		return smtp.SendMail(addr, auth, cfg.From, recipients, message)
+		client, err := dialPlainSMTP(ctx, addr, cfg.SMTPHost, timeout)
+		if err != nil {
+			return smtpError(err)
+		}
+		defer client.Quit()
+		if cfg.AllowInsecureAuth {
+			auth = plainInsecureAuthPayload(cfg.Username, cfg.Password)
+		}
+		return smtpError(writeSMTPMessage(client, cfg.From, recipients, message, auth))
 	}
 	var client *smtp.Client
 	var err error
 	if cfg.UseTLS {
-		client, err = dialTLSSMTP(addr, cfg.SMTPHost)
+		client, err = dialTLSSMTP(ctx, addr, cfg.SMTPHost, timeout)
 	} else {
-		client, err = dialStartTLSSMTP(addr, cfg.SMTPHost)
+		client, err = dialStartTLSSMTP(ctx, addr, cfg.SMTPHost, timeout)
 	}
 	if err != nil {
-		return err
+		return smtpError(err)
 	}
 	defer client.Quit()
+	return smtpError(writeSMTPMessage(client, cfg.From, recipients, message, auth))
+}
+
+func writeSMTPMessage(client *smtp.Client, from string, recipients []string, message []byte, auth smtp.Auth) error {
 	if err := client.Auth(auth); err != nil {
 		return err
 	}
-	if err := client.Mail(cfg.From); err != nil {
+	if err := client.Mail(from); err != nil {
 		return err
 	}
 	for _, to := range recipients {
@@ -743,8 +761,22 @@ func sendSMTPMessage(cfg emailConfig, addr string, recipients []string, message 
 	return writer.Close()
 }
 
-func dialTLSSMTP(addr string, host string) (*smtp.Client, error) {
-	conn, err := tls.Dial("tcp", addr, &tls.Config{ServerName: host})
+type plainInsecureAuth string
+
+func plainInsecureAuthPayload(username string, password string) smtp.Auth {
+	return plainInsecureAuth("\x00" + username + "\x00" + password)
+}
+
+func (a plainInsecureAuth) Start(*smtp.ServerInfo) (string, []byte, error) {
+	return "PLAIN", []byte(a), nil
+}
+
+func (a plainInsecureAuth) Next([]byte, bool) ([]byte, error) {
+	return nil, nil
+}
+
+func dialPlainSMTP(ctx context.Context, addr string, host string, timeout time.Duration) (*smtp.Client, error) {
+	conn, err := dialSMTPConn(ctx, addr, timeout)
 	if err != nil {
 		return nil, err
 	}
@@ -756,8 +788,26 @@ func dialTLSSMTP(addr string, host string) (*smtp.Client, error) {
 	return client, nil
 }
 
-func dialStartTLSSMTP(addr string, host string) (*smtp.Client, error) {
-	client, err := smtp.Dial(addr)
+func dialTLSSMTP(ctx context.Context, addr string, host string, timeout time.Duration) (*smtp.Client, error) {
+	conn, err := dialSMTPConn(ctx, addr, timeout)
+	if err != nil {
+		return nil, err
+	}
+	tlsConn := tls.Client(conn, &tls.Config{ServerName: host})
+	if err := tlsConn.Handshake(); err != nil {
+		_ = tlsConn.Close()
+		return nil, err
+	}
+	client, err := smtp.NewClient(tlsConn, host)
+	if err != nil {
+		_ = tlsConn.Close()
+		return nil, err
+	}
+	return client, nil
+}
+
+func dialStartTLSSMTP(ctx context.Context, addr string, host string, timeout time.Duration) (*smtp.Client, error) {
+	client, err := dialPlainSMTP(ctx, addr, host, timeout)
 	if err != nil {
 		return nil, err
 	}
@@ -770,6 +820,28 @@ func dialStartTLSSMTP(addr string, host string) (*smtp.Client, error) {
 		return nil, err
 	}
 	return client, nil
+}
+
+func dialSMTPConn(ctx context.Context, addr string, timeout time.Duration) (net.Conn, error) {
+	dialer := net.Dialer{Timeout: timeout}
+	conn, err := dialer.DialContext(ctx, "tcp", addr)
+	if err != nil {
+		return nil, err
+	}
+	if timeout > 0 {
+		_ = conn.SetDeadline(time.Now().Add(timeout))
+	}
+	return conn, nil
+}
+
+func smtpError(err error) error {
+	if err == nil {
+		return nil
+	}
+	if strings.HasPrefix(err.Error(), "SMTP ") || strings.HasPrefix(err.Error(), "TLS ") {
+		return err
+	}
+	return fmt.Errorf("SMTP 发送失败：%w", err)
 }
 
 func passwordResetRobotText(message PasswordResetMessage) string {

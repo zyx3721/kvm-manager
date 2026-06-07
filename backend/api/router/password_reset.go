@@ -308,27 +308,13 @@ func (r *router) passwordResetChannels(req *http.Request) ([]domain.PublicPasswo
 }
 
 func isPasswordResetChannel(id string) bool {
-	return id == "webhook" || id == "email" || id == "lark" || id == "wechat" || id == "dingtalk" || id == "lark_app" || id == "wechat_app" || id == "dingtalk_app"
+	return id == "email"
 }
 
 func passwordResetChannelMeta(id string) domain.PublicPasswordResetChannel {
 	switch id {
-	case "webhook":
-		return domain.PublicPasswordResetChannel{ID: id, Name: "Webhook", Description: "通过已启用的 Webhook 发送找回密码验证码到外部系统"}
 	case "email":
 		return domain.PublicPasswordResetChannel{ID: id, Name: "邮箱", Description: "发送找回密码验证码到账号配置邮箱", RequiresTo: true}
-	case "lark":
-		return domain.PublicPasswordResetChannel{ID: id, Name: "飞书", Description: "通过已启用的飞书机器人发送找回密码验证码"}
-	case "lark_app":
-		return domain.PublicPasswordResetChannel{ID: id, Name: "飞书应用", Description: "通过已启用的飞书自建应用发送找回密码验证码"}
-	case "wechat":
-		return domain.PublicPasswordResetChannel{ID: id, Name: "企业微信", Description: "通过已启用的企业微信机器人发送找回密码验证码"}
-	case "wechat_app":
-		return domain.PublicPasswordResetChannel{ID: id, Name: "企业微信应用", Description: "通过已启用的企业微信应用发送找回密码验证码"}
-	case "dingtalk":
-		return domain.PublicPasswordResetChannel{ID: id, Name: "钉钉", Description: "通过已启用的钉钉机器人发送找回密码验证码"}
-	case "dingtalk_app":
-		return domain.PublicPasswordResetChannel{ID: id, Name: "钉钉应用", Description: "通过已启用的钉钉应用发送找回密码验证码"}
 	default:
 		return domain.PublicPasswordResetChannel{}
 	}

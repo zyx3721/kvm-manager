@@ -251,7 +251,7 @@ export default function ForgotPasswordPage() {
                 <p className="mt-2 text-sm" style={{ color: 'var(--kvm-text-muted)' }}>
                   {step === 'identity'
                     ? '请输入您需要找回密码的用户名'
-                    : '选择通知媒介接收验证码，然后设置新密码'}
+                    : '验证账号邮箱并接收验证码，然后设置新密码'}
                 </p>
               </div>
             </div>

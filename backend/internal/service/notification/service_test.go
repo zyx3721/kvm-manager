@@ -208,6 +208,20 @@ func TestAlertNotificationRuntimeConfigScopesHTTPTimeout(t *testing.T) {
 	}
 }
 
+func TestPlainInsecureAuthPayload(t *testing.T) {
+	auth := plainInsecureAuthPayload("user", "secret")
+	mech, payload, err := auth.Start(nil)
+	if err != nil {
+		t.Fatalf("start auth: %v", err)
+	}
+	if mech != "PLAIN" {
+		t.Fatalf("mechanism = %q, want PLAIN", mech)
+	}
+	if string(payload) != "\x00user\x00secret" {
+		t.Fatalf("payload = %q", string(payload))
+	}
+}
+
 func TestAlertMessageTypeDefaults(t *testing.T) {
 	if got := emailContentType(templateConfig{}); got != "text/plain" {
 		t.Fatalf("email content type = %q", got)

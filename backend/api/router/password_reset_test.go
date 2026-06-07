@@ -10,12 +10,12 @@ import (
 )
 
 func TestPasswordResetChannelRules(t *testing.T) {
-	for _, id := range []string{"webhook", "email", "lark", "wechat", "dingtalk"} {
+	for _, id := range []string{"email"} {
 		if !isPasswordResetChannel(id) {
 			t.Fatalf("expected %s to be usable for password reset", id)
 		}
 	}
-	for _, id := range []string{"", "sms", "ldap"} {
+	for _, id := range []string{"", "webhook", "lark", "wechat", "dingtalk", "lark_app", "wechat_app", "dingtalk_app", "sms", "ldap"} {
 		if isPasswordResetChannel(id) {
 			t.Fatalf("expected %s not to be usable for password reset", id)
 		}

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"kvm-manager/backend/internal/domain"
@@ -72,19 +73,20 @@ func (r *router) handleUpdateNotificationChannel(w http.ResponseWriter, req *htt
 		writeError(w, http.StatusBadRequest, "invalid_request", "通知配置格式不正确")
 		return
 	}
+	passwordResetEnabled := body.PasswordResetEnabled && isPasswordResetChannel(id)
 	previous, _ := r.store.GetNotificationChannel(req.Context(), id)
-	config, err := sanitizeNotificationConfigForUpdate(id, body.Config, notificationConfigMap(previous.Config), body.Enabled || body.PasswordResetEnabled, body.ClearConfig)
+	config, err := sanitizeNotificationConfigForUpdate(id, body.Config, notificationConfigMap(previous.Config), body.Enabled || passwordResetEnabled, body.ClearConfig)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, "invalid_notification_config", notification.UserFacingErrorMessage(err))
 		return
 	}
-	item, err := r.store.UpsertNotificationChannel(req.Context(), id, body.Enabled, body.PasswordResetEnabled, config)
+	item, err := r.store.UpsertNotificationChannel(req.Context(), id, body.Enabled, passwordResetEnabled, config)
 	if err != nil {
 		r.logger.Error("save notification channel failed", "error", err, "channel", id)
 		writeError(w, http.StatusInternalServerError, "save_notification_failed", "保存通知配置失败")
 		return
 	}
-	_ = r.store.WriteAudit(req.Context(), currentSession(req).User.ID, "settings.notification.update", "notification_channel", id, repository.ClientIP(req), map[string]any{"enabled": body.Enabled, "passwordResetEnabled": body.PasswordResetEnabled})
+	_ = r.store.WriteAudit(req.Context(), currentSession(req).User.ID, "settings.notification.update", "notification_channel", id, repository.ClientIP(req), map[string]any{"enabled": body.Enabled, "passwordResetEnabled": passwordResetEnabled})
 	writeJSON(w, http.StatusOK, redactNotificationChannel(item))
 }
 
@@ -248,8 +250,10 @@ func sanitizeNotificationConfigForUpdate(id string, config map[string]any, previ
 		}
 		if boolValue(config["useTLS"]) {
 			config["smtpPort"] = 465
+			delete(config, "allowInsecureAuth")
 		} else if boolValue(config["startTLS"]) {
 			config["smtpPort"] = 587
+			delete(config, "allowInsecureAuth")
 		} else if numberValue(config["smtpPort"]) <= 0 {
 			return nil, fmt.Errorf("SMTP 端口不能为空")
 		}
@@ -396,6 +400,9 @@ func redactNotificationChannels(items []domain.NotificationChannel) []domain.Not
 }
 
 func redactNotificationChannel(item domain.NotificationChannel) domain.NotificationChannel {
+	if !isPasswordResetChannel(item.ID) {
+		item.PasswordResetEnabled = false
+	}
 	item.Config = redactConfigSecrets(item.Config, notificationSecretKeys(item.ID))
 	return item
 }
@@ -549,6 +556,9 @@ func numberValue(value any) float64 {
 		return float64(typed)
 	case json.Number:
 		number, _ := typed.Float64()
+		return number
+	case string:
+		number, _ := strconv.ParseFloat(strings.TrimSpace(typed), 64)
 		return number
 	default:
 		return 0

@@ -50,11 +50,18 @@ const defaultProblemSubject = "{{alert.title}}";
 const defaultRecoverySubject = "恢复：{{alert.title}}";
 const defaultWebhookProblemPayload = `{"id":"{{alert.id}}","eventType":"{{event.type}}","level":"{{alert.level}}","title":"{{alert.title}}","message":"{{alert.message}}","sourceType":"{{alert.sourceType}}","sourceId":"{{alert.sourceId}}","lastSeenAt":"{{alert.lastSeenAt}}"}`;
 const defaultWebhookRecoveryPayload = `{"id":"{{alert.id}}","eventType":"{{event.type}}","level":"{{alert.level}}","title":"{{alert.title}}","message":"{{alert.message}}","sourceType":"{{alert.sourceType}}","sourceId":"{{alert.sourceId}}","lastSeenAt":"{{alert.lastSeenAt}}","resolvedAt":"{{alert.resolvedAt}}","duration":"{{alert.duration}}"}`;
+const smtpTLSDefaultPort = 465;
+const smtpStartTLSDefaultPort = 587;
+
+function normalizeSmtpPortInput(value: unknown) {
+  const text = String(value ?? "").trim();
+  return /^\d+$/.test(text) ? Number(text) : null;
+}
 
 const channelMeta: Record<ChannelId, { name: string; description: string; icon: React.ElementType; color: string; fields: Field[] }> = {
   webhook: {
     name: "Webhook",
-    description: "通过 HTTP JSON 回调推送告警事件、恢复事件和找回密码验证码到外部系统。",
+    description: "通过 HTTP JSON 回调推送告警事件和恢复事件到外部系统。",
     icon: WebhookIcon,
     color: "#06b6d4",
     fields: [
@@ -70,19 +77,20 @@ const channelMeta: Record<ChannelId, { name: string; description: string; icon: 
     color: "#10b981",
     fields: [
       { key: "smtpHost", label: "SMTP 主机", placeholder: "smtp.example.com", required: true },
-      { key: "smtpPort", label: "SMTP 端口", placeholder: "465", required: true, type: "number" },
+      { key: "smtpPort", label: "SMTP 端口", placeholder: "465", required: true, inputMode: "numeric" },
       { key: "username", label: "用户名", placeholder: "alert@example.com", required: true },
       { key: "password", label: "密码", placeholder: "SMTP 授权码", required: true, type: "password" },
       { key: "from", label: "发件人", placeholder: "alert@example.com", required: true },
       { key: "fromName", label: "发件人名称", placeholder: "KVM Console" },
-      { key: "to", label: "收件人", placeholder: "ops@example.com,admin@example.com", required: true, helper: "多个邮箱用英文逗号分隔" },
+      { key: "to", label: "收件人", placeholder: "ops@example.com,admin@example.com", required: true, helper: "多个邮箱用英文逗号分隔，仅用于告警和恢复通知" },
       { key: "useTLS", label: "启用 TLS/SSL", placeholder: "", type: "checkbox" },
       { key: "startTLS", label: "启用 STARTTLS", placeholder: "", type: "checkbox" },
+      { key: "allowInsecureAuth", label: "允许明文认证", placeholder: "", helper: "仅在 SMTP 服务明确要求明文认证时启用，账号密码会在未加密连接中传输", type: "checkbox" },
     ],
   },
   lark: {
     name: "飞书机器人",
-    description: "推送到飞书群机器人或告警协作群，可用于找回密码验证码，支持签名密钥。",
+    description: "推送告警和恢复通知到飞书群机器人或告警协作群，支持签名密钥。",
     icon: SendIcon,
     color: "#8b5cf6",
     fields: [
@@ -92,7 +100,7 @@ const channelMeta: Record<ChannelId, { name: string; description: string; icon: 
   },
   lark_app: {
     name: "飞书应用",
-    description: "通过飞书自建应用向指定用户或群聊发送告警、恢复通知和找回密码验证码。",
+    description: "通过飞书自建应用向指定用户或群聊发送告警和恢复通知。",
     icon: MessagesSquareIcon,
     color: "#6366f1",
     fields: [
@@ -104,7 +112,7 @@ const channelMeta: Record<ChannelId, { name: string; description: string; icon: 
   },
   wechat: {
     name: "企业微信机器人",
-    description: "对接企业微信群机器人接收告警、恢复通知和找回密码验证码。",
+    description: "对接企业微信群机器人接收告警和恢复通知。",
     icon: MessageSquareIcon,
     color: "#22c55e",
     fields: [
@@ -113,7 +121,7 @@ const channelMeta: Record<ChannelId, { name: string; description: string; icon: 
   },
   wechat_app: {
     name: "企业微信应用",
-    description: "通过企业微信自建应用向成员、部门或标签发送告警、恢复通知和找回密码验证码。",
+    description: "通过企业微信自建应用向成员、部门或标签发送告警和恢复通知。",
     icon: SmartphoneIcon,
     color: "#16a34a",
     fields: [
@@ -127,7 +135,7 @@ const channelMeta: Record<ChannelId, { name: string; description: string; icon: 
   },
   dingtalk: {
     name: "钉钉机器人",
-    description: "通过钉钉机器人发送故障、恢复通知和找回密码验证码，支持加签密钥。",
+    description: "通过钉钉机器人发送告警和恢复通知，支持加签密钥。",
     icon: RadioTowerIcon,
     color: "#f59e0b",
     fields: [
@@ -137,7 +145,7 @@ const channelMeta: Record<ChannelId, { name: string; description: string; icon: 
   },
   dingtalk_app: {
     name: "钉钉应用",
-    description: "通过钉钉企业内部应用工作通知向指定用户或部门发送告警、恢复通知和找回密码验证码。",
+    description: "通过钉钉企业内部应用工作通知向指定用户或部门发送告警和恢复通知。",
     icon: RadioTowerIcon,
     color: "#f97316",
     fields: [
@@ -151,6 +159,7 @@ const channelMeta: Record<ChannelId, { name: string; description: string; icon: 
 };
 
 const channelOrder: ChannelId[] = ["webhook", "email", "lark", "lark_app", "wechat", "wechat_app", "dingtalk", "dingtalk_app"];
+const passwordResetChannelId: ChannelId = "email";
 const larkReceiveIdTypeOptions: SelectMenuOption[] = [
   { value: "chat_id", label: "群聊 ID", tooltip: "chat_id" },
   { value: "open_id", label: "Open ID", tooltip: "open_id" },
@@ -285,6 +294,7 @@ export function NotificationSettingsPanel({ canManage }: { canManage: boolean })
   const [busy, setBusy] = useState("");
   const meta = channelMeta[selected];
   const Icon = meta.icon;
+  const supportsPasswordReset = selected === passwordResetChannelId;
 
   useEffect(() => {
     fetchNotificationChannels()
@@ -295,7 +305,7 @@ export function NotificationSettingsPanel({ canManage }: { canManage: boolean })
   useEffect(() => {
     const channel = channels[selected];
     setEnabled(channel?.enabled ?? false);
-    setPasswordResetEnabled(channel?.passwordResetEnabled ?? false);
+    setPasswordResetEnabled(selected === passwordResetChannelId ? channel?.passwordResetEnabled ?? false : false);
     setForm(normalizeConfig(channel?.config));
     setPreview(null);
     setClearConfigRequested(false);
@@ -304,14 +314,15 @@ export function NotificationSettingsPanel({ canManage }: { canManage: boolean })
   const cards = useMemo(() => channelOrder.map((id) => ({ id, meta: channelMeta[id], channel: channels[id] })), [channels]);
 
   const save = async () => {
-    const { config, error } = prepareConfig(selected, form, enabled || passwordResetEnabled);
+    const nextPasswordResetEnabled = supportsPasswordReset && passwordResetEnabled;
+    const { config, error } = prepareConfig(selected, form, enabled || nextPasswordResetEnabled);
     if (error) {
       toast.error(error);
       return;
     }
     setBusy("save");
     try {
-      const saved = await updateNotificationChannel(selected, { enabled, passwordResetEnabled, clearConfig: clearConfigRequested, config });
+      const saved = await updateNotificationChannel(selected, { enabled, passwordResetEnabled: nextPasswordResetEnabled, clearConfig: clearConfigRequested, config });
       setChannels((current) => ({ ...current, [selected]: saved }));
       setClearConfigRequested(false);
       toast.success("通知配置已保存");
@@ -342,7 +353,7 @@ export function NotificationSettingsPanel({ canManage }: { canManage: boolean })
     }
     setBusy("preview");
     try {
-      setPreview(await previewNotificationChannel(selected, { enabled, passwordResetEnabled, config }));
+      setPreview(await previewNotificationChannel(selected, { enabled, passwordResetEnabled: supportsPasswordReset && passwordResetEnabled, config }));
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "生成模板预览失败");
     } finally {
@@ -363,11 +374,29 @@ export function NotificationSettingsPanel({ canManage }: { canManage: boolean })
       const next = { ...current, [field.key]: value };
       if (selected === "email" && field.key === "useTLS" && value === true) {
         next.startTLS = false;
-        next.smtpPort = 465;
+        next.allowInsecureAuth = false;
+        next.smtpPort = smtpTLSDefaultPort;
       }
       if (selected === "email" && field.key === "startTLS" && value === true) {
         next.useTLS = false;
-        next.smtpPort = 587;
+        next.allowInsecureAuth = false;
+        next.smtpPort = smtpStartTLSDefaultPort;
+      }
+      if (selected === "email" && field.key === "allowInsecureAuth" && value === true) {
+        next.useTLS = false;
+        next.startTLS = false;
+      }
+      if (selected === "email" && field.key === "smtpPort") {
+        const smtpPort = normalizeSmtpPortInput(value);
+        if (smtpPort === smtpTLSDefaultPort) {
+          next.useTLS = true;
+          next.startTLS = false;
+          next.allowInsecureAuth = false;
+        } else if (smtpPort === smtpStartTLSDefaultPort) {
+          next.useTLS = false;
+          next.startTLS = true;
+          next.allowInsecureAuth = false;
+        }
       }
       return next;
     });
@@ -376,17 +405,17 @@ export function NotificationSettingsPanel({ canManage }: { canManage: boolean })
   return (
     <SettingsSplitLayout
       sidebarLabel="通知媒介"
-      sidebar={cards.map(({ id, meta: itemMeta, channel }) => <ChannelCard key={id} id={id} meta={itemMeta} active={selected === id} enabled={channel?.enabled ?? false} passwordResetEnabled={channel?.passwordResetEnabled ?? false} onSelect={() => setSelected(id)} />)}
+      sidebar={cards.map(({ id, meta: itemMeta, channel }) => <ChannelCard key={id} id={id} meta={itemMeta} active={selected === id} enabled={channel?.enabled ?? false} passwordResetEnabled={id === passwordResetChannelId && (channel?.passwordResetEnabled ?? false)} onSelect={() => setSelected(id)} />)}
     >
       <SettingsDetailPanel
-        header={<SettingsDetailHeader icon={Icon} color={meta.color} title={meta.name} subtitle={notificationSubtitle(enabled, passwordResetEnabled, Boolean(form.sendRecovery))} active={enabled || passwordResetEnabled} />}
+        header={<SettingsDetailHeader icon={Icon} color={meta.color} title={meta.name} subtitle={notificationSubtitle(enabled, supportsPasswordReset && passwordResetEnabled, Boolean(form.sendRecovery))} active={enabled || (supportsPasswordReset && passwordResetEnabled)} />}
         actions={canManage ? <><button type="button" onClick={clearNotificationConfig} disabled={busy !== ""} className="kvm-action-button kvm-danger-button flex items-center gap-2 rounded-lg border px-3 py-2 text-sm disabled:opacity-50" style={{ borderColor: "rgba(239,68,68,0.34)", color: "#f87171", background: "rgba(239,68,68,0.08)" }}><Trash2Icon size={14} />清空配置</button><button type="button" onClick={() => void save()} disabled={busy !== ""} className="kvm-action-button flex items-center gap-2 rounded-lg border px-3 py-2 text-sm disabled:opacity-50" style={{ borderColor: "rgba(59,130,246,0.38)", color: "var(--kvm-accent-text)", background: "rgba(59,130,246,0.1)" }}><SaveIcon size={14} />保存</button><button type="button" onClick={() => void sendTest()} disabled={busy !== "" || !enabled} className="kvm-action-button flex items-center gap-2 rounded-lg border px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-50" style={{ borderColor: "rgba(16,185,129,0.35)", color: "#34d399", background: "rgba(16,185,129,0.08)" }}><CheckCircle2Icon size={14} />测试</button></> : null}
       >
         <p className="mb-4 text-sm leading-6" style={{ color: "var(--kvm-text-muted)" }}>{meta.description}</p>
-        <div className="mb-4 grid gap-3 xl:grid-cols-3">
+        <div className={`mb-4 grid gap-3 ${supportsPasswordReset ? "xl:grid-cols-3" : "xl:grid-cols-2"}`}>
           <EnableMediaToggle enabled={enabled} disabled={!canManage} onChange={(value) => { setClearConfigRequested(false); setEnabled(value); if (!value) setForm((current) => ({ ...current, sendRecovery: false })); }} label="告警通知" enabledText="已开启活跃告警推送" disabledText="关闭后不发送告警通知" />
           <EnableMediaToggle enabled={Boolean(form.sendRecovery)} disabled={!canManage || !enabled} onChange={(value) => { setClearConfigRequested(false); setForm((current) => ({ ...current, sendRecovery: value })); }} label="恢复通知" enabledText="告警恢复后会推送恢复内容" disabledText="关闭后恢复不外发" />
-          <EnableMediaToggle enabled={passwordResetEnabled} disabled={!canManage} onChange={(value) => { setClearConfigRequested(false); setPasswordResetEnabled(value); }} label="找回密码" enabledText="可用于发送找回密码验证码" disabledText="关闭后不参与找回密码" />
+          {supportsPasswordReset && <EnableMediaToggle enabled={passwordResetEnabled} disabled={!canManage} onChange={(value) => { setClearConfigRequested(false); setPasswordResetEnabled(value); }} label="找回密码" enabledText="可用于发送找回密码验证码" disabledText="关闭后不参与找回密码" />}
         </div>
         <div className="space-y-3">{meta.fields.map((field) => <NotificationConfigField key={field.key} field={field} value={displayValue(field, form[field.key])} form={form} disabled={!canManage} onChange={(value) => updateField(field, value)} />)}</div>
         <TemplateEditor selected={selected} tab={templateTab} form={form} preview={preview} busy={busy === "preview"} disabled={!canManage} onPreview={() => void loadPreview()} onOpenVariables={() => setVariableDialogOpen(true)} onTabChange={setTemplateTab} onChange={(key, value) => { setClearConfigRequested(false); setForm((current) => ({ ...current, [key]: value })); }} />
@@ -570,7 +599,7 @@ function TemplateTabButton({ active, label, onClick }: { active: boolean; label:
 
 function ChannelCard({ id, meta, active, enabled, passwordResetEnabled, onSelect }: { id: ChannelId; meta: typeof channelMeta[ChannelId]; active: boolean; enabled: boolean; passwordResetEnabled: boolean; onSelect: () => void }) {
   const CardIcon = meta.icon;
-  return <button type="button" onClick={onSelect} className="kvm-action-button flex w-full items-start gap-3 rounded-lg p-3 text-left" style={{ background: active ? "rgba(59,130,246,0.12)" : "transparent", border: active ? "1px solid rgba(96,165,250,0.56)" : "1px solid transparent", color: "var(--kvm-text)" }}><div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg" style={{ color: meta.color, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}><CardIcon size={19} /></div><div className="min-w-0 flex-1"><div className="flex items-center justify-between gap-3"><span className="truncate text-sm font-semibold">{meta.name}</span><span className="flex shrink-0 items-center gap-1"><UsageIcon enabled={enabled} label="告" /><UsageIcon enabled={passwordResetEnabled} label="密" /></span></div><p className="mt-1 line-clamp-2 text-xs leading-5" style={{ color: "var(--kvm-text-muted)" }}>{meta.description}</p></div></button>;
+  return <button type="button" onClick={onSelect} className="kvm-action-button flex w-full items-start gap-3 rounded-lg p-3 text-left" style={{ background: active ? "rgba(59,130,246,0.12)" : "transparent", border: active ? "1px solid rgba(96,165,250,0.56)" : "1px solid transparent", color: "var(--kvm-text)" }}><div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg" style={{ color: meta.color, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}><CardIcon size={19} /></div><div className="min-w-0 flex-1"><div className="flex items-center justify-between gap-3"><span className="truncate text-sm font-semibold">{meta.name}</span><span className="flex shrink-0 items-center gap-1"><UsageIcon enabled={enabled} label="告" />{id === passwordResetChannelId && <UsageIcon enabled={passwordResetEnabled} label="密" />}</span></div><p className="mt-1 line-clamp-2 text-xs leading-5" style={{ color: "var(--kvm-text-muted)" }}>{meta.description}</p></div></button>;
 }
 
 function UsageIcon({ enabled, label }: { enabled: boolean; label: string }) {
@@ -596,11 +625,20 @@ function prepareConfig(id: ChannelId, form: Record<string, unknown>, enabled: bo
     }
     return { config: removeEmptyConfigValues(next), error: "" };
   }
-  if (id === "email" && typeof next.smtpPort === "string") next.smtpPort = Number(next.smtpPort);
   if (id === "email") {
     if (Boolean(next.useTLS) && Boolean(next.startTLS)) return { config: {}, error: "TLS 与 STARTTLS 不能同时启用" };
-    if (Boolean(next.useTLS)) next.smtpPort = 465;
-    else if (Boolean(next.startTLS)) next.smtpPort = 587;
+    if (Boolean(next.useTLS)) {
+      next.smtpPort = 465;
+      next.allowInsecureAuth = false;
+    } else if (Boolean(next.startTLS)) {
+      next.smtpPort = 587;
+      next.allowInsecureAuth = false;
+    }
+    else {
+      const smtpPort = parsePort(next.smtpPort);
+      if (!smtpPort) return { config: {}, error: "SMTP 端口需为 1 到 65535 之间的整数" };
+      next.smtpPort = smtpPort;
+    }
     const missingField = channelMeta[id].fields.find((field) => {
       if (!field.required) return false;
       if (field.type === "number") return !Number(next[field.key]);
@@ -671,6 +709,14 @@ function prepareConfig(id: ChannelId, form: Record<string, unknown>, enabled: bo
     }
   }
   return { config: removeEmptyConfigValues(removeSecretPresenceMarkers(next)), error: "" };
+}
+
+function parsePort(value: unknown) {
+  const text = String(value ?? "").trim();
+  if (!/^\d+$/.test(text)) return 0;
+  const port = Number(text);
+  if (!Number.isInteger(port) || port < 1 || port > 65535) return 0;
+  return port;
 }
 
 function isValidLarkCardColorConfig(config: Record<string, unknown>) {

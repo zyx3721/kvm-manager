@@ -55,7 +55,7 @@ func swaggerPasswordResetCaptcha() {}
 
 // swaggerPasswordResetVerify godoc
 // @Summary 校验找回密码用户名与图形验证码
-// @Description 校验本地账号和图形验证码，通过后返回已启用找回密码用途的通知媒介和短期校验 Token。
+// @Description 校验本地账号和图形验证码，通过后返回已启用找回密码用途的邮件媒介和短期校验 Token。
 // @Tags auth
 // @Accept json
 // @Produce json
@@ -68,7 +68,7 @@ func swaggerPasswordResetVerify() {}
 
 // swaggerPasswordResetSendCode godoc
 // @Summary 发送找回密码验证码
-// @Description 使用已启用找回密码用途的 Webhook、邮件、飞书、企业微信、钉钉、飞书应用、企业微信应用或钉钉应用媒介发送找回密码验证码。发送前必须携带用户名与图形验证码校验得到的短期 Token，并校验验证邮箱与账号配置邮箱一致；邮件媒介会发送到账号配置邮箱，机器人和应用媒介发送到已保存配置中的接收对象。验证码有效期、发送冷却和频率限制统计窗口由基础配置控制。
+// @Description 使用已启用找回密码用途的邮件媒介发送找回密码验证码。发送前必须携带用户名与图形验证码校验得到的短期 Token，并校验验证邮箱与账号配置邮箱一致；验证码会发送到账号配置邮箱，不使用邮件通知配置中的告警收件人列表。验证码有效期、发送冷却和频率限制统计窗口由基础配置控制。
 // @Tags auth
 // @Accept json
 // @Produce json
@@ -1354,7 +1354,7 @@ func swaggerListNotificationChannels() {}
 
 // swaggerUpdateNotificationChannel godoc
 // @Summary 更新通知媒介配置
-// @Description 通知媒介包含告警通知、恢复通知模板和找回密码用途配置；任一用途启用时 Webhook 需要 url，可选 method、headers、webhookProblemPayload、webhookRecoveryPayload；邮件需要 smtpHost、smtpPort、username、password、from、to，可选 fromName、useTLS、startTLS、problemTemplate、recoveryTemplate、problemSubjectTemplate、recoverySubjectTemplate、emailContentType、sendRecovery 且 TLS 与 STARTTLS 不能同时启用；飞书、企业微信、钉钉机器人需要 webhookUrl，飞书和钉钉机器人可选 secret；飞书应用需要 appId、appSecret、receiveIdType、receiveId；企业微信应用需要 corpId、agentId、secret 且 toUser/toParty/toTag 至少一项；钉钉应用需要 appKey、appSecret、agentId 且 useridList/deptIdList 至少一项；各媒介支持 problemTemplate、recoveryTemplate、sendRecovery 和对应消息类型字段 larkMessageType、wechatMessageType、dingtalkMessageType；飞书富文本/卡片可配置 larkProblemTitleTemplate、larkRecoveryTitleTemplate，飞书卡片可配置 larkProblemCardTemplate、larkRecoveryCardTemplate。邮件 password、机器人 secret、应用 appSecret/secret 留空时保留已保存值，填写新值时替换；重复保存不会清空已保存敏感信息，仅 clearConfig=true 时允许清空。
+// @Description 通知媒介包含告警通知、恢复通知模板配置；邮件媒介额外支持找回密码用途配置。任一用途启用时 Webhook 需要 url，可选 method、headers、webhookProblemPayload、webhookRecoveryPayload；邮件需要 smtpHost、smtpPort、username、password、from、to，可选 fromName、useTLS、startTLS、allowInsecureAuth、problemTemplate、recoveryTemplate、problemSubjectTemplate、recoverySubjectTemplate、emailContentType、sendRecovery 且 TLS 与 STARTTLS 不能同时启用；邮件 to 仅用于告警和恢复通知，找回密码验证码发送到账号配置邮箱；allowInsecureAuth 只在未启用 TLS/STARTTLS 时生效，会在未加密连接中发送账号密码；飞书、企业微信、钉钉机器人需要 webhookUrl，飞书和钉钉机器人可选 secret；飞书应用需要 appId、appSecret、receiveIdType、receiveId；企业微信应用需要 corpId、agentId、secret 且 toUser/toParty/toTag 至少一项；钉钉应用需要 appKey、appSecret、agentId 且 useridList/deptIdList 至少一项；各媒介支持 problemTemplate、recoveryTemplate、sendRecovery 和对应消息类型字段 larkMessageType、wechatMessageType、dingtalkMessageType；飞书富文本/卡片可配置 larkProblemTitleTemplate、larkRecoveryTitleTemplate，飞书卡片可配置 larkProblemCardTemplate、larkRecoveryCardTemplate。邮件 password、机器人 secret、应用 appSecret/secret 留空时保留已保存值，填写新值时替换；重复保存不会清空已保存敏感信息，仅 clearConfig=true 时允许清空。
 // @Tags settings
 // @Accept json
 // @Produce json

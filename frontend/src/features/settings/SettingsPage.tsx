@@ -49,7 +49,7 @@ const authProviderMeta: Record<AuthProviderId, { name: string; description: stri
     color: "#38bdf8",
     requiredFields: [
       { key: "host", label: "服务器地址", placeholder: "ldap.example.com", required: true },
-      { key: "port", label: "端口", placeholder: "389", required: true, type: "number" },
+      { key: "port", label: "端口", placeholder: "389", required: true, inputMode: "numeric" },
       { key: "baseDN", label: "Base DN", placeholder: "dc=example,dc=com", required: true },
       { key: "userFilter", label: "用户过滤器", placeholder: "(sAMAccountName={username})", required: true },
       { key: "bindDN", label: "绑定 DN", placeholder: "cn=readonly,dc=example,dc=com", required: true },
@@ -270,7 +270,12 @@ function prepareAuthConfig(id: AuthProviderId, form: Record<string, unknown>, en
     if (Boolean(next.useTLS) && Boolean(next.startTLS)) return { config: {}, error: "LDAPS 与 StartTLS 不能同时启用" };
     if (Boolean(next.useTLS)) next.port = 636;
     else if (Boolean(next.startTLS)) next.port = 389;
-    else if (!Number(next.port)) next.port = 389;
+    else if (String(next.port ?? "").trim() === "") next.port = 389;
+    else {
+      const port = parsePort(next.port);
+      if (!port) return { config: {}, error: "端口需为 1 到 65535 之间的整数" };
+      next.port = port;
+    }
     const missingField = authProviderMeta[id].requiredFields.find((field) => {
       if (field.type === "number") return !Number(next[field.key]);
       if (field.type === "password" && secretConfigured(field, next)) return false;
@@ -279,6 +284,14 @@ function prepareAuthConfig(id: AuthProviderId, form: Record<string, unknown>, en
     if (missingField) return { config: {}, error: `${missingField.label}不能为空` };
   }
   return { config: removeEmptyConfigValues(removeSecretPresenceMarkers(next)), error: "" };
+}
+
+function parsePort(value: unknown) {
+  const text = String(value ?? "").trim();
+  if (!/^\d+$/.test(text)) return 0;
+  const port = Number(text);
+  if (!Number.isInteger(port) || port < 1 || port > 65535) return 0;
+  return port;
 }
 
 function isPermissionMessage(message: string) {
