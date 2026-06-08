@@ -3,8 +3,10 @@ package realtime
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/redis/go-redis/v9"
 
@@ -12,10 +14,14 @@ import (
 )
 
 const (
-	redisHostsKey     = "kvm:runtime:hosts"
-	redisVMsKey       = "kvm:runtime:vms"
-	redisSnapshotsKey = "kvm:runtime:snapshots"
+	redisHostsKey          = "kvm:runtime:hosts"
+	redisVMsKey            = "kvm:runtime:vms"
+	redisSnapshotsKey      = "kvm:runtime:snapshots"
+	agentDeleteMarkerTTL   = 10 * time.Minute
+	agentDeleteMarkerValue = "1"
 )
+
+var errAgentRuntimeDeleted = errors.New("agent runtime deleted")
 
 type RedisRuntimeStore struct {
 	client redis.Cmdable
@@ -26,6 +32,13 @@ func NewRedisRuntimeStore(client redis.Cmdable) *RedisRuntimeStore {
 }
 
 func (r *RedisRuntimeStore) SaveAgentRuntime(ctx context.Context, agentID string, host domain.Host, vms map[string]domain.VirtualMachine, snapshots map[string]domain.Snapshot, replaceSnapshots bool) error {
+	deleted, err := r.isAgentDeleted(ctx, agentID)
+	if err != nil {
+		return err
+	}
+	if deleted {
+		return errAgentRuntimeDeleted
+	}
 	pipe := r.client.TxPipeline()
 	pipe.SAdd(ctx, redisHostsKey, agentID)
 	pipe.Set(ctx, redisHostKey(agentID), mustJSON(host), 0)
@@ -64,10 +77,17 @@ func (r *RedisRuntimeStore) SaveAgentRuntime(ctx context.Context, agentID string
 		}
 	}
 	_, err = pipe.Exec(ctx)
-	return err
+	return r.rejectDeletedAgentRuntimeWrite(ctx, agentID, err)
 }
 
 func (r *RedisRuntimeStore) UpdateVMRuntime(ctx context.Context, agentID string, host domain.Host, vm domain.VirtualMachine) error {
+	deleted, err := r.isAgentDeleted(ctx, agentID)
+	if err != nil {
+		return err
+	}
+	if deleted {
+		return errAgentRuntimeDeleted
+	}
 	pipe := r.client.TxPipeline()
 	oldVMIDs, err := r.client.SMembers(ctx, redisAgentVMsKey(agentID)).Result()
 	if err != nil {
@@ -93,7 +113,7 @@ func (r *RedisRuntimeStore) UpdateVMRuntime(ctx context.Context, agentID string,
 	pipe.SAdd(ctx, redisAgentVMsKey(agentID), vm.ID)
 	pipe.Set(ctx, redisVMKey(vm.ID), mustJSON(vm), 0)
 	_, err = pipe.Exec(ctx)
-	return err
+	return r.rejectDeletedAgentRuntimeWrite(ctx, agentID, err)
 }
 
 func (r *RedisRuntimeStore) RemoveVMRuntime(ctx context.Context, agentID string, vmID string) error {
@@ -118,10 +138,17 @@ func (r *RedisRuntimeStore) RemoveVMRuntime(ctx context.Context, agentID string,
 		}
 	}
 	_, err = pipe.Exec(ctx)
-	return err
+	return r.rejectDeletedAgentRuntimeWrite(ctx, agentID, err)
 }
 
 func (r *RedisRuntimeStore) ReplaceAgentSnapshots(ctx context.Context, agentID string, snapshots map[string]domain.Snapshot) error {
+	deleted, err := r.isAgentDeleted(ctx, agentID)
+	if err != nil {
+		return err
+	}
+	if deleted {
+		return errAgentRuntimeDeleted
+	}
 	vmIDs, err := r.client.SMembers(ctx, redisAgentVMsKey(agentID)).Result()
 	if err != nil {
 		return err
@@ -153,6 +180,7 @@ func (r *RedisRuntimeStore) RemoveAgent(ctx context.Context, agentID string) err
 		return err
 	}
 	pipe := r.client.TxPipeline()
+	pipe.Set(ctx, redisAgentDeleteMarkerKey(agentID), agentDeleteMarkerValue, agentDeleteMarkerTTL)
 	pipe.Del(ctx, redisHostKey(agentID), redisAgentVMsKey(agentID))
 	pipe.SRem(ctx, redisHostsKey, agentID)
 	for _, vmID := range oldVMIDs {
@@ -169,6 +197,31 @@ func (r *RedisRuntimeStore) RemoveAgent(ctx context.Context, agentID string) err
 	}
 	_, err = pipe.Exec(ctx)
 	return err
+}
+
+func (r *RedisRuntimeStore) isAgentDeleted(ctx context.Context, agentID string) (bool, error) {
+	value, err := r.client.Exists(ctx, redisAgentDeleteMarkerKey(agentID)).Result()
+	if err != nil {
+		return false, err
+	}
+	return value > 0, nil
+}
+
+func (r *RedisRuntimeStore) rejectDeletedAgentRuntimeWrite(ctx context.Context, agentID string, writeErr error) error {
+	if writeErr != nil {
+		return writeErr
+	}
+	deleted, err := r.isAgentDeleted(ctx, agentID)
+	if err != nil {
+		return err
+	}
+	if !deleted {
+		return nil
+	}
+	if err := r.RemoveAgent(ctx, agentID); err != nil {
+		return err
+	}
+	return errAgentRuntimeDeleted
 }
 
 func (r *RedisRuntimeStore) ListHosts(ctx context.Context) ([]domain.Host, error) {
@@ -306,8 +359,11 @@ func mustJSON(value any) string {
 	return string(payload)
 }
 
-func redisHostKey(agentID string) string        { return "kvm:runtime:host:" + agentID }
-func redisAgentVMsKey(agentID string) string    { return "kvm:runtime:vms:agent:" + agentID }
+func redisHostKey(agentID string) string     { return "kvm:runtime:host:" + agentID }
+func redisAgentVMsKey(agentID string) string { return "kvm:runtime:vms:agent:" + agentID }
+func redisAgentDeleteMarkerKey(agentID string) string {
+	return "kvm:runtime:agent-deleted:" + agentID
+}
 func redisVMKey(vmID string) string             { return "kvm:runtime:vm:" + vmID }
 func redisVMSnapshotsKey(vmID string) string    { return "kvm:runtime:snapshots:vm:" + vmID }
 func redisSnapshotKey(snapshotID string) string { return "kvm:runtime:snapshot:" + snapshotID }

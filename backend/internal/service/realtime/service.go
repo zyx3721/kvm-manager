@@ -295,7 +295,15 @@ func (s *Service) SyncVMWithToken(ctx context.Context, id string, token string, 
 		vm.ID = vmID
 	}
 	vm = s.applyTemplateMarkToVM(ctx, vm)
+	if ok, err := s.ensureAgentStillRegistered(ctx, item.ID); err != nil {
+		return domain.VirtualMachine{}, err
+	} else if !ok {
+		return domain.VirtualMachine{}, repository.ErrNotFound
+	}
 	if err := s.runtimeStore.UpdateVMRuntime(ctx, item.ID, host, vm); err != nil {
+		if errors.Is(err, errAgentRuntimeDeleted) {
+			return domain.VirtualMachine{}, repository.ErrNotFound
+		}
 		return domain.VirtualMachine{}, err
 	}
 	if s.metricStream != nil {
@@ -390,7 +398,15 @@ func (s *Service) syncWithToken(ctx context.Context, item domain.Agent, token st
 	if mode == SyncFast {
 		s.mergeFastRuntime(ctx, vms)
 	}
+	if ok, err := s.ensureAgentStillRegistered(ctx, item.ID); err != nil {
+		return err
+	} else if !ok {
+		return repository.ErrNotFound
+	}
 	if err := s.runtimeStore.SaveAgentRuntime(ctx, item.ID, host, vms, snapshots, mode == SyncFull); err != nil {
+		if errors.Is(err, errAgentRuntimeDeleted) {
+			return repository.ErrNotFound
+		}
 		return err
 	}
 	if s.metricStream != nil {
@@ -408,6 +424,21 @@ func (s *Service) syncWithToken(ctx context.Context, item domain.Agent, token st
 	s.resolveActiveAlertsBySource(ctx, "agent", item.ID)
 	s.notifyPendingAlerts(ctx)
 	return nil
+}
+
+func (s *Service) ensureAgentStillRegistered(ctx context.Context, agentID string) (bool, error) {
+	if _, err := s.store.GetAgent(ctx, agentID); err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
+			if removeErr := s.runtimeStore.RemoveAgent(ctx, agentID); removeErr != nil {
+				s.logger.Warn("remove deleted agent runtime cache failed", "agent", agentID, "error", removeErr)
+				return false, removeErr
+			}
+			s.logger.Info("skip runtime cache update for deleted agent", "agent", agentID)
+			return false, nil
+		}
+		return false, err
+	}
+	return true, nil
 }
 
 func (s *Service) evaluateRuntimeAlerts(ctx context.Context, item domain.Agent, host domain.Host, vms map[string]domain.VirtualMachine) {
@@ -530,7 +561,7 @@ func (s *Service) ListHosts() []domain.Host {
 		s.logger.Warn("list hosts from runtime cache failed", "error", err)
 		return []domain.Host{}
 	}
-	return hosts
+	return s.filterRegisteredHosts(context.Background(), hosts)
 }
 
 func (s *Service) ListVMs(status string, query string, hostID ...string) []domain.VirtualMachine {
@@ -543,8 +574,72 @@ func (s *Service) ListVMs(status string, query string, hostID ...string) []domai
 		s.logger.Warn("list vms from runtime cache failed", "error", err)
 		return []domain.VirtualMachine{}
 	}
+	items = s.filterRegisteredVMs(context.Background(), items)
 	s.applyTemplateMarksToList(context.Background(), items)
 	return items
+}
+
+func (s *Service) filterRegisteredHosts(ctx context.Context, hosts []domain.Host) []domain.Host {
+	agentIDs, ok := s.registeredAgentIDs(ctx)
+	if !ok {
+		return hosts
+	}
+	filtered := make([]domain.Host, 0, len(hosts))
+	for _, host := range hosts {
+		if _, exists := agentIDs[host.ID]; exists {
+			filtered = append(filtered, host)
+			continue
+		}
+		s.removeOrphanAgentRuntime(ctx, host.ID)
+	}
+	return filtered
+}
+
+func (s *Service) filterRegisteredVMs(ctx context.Context, vms []domain.VirtualMachine) []domain.VirtualMachine {
+	agentIDs, ok := s.registeredAgentIDs(ctx)
+	if !ok {
+		return vms
+	}
+	filtered := make([]domain.VirtualMachine, 0, len(vms))
+	removedAgents := map[string]struct{}{}
+	for _, vm := range vms {
+		if _, exists := agentIDs[vm.HostID]; exists {
+			filtered = append(filtered, vm)
+			continue
+		}
+		if vm.HostID != "" {
+			removedAgents[vm.HostID] = struct{}{}
+		}
+	}
+	for agentID := range removedAgents {
+		s.removeOrphanAgentRuntime(ctx, agentID)
+	}
+	return filtered
+}
+
+func (s *Service) registeredAgentIDs(ctx context.Context) (map[string]struct{}, bool) {
+	if s.store == nil {
+		return nil, false
+	}
+	agents, err := s.store.ListAgents(ctx)
+	if err != nil {
+		s.logger.Warn("list registered agents for runtime filter failed", "error", err)
+		return nil, false
+	}
+	items := make(map[string]struct{}, len(agents))
+	for _, agent := range agents {
+		items[agent.ID] = struct{}{}
+	}
+	return items, true
+}
+
+func (s *Service) removeOrphanAgentRuntime(ctx context.Context, agentID string) {
+	if agentID == "" {
+		return
+	}
+	if err := s.runtimeStore.RemoveAgent(ctx, agentID); err != nil {
+		s.logger.Warn("remove orphan agent runtime cache failed", "agent", agentID, "error", err)
+	}
 }
 
 func (s *Service) GetVM(id string) (domain.VirtualMachine, bool) {
@@ -612,7 +707,13 @@ func (s *Service) SyncSnapshotsWithToken(ctx context.Context, agentID string, to
 			snapshots[snapshotRuntimeID(vm.ID, remoteSnapshot.Name)] = buildRuntimeSnapshot(item, remoteVM, vm.ID, remoteSnapshot, now)
 		}
 	}
-	return s.runtimeStore.ReplaceAgentSnapshots(ctx, agentID, snapshots)
+	if err := s.runtimeStore.ReplaceAgentSnapshots(ctx, agentID, snapshots); err != nil {
+		if errors.Is(err, errAgentRuntimeDeleted) {
+			return repository.ErrNotFound
+		}
+		return err
+	}
+	return nil
 }
 
 func buildRuntimeSnapshot(item domain.Agent, remote agent.VirtualMachine, vmID string, remoteSnapshot agent.Snapshot, now time.Time) domain.Snapshot {

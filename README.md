@@ -1273,6 +1273,7 @@ server {
 
 - 后端定时任务会创建全局运行态轻量刷新任务，手动 `/api/refresh` 会创建 full 全量刷新任务；任务完成并收到 `runtime.updated` 后，页面展示的是刷新任务写入缓存后的最新运行态。刷新类型和页面刷新范围详见 `docs/frontend-refresh-functions.md`。
 - 快照恢复、VM 配置/设备/XML/介质/自启动修改后，后端会定向刷新目标 VM 完整运行态；存储池、网络池和宿主机接口变更后，前端对应资源页会按宿主机自动重读。
+- Agent 删除会移除对应 Redis 运行态缓存；后台 fast/full 刷新写缓存前后会复查 Agent 登记和删除标记，若刷新过程中 Agent 已被删除，则跳过写入并继续清理缓存。宿主机、VM 和总览读取链路也会过滤并清理孤儿缓存，避免残留已删除宿主机。
 - Redis 是运行态缓存和指标 Stream 的必需依赖；如果 Redis 不可用，后端启动失败，需要先恢复 Redis 后再启动服务。
 - 如果未配置 `JWT_SECRET`，后端会在启动时生成临时值；重启后会变化，不适合生产使用。
 - Docker Compose 快速部署见第三章；生产环境使用前请先按实际数据库、Redis、JWT 和镜像仓库配置调整 `.env` 与编排文件。
@@ -1281,7 +1282,7 @@ server {
 
 ## 8.1 自动刷新间隔是针对什么的？
 
-自动刷新间隔由后端环境变量 `RUNTIME_SYNC_INTERVAL` 控制，默认 30 秒。到达间隔后，后端创建或复用面向所有 Agent 的 `runtime.refresh.fast` 全局运行态轻量刷新任务，更新 Redis 运行态缓存后通过 SSE 通知页面重新读取数据。fast 会更新 VM 内存使用率等指标样本，但不会执行 Guest Agent OS/IP 查询、磁盘明细和快照采集。低频深度刷新由 `RUNTIME_DEEP_SYNC_INTERVAL` 控制，默认 10 分钟，会创建或复用 `runtime.refresh.all` 任务补采 IP、操作系统、内存、磁盘和快照等较重详情。右上角全量刷新图标或手动 `/api/refresh` 也是 `runtime.refresh.all` full 全量刷新；快照页的 `POST /api/snapshots/refresh` 只刷新快照列表。详情见 `docs/frontend-refresh-functions.md`。
+自动刷新间隔由后端环境变量 `RUNTIME_SYNC_INTERVAL` 控制，默认 30 秒。到达间隔后，后端创建或复用面向所有 Agent 的 `runtime.refresh.fast` 全局运行态轻量刷新任务，更新 Redis 运行态缓存后通过 SSE 通知页面重新读取数据；如果当前没有任何已登记 Agent，定时 fast 刷新不会创建任务。fast 会更新 VM 内存使用率等指标样本，但不会执行 Guest Agent OS/IP 查询、磁盘明细和快照采集。低频深度刷新由 `RUNTIME_DEEP_SYNC_INTERVAL` 控制，默认 10 分钟，会创建或复用 `runtime.refresh.all` 任务补采 IP、操作系统、内存、磁盘和快照等较重详情；无已登记 Agent 时也不会创建低频深度刷新任务。右上角全量刷新图标或手动 `/api/refresh` 也是 `runtime.refresh.all` full 全量刷新；快照页的 `POST /api/snapshots/refresh` 只刷新快照列表。详情见 `docs/frontend-refresh-functions.md`。
 
 ## 8.2 前端点击刷新拿到的是最新数据吗？
 

@@ -67,6 +67,13 @@ func (s *Service) enqueueScheduledRefresh(ctx context.Context) error {
 	} else if !errorsIsNotFound(err) {
 		return err
 	}
+	hasAgents, err := s.hasRegisteredAgents(ctx)
+	if err != nil {
+		return err
+	}
+	if !hasAgents {
+		return nil
+	}
 	task, err := s.store.CreateTask(ctx, RefreshFastTaskType, "queued", "runtime", "", NewQueuedRefreshProgress(), "", "")
 	if err != nil {
 		return err
@@ -90,6 +97,13 @@ func (s *Service) enqueueScheduledDeepRefresh(ctx context.Context) error {
 	} else if !errorsIsNotFound(err) {
 		return err
 	}
+	hasAgents, err := s.hasRegisteredAgents(ctx)
+	if err != nil {
+		return err
+	}
+	if !hasAgents {
+		return nil
+	}
 	task, err := s.store.CreateTask(ctx, RefreshAllTaskType, "queued", "runtime", "", NewQueuedRefreshProgress(), "", "")
 	if err != nil {
 		return err
@@ -100,6 +114,14 @@ func (s *Service) enqueueScheduledDeepRefresh(ctx context.Context) error {
 	}
 	s.Broadcast("sync.queued")
 	return nil
+}
+
+func (s *Service) hasRegisteredAgents(ctx context.Context) (bool, error) {
+	agents, err := s.store.ListAgents(ctx)
+	if err != nil {
+		return false, err
+	}
+	return len(agents) > 0, nil
 }
 
 func errorsIsNotFound(err error) bool {

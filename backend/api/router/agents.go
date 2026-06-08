@@ -363,6 +363,10 @@ func (r *router) handleAgentSync(w http.ResponseWriter, req *http.Request, id st
 	}
 	_ = r.store.UpdateAgentTokenCiphertext(req.Context(), id, tokenCiphertext)
 	if err := r.runtime.SyncAgentWithToken(req.Context(), id, token); err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
+			writeError(w, http.StatusNotFound, "agent_not_found", "Agent 不存在")
+			return
+		}
 		writeError(w, http.StatusServiceUnavailable, "agent_sync_failed", agentConnectionErrorMessage(err))
 		return
 	}

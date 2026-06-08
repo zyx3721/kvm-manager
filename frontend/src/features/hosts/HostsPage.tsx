@@ -35,6 +35,7 @@ import { CheckToggle } from '../vms/components/VMEditControls';
 import { onKvmRefresh } from '../../lib/refresh';
 import { can } from '../../lib/permissions';
 import { toast } from 'sonner';
+import { taskToastDoneOptionsFor, taskToastOptions } from '../vms/utils/taskToast';
 import { AgentProbeResult } from './components/AgentProbeResult';
 import { HostIconButton } from './components/HostIconButton';
 import { ResourceRow } from './components/ResourceRow';
@@ -107,14 +108,14 @@ export default function Hosts() {
       const token = agentForm.token;
       setAgentForm({ name: '', endpoint: '', token: '', tlsInsecure: false });
       await loadHosts();
-      toast.success(`${created.name} 已保存，正在后台同步`);
+      const toastId = toast.loading(`${created.name} 已保存，正在同步`, taskToastOptions);
       void syncAgent(created.id, token)
         .then(async () => {
           await loadHosts();
-          toast.success(`${created.name} 同步完成`);
+          toast.success(`${created.name} 同步完成`, taskToastDoneOptionsFor(toastId));
         })
         .catch(err => {
-          toast.error(err instanceof Error ? err.message : 'Agent 同步失败');
+          toast.error(err instanceof Error ? err.message : 'Agent 同步失败', taskToastDoneOptionsFor(toastId));
         });
     } catch (err) {
       setAgentProbeResult({
@@ -172,12 +173,17 @@ export default function Hosts() {
   const handleSyncSavedAgent = async (agent: AgentRecord) => {
     setAgentBusy(agent.id + 'sync');
     setError('');
+    let toastId: string | number | undefined;
     try {
+      toastId = toast.loading(`${agent.name} 正在同步`, taskToastOptions);
       await syncAgent(agent.id);
       await loadHosts();
-      toast.success(`${agent.name} 同步完成`);
+      toast.success(`${agent.name} 同步完成`, taskToastDoneOptionsFor(toastId));
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Agent 同步失败');
+      toast.error(
+        err instanceof Error ? err.message : 'Agent 同步失败',
+        toastId === undefined ? undefined : taskToastDoneOptionsFor(toastId)
+      );
     } finally {
       setAgentBusy('');
     }
@@ -192,8 +198,11 @@ export default function Hosts() {
       await deleteAgent(agent.id);
       setDeleteTarget(null);
       await loadHosts();
+      toast.success(`${agent.name} 已删除`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : '删除 Agent 失败');
+      const message = err instanceof Error ? err.message : '删除 Agent 失败';
+      setError(message);
+      toast.error(message);
     } finally {
       setAgentBusy('');
     }

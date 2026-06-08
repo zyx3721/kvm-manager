@@ -11,13 +11,14 @@
 3. 宿主机趋势弹窗调用 `/api/metrics/hosts/{agentId}`，读取已落库的宿主机指标样本或聚合数据。
 4. 宿主机接口页面调用 `/api/host-interfaces/{agentId}`，由后端实时转发到对应 Agent 的 `/v1/host/interfaces`。
 5. 宿主机接口新增弹窗调用 `POST /api/host-interfaces/{agentId}`，由 Agent 创建 Linux bridge 接口并返回最新接口信息。
-6. 后端按 `RUNTIME_SYNC_INTERVAL` 自动触发面向所有 Agent 的全局运行态轻量刷新；手动 `/api/refresh` 触发 full 全量刷新。
+6. 后端按 `RUNTIME_SYNC_INTERVAL` 自动触发面向所有 Agent 的全局运行态轻量刷新；如果当前没有已登记 Agent，自动刷新不会创建任务；手动 `/api/refresh` 触发 full 全量刷新。
 7. 自动刷新创建或复用 `runtime.refresh.fast` 异步任务，手动刷新创建或复用 `runtime.refresh.all` 异步任务。
 8. 后台刷新 worker 按任务向每个已登记 Agent 调用 `/v1/host`，并根据刷新类型继续调用 `/v1/vms?level=fast` 或 `/v1/vms`。
 9. 虚拟机页面每行刷新按钮调用 `POST /api/vms/{id}/refresh`，只同步该虚拟机所属宿主机上的当前 VM 信息，刷新 IP 等 VM 详情但跳过快照采集，不创建全量刷新任务。
 10. Agent 在 KVM 宿主机上执行 `virsh`、`hostname`、`ip`、`df` 和读取 `/proc` 文件等操作。
 11. 后端把 Agent 返回结果写入 Redis 运行态缓存，并通过 SSE 通知前端更新。Redis 是后端必需依赖，连接失败时后端会直接启动失败。
-12. 同步成功后，后端把宿主机指标写入 Redis Stream `kvm:metrics:samples`，再由指标写入任务落库到 `host_metric_samples`，用于趋势查询。
+12. 写入 Redis 前后，后端会重新确认对应 Agent 登记和删除标记；如果 Agent 在刷新过程中被删除，后端会清理该 Agent 的 host、VM 和快照运行态缓存并跳过写入，避免已删除宿主机被旧刷新任务重新显示。
+13. 同步成功后，后端把宿主机指标写入 Redis Stream `kvm:metrics:samples`，再由指标写入任务落库到 `host_metric_samples`，用于趋势查询。
 
 刷新任务进度写入 `tasks.payload`。前端各刷新入口的范围、触发接口和 fast/full 边界详见 `docs/frontend-refresh-functions.md`。任务、审计和告警日志覆盖范围详见 `docs/operation-log-coverage.md`。
 
@@ -601,7 +602,9 @@ GET /v1/host
 
 1. 写入 Redis 运行态缓存。
 2. 前端通过 `/api/hosts` 读取运行态缓存，不直接查询数据库中的宿主机资源。
-3. 同步完成后广播 `runtime.updated` 等 SSE 事件，前端据此刷新页面。
+3. 写入前后复查 Agent 登记和删除标记，若已删除则清理对应运行态缓存并跳过写入。
+4. 读取宿主机和总览时会过滤数据库中已不存在的 Agent，并顺带清理孤儿运行态缓存。
+5. 同步完成后广播 `runtime.updated` 等 SSE 事件，前端据此刷新页面。
 
 ## 九、趋势数据
 

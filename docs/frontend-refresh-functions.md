@@ -12,9 +12,11 @@
 
 - 刷新任务类型为 `runtime.refresh.fast`。
 - 后端 worker 会遍历所有 Agent。
+- 如果当前没有任何已登记 Agent，定时刷新不会创建 `runtime.refresh.fast` 任务，也不会广播同步事件，避免任务列表持续出现“暂无可同步的 Agent”。
 - 每个 Agent 主要采集宿主机和虚拟机运行态。
 - 采集结果写入 Redis 运行态缓存。
 - 同步完成后通过 SSE 广播事件，前端收到事件后重新读取后端缓存。
+- 如果 Agent 在刷新任务执行期间被删除，后端写入运行态缓存前后都会确认 Agent 登记和删除标记；已删除时会清理该 Agent 的 host、VM 和快照缓存并跳过写入，避免旧刷新任务把已删除宿主机重新写回总览和宿主机页。读取 `/api/hosts`、`/api/vms` 和总览时也会过滤并清理数据库中已不存在的 Agent 运行态残留。
 
 需要注意：这条链路是“全局运行态刷新”，但不是手动 `/api/refresh` 的 full 全量采集。它使用 fast 模式，目的是降低 30 秒周期刷新对 Agent、宿主机和网络的压力。
 
@@ -52,6 +54,8 @@ fast 内存使用率来自 Agent 对运行中 VM 执行的 `dommemstat <vm>` 采
 磁盘容量仍由 `domblkinfo Capacity` 获取；磁盘使用大小和使用率由 `virt-df --csv -d <vm>` 获取，并结合 `virt-filesystems --csv -d <vm> --all --long` 归属到具体磁盘。若创建 VM 后延迟 full 刷新时 `virt-df` 尚未取到文件系统结果，磁盘使用大小和使用率显示为 `0`，总容量仍按 `domblkinfo Capacity` 展示。
 
 低频深度刷新不会在后端启动时立即排队，而是等待第一个 `RUNTIME_DEEP_SYNC_INTERVAL` 到达后再尝试创建任务；创建前会避让已有 queued 或 running 的 fast/full 刷新任务，避免服务启动或手动刷新时堆积多个全局同步任务。
+
+如果当前没有任何已登记 Agent，低频深度刷新同样不会创建 `runtime.refresh.all` 任务。
 
 ### 1.2 手动全量刷新接口
 
@@ -699,6 +703,7 @@ fast 内存使用率来自 Agent 对运行中 VM 执行的 `dommemstat <vm>` 采
 | 右上角全量刷新图标 / 手动 `POST /api/refresh` | 是 | 所有 Agent | 是 | 宿主机、VM 完整运行态、快照 |
 | SSE `kvm:refresh` | 否 | 当前前端页面 | 否 | 通知页面重新读取后端缓存 |
 | 新增 Agent 保存后的后台同步 | 后台采集 | 单个 Agent | 是 | 新 Agent 的宿主机、VM 完整运行态和快照 |
+| 删除 Agent | 否 | 单个 Agent | 否 | 删除登记并清理该 Agent 的 host、VM 和快照运行态缓存；并发中的旧刷新任务写缓存前后会复查登记和删除标记，已删除则跳过写入 |
 | Agent “同步 Agent” | 是 | 单个 Agent | 是 | 指定宿主机、其 VM 完整运行态和快照数据 |
 | VM 行内“刷新” | 是 | 单台 VM | 否 | 单台 VM 的描述、OS/IP、磁盘、CPU/内存、I/O |
 | VM 电源操作后的延迟 8 秒 full 同步 | 是 | 单个 Agent | 是 | 电源操作后补齐宿主机、VM 完整运行态和快照，接口先返回 |
@@ -725,6 +730,7 @@ fast 内存使用率来自 Agent 对运行中 VM 执行的 `dommemstat <vm>` 采
 - VM 自启动配置修改成功后，后端定向刷新目标 VM 的完整运行态。
 - VM 启动、恢复、暂停、关机、停止、强制关机、重启和强制重启成功后，后端先更新当前 VM 缓存状态，再后台延迟 8 秒 full 同步所属 Agent。
 - VM 删除和强制删除成功后，后端先从运行态缓存移除该 VM 并广播 `runtime.updated`，再后台延迟 8 秒 full 同步所属 Agent。
+- Agent 删除成功后，后端会移除该 Agent 的 host、VM 和快照运行态缓存；如果已有 fast/full 刷新任务仍在执行，刷新任务写缓存前后会复查 Agent 登记和删除标记并跳过已删除 Agent，避免总览或宿主机页出现已删除宿主机残留。
 - 存储池和存储卷相关操作完成后，前端存储池页按 `agentId` 自动重读当前宿主机数据。
 - 网络池相关操作完成后，前端网络池页按 `agentId` 自动重读当前宿主机数据。
 - 宿主机接口相关操作完成后，前端接口页按 `agentId` 自动重读当前宿主机数据。

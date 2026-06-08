@@ -1951,6 +1951,7 @@ virsh --connect <LIBVIRT_URI> update-device <vm> <graphics-xml> --config
 - Redis 是后端必需依赖，后端启动时会校验连接。
 - full 刷新会保存 host、VM 和快照缓存。
 - fast 刷新只保存 host 和 VM 缓存，不覆盖快照缓存。
+- 写入运行态缓存前后会复查 Agent 登记和删除标记；如果 Agent 已删除，后端会清理该 Agent 的 host、VM 和快照缓存并跳过写入。读取 VM 列表时也会过滤数据库中已不存在的 Agent 残留，防止并发刷新任务把已删除资源重新写回或继续展示。
 - Agent 同步失败会累计失败次数，达到阈值后创建 Agent 离线告警。
 
 单台 VM 刷新：

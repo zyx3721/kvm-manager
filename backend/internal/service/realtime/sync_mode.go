@@ -2,9 +2,11 @@ package realtime
 
 import (
 	"context"
+	"errors"
 	"sync"
 
 	"kvm-manager/backend/internal/domain"
+	"kvm-manager/backend/internal/repository"
 	"kvm-manager/backend/pkg/agent"
 )
 
@@ -43,6 +45,10 @@ func (s *Service) syncAgents(ctx context.Context, agents []domain.Agent, mode Sy
 			for item := range jobs {
 				result := syncAgentResult{ID: item.ID, Name: item.Name}
 				if err := s.SyncAgentWithMode(ctx, item, mode); err != nil {
+					if errors.Is(err, repository.ErrNotFound) {
+						results <- result
+						continue
+					}
 					result.Error = agent.UserFacingErrorMessage(err)
 				}
 				results <- result

@@ -1198,6 +1198,7 @@
   [data-sonner-toast].kvm-toast [data-content],
   [data-sonner-toast].kvm-toast [data-content] * {
     color: inherit !important;
+    user-select: text;
   }
 
   [data-sonner-toast].kvm-toast [data-title],
