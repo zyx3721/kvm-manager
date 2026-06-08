@@ -357,8 +357,9 @@ virsh --connect <LIBVIRT_URI> domblkinfo <vm> <disk-path>
 virt-df --csv -d <vm>
 ```
 
-解析 CSV 中 `Filesystem` 和 `Used`：
+解析 CSV 中 `VirtualMachine`、`Filesystem` 和 `Used`：
 
+- `VirtualMachine` 为 VM 名称，全局 full 列表采集时用于按 VM 名称分组复用文件系统使用量。
 - `Used` 为 1K-blocks，换算为 bytes 后写入 `disks[].usedBytes`。
 - `Filesystem` 可能为普通分区，如 `/dev/sda2`，也可能为 LVM 逻辑卷，如 `/dev/vgdata/data`。
 - Agent 会继续执行 `virt-filesystems --csv -d <vm> --all --long` 解析分区、PV、VG、LV 拓扑。
@@ -367,8 +368,8 @@ virt-df --csv -d <vm>
 
 性能说明：
 
-- Agent full 列表采集会优先执行一次全局 `virt-df --csv`，再按 VM 名称复用对应文件系统使用量，避免每台 VM 都启动一次 libguestfs appliance。
-- 单台 VM 刷新仍执行 `virt-df --csv -d <vm>`。
+- Agent full 列表采集会优先执行一次全局 `virt-df --csv`，按 CSV 中独立的 `VirtualMachine` 列匹配 VM 名称并复用对应文件系统使用量，避免每台 VM 都启动一次 libguestfs appliance。
+- 单台 VM 刷新仍执行 `virt-df --csv -d <vm>`，同样按 `VirtualMachine` 和 `Filesystem` 两列解析。
 - 每台 VM 仍需执行 `virt-filesystems --csv -d <vm> --all --long` 解析拓扑，用于把文件系统使用量归属到具体磁盘。
 - Agent 执行 `virt-df` 和 `virt-filesystems` 时会默认注入 `LIBGUESTFS_BACKEND=direct`；如果 Agent 进程环境已显式设置该变量，则保留现有值。
 

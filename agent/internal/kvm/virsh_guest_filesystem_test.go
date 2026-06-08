@@ -9,10 +9,10 @@ import (
 )
 
 func TestParseVirtDFCSV(t *testing.T) {
-	out := `Filesystem,1K-blocks,Used,Available,Use%
-10.22.12.175:/dev/sda2,1038336,120984,917352,12%
-10.22.12.175:/dev/sys/root,38774276,3695440,35078836,10%
-10.22.12.175:/dev/vgdata/data,103076792,15043656,82774080,15%
+	out := `VirtualMachine,Filesystem,1K-blocks,Used,Available,Use%
+192.168.12.175,/dev/sda2,1038336,120984,917352,12%
+192.168.12.175,/dev/sys/root,38774276,3695440,35078836,10%
+192.168.12.175,/dev/vgdata/data,103076792,15043656,82774080,15%
 `
 	items := parseVirtDFCSV(out)
 	if len(items) != 3 {
@@ -21,7 +21,7 @@ func TestParseVirtDFCSV(t *testing.T) {
 	if items[2].Name != "/dev/vgdata/data" {
 		t.Fatalf("unexpected filesystem name: %q", items[2].Name)
 	}
-	if items[2].VMName != "10.22.12.175" {
+	if items[2].VMName != "192.168.12.175" {
 		t.Fatalf("unexpected vm name: %q", items[2].VMName)
 	}
 	if items[2].UsedBytes != 15043656*kibibyte {
@@ -55,10 +55,10 @@ func TestGuestFilesystemUsageByDiskUsesVirtDFAndDomblkinfoCapacity(t *testing.T)
 	dir := t.TempDir()
 	writeExecutable(t, filepath.Join(dir, "virt-df"), `#!/bin/sh
 cat <<'CSV'
-Filesystem,1K-blocks,Used,Available,Use%
-demo:/dev/sda2,1038336,120984,917352,12%
-demo:/dev/sys/root,38774276,3695440,35078836,10%
-demo:/dev/vgdata/data,103076792,15043656,82774080,15%
+VirtualMachine,Filesystem,1K-blocks,Used,Available,Use%
+demo,/dev/sda2,1038336,120984,917352,12%
+demo,/dev/sys/root,38774276,3695440,35078836,10%
+demo,/dev/vgdata/data,103076792,15043656,82774080,15%
 CSV
 `)
 	writeExecutable(t, filepath.Join(dir, "virt-filesystems"), `#!/bin/sh
@@ -100,6 +100,36 @@ exit 1
 	}
 	if len(disks) != 2 || disks[0].UsedBytes != expectedVDAUsed || disks[1].UsedBytes != expectedVDBUsed {
 		t.Fatalf("unexpected disk usage: %+v", disks)
+	}
+}
+
+func TestGuestFilesystemUsagesByVMMatchesVirtualMachineColumn(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("shell stub uses POSIX argument handling")
+	}
+	dir := t.TempDir()
+	writeExecutable(t, filepath.Join(dir, "virt-df"), `#!/bin/sh
+cat <<'CSV'
+VirtualMachine,Filesystem,1K-blocks,Used,Available,Use%
+192.168.12.175,/dev/sda2,1038336,120984,917352,11.7
+192.168.12.176,/dev/sda2,1038336,120984,917352,11.7
+ct7-template,/dev/sys/root,38774276,1690544,37083732,4.4
+CSV
+`)
+	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	items := NewVirshProvider("qemu:///system", 5*time.Second).guestFilesystemUsagesByVM([]string{"192.168.12.175", "ct7-template"})
+	if len(items) != 2 {
+		t.Fatalf("expected two matching VMs, got %#v", items)
+	}
+	if got := items["192.168.12.175"][0].Name; got != "/dev/sda2" {
+		t.Fatalf("unexpected filesystem for ip vm: %q", got)
+	}
+	if got := items["ct7-template"][0].UsedBytes; got != int64(1690544)*kibibyte {
+		t.Fatalf("unexpected used bytes for template: %d", got)
+	}
+	if _, ok := items["192.168.12.176"]; ok {
+		t.Fatal("did not expect unmatched VM to be included")
 	}
 }
 

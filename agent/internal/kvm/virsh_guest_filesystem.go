@@ -104,19 +104,21 @@ func parseVirtDFCSV(value string) []guestFilesystemUsage {
 		return []guestFilesystemUsage{}
 	}
 	header := csvHeaderIndexes(rows[0])
+	vmIndex := firstCSVIndex(header, "virtualmachine", "virtual machine")
 	filesystemIndex := firstCSVIndex(header, "filesystem")
 	usedIndex := firstCSVIndex(header, "used", "used 1k-blocks")
-	if filesystemIndex < 0 || usedIndex < 0 {
+	if vmIndex < 0 || filesystemIndex < 0 || usedIndex < 0 {
 		return []guestFilesystemUsage{}
 	}
 	items := make([]guestFilesystemUsage, 0, len(rows)-1)
 	for _, row := range rows[1:] {
-		if filesystemIndex >= len(row) || usedIndex >= len(row) {
+		if vmIndex >= len(row) || filesystemIndex >= len(row) || usedIndex >= len(row) {
 			continue
 		}
-		vmName, name := splitVirtFilesystemName(row[filesystemIndex])
+		vmName := strings.TrimSpace(row[vmIndex])
+		name := normalizeGuestDevice(row[filesystemIndex])
 		usedBlocks, err := strconv.ParseInt(strings.TrimSpace(row[usedIndex]), 10, 64)
-		if name == "" || err != nil || usedBlocks < 0 {
+		if vmName == "" || name == "" || err != nil || usedBlocks < 0 {
 			continue
 		}
 		items = append(items, guestFilesystemUsage{VMName: vmName, Name: name, UsedBytes: usedBlocks * kibibyte})
@@ -163,7 +165,7 @@ func parseVirtFilesystemsCSV(value string) map[string]guestFilesystemNode {
 }
 
 func resolveFilesystemDevice(name string, nodes map[string]guestFilesystemNode) (string, bool) {
-	name = normalizeVirtFilesystemName(name)
+	name = normalizeGuestDevice(name)
 	if name == "" {
 		return "", false
 	}
@@ -308,21 +310,6 @@ func guestDiskDeviceName(index int) string {
 		}
 	}
 	return "/dev/sd" + letters
-}
-
-func normalizeVirtFilesystemName(value string) string {
-	_, filesystem := splitVirtFilesystemName(value)
-	return filesystem
-}
-
-func splitVirtFilesystemName(value string) (string, string) {
-	value = strings.TrimSpace(value)
-	vmName := ""
-	if idx := strings.Index(value, ":"); idx >= 0 {
-		vmName = strings.TrimSpace(value[:idx])
-		value = value[idx+1:]
-	}
-	return vmName, normalizeGuestDevice(value)
 }
 
 func normalizeGuestDevice(value string) string {

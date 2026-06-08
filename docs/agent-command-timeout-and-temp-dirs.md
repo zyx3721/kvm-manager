@@ -60,8 +60,8 @@ virt-filesystems --csv -d <vm> --all --long
 
 采集行为：
 
-- Agent full 列表采集会优先执行一次全局 `virt-df --csv`。
-- 单台 VM 刷新会执行 `virt-df --csv -d <vm>`。
+- Agent full 列表采集会优先执行一次全局 `virt-df --csv`，按 CSV 中独立的 `VirtualMachine` 列匹配 VM 名称。
+- 单台 VM 刷新会执行 `virt-df --csv -d <vm>`，同样按 `VirtualMachine` 和 `Filesystem` 两列解析。
 - 每台 VM 仍会执行 `virt-filesystems --csv -d <vm> --all --long` 解析分区、LVM、PV、VG、LV 拓扑。
 - Agent 会为 `virt-df` 和 `virt-filesystems` 默认注入 `LIBGUESTFS_BACKEND=direct`，除非 Agent 进程环境已经显式设置该变量。
 
