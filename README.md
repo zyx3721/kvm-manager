@@ -1951,6 +1951,16 @@ Agent 除 `GET /health` 外，所有 `/v1/*` 接口都需要携带 `Authorizatio
 
 # 十、版本历史
 
+## v1.1.4
+
+- 修复中文环境下 `virsh` 状态等命令输出导致虚拟机状态可能识别为未知的问题。
+- 新增后端 fast/full 同步 HTTP 超时环境变量，慢宿主机可按需调整 Agent 同步等待时间。
+- Agent 单命令默认超时调整为 30 秒，降低 libguestfs 和磁盘探测过早超时概率。
+- 修复 `virt-df --csv` 使用 `VirtualMachine,Filesystem` 两列格式时，全量刷新无法匹配磁盘使用量的问题。
+- 同步更新 README、刷新说明、宿主机与虚拟机采集说明、Agent 命令超时文档和相关测试。
+
+详细更新日志见 [verchanglog/v1.1.4.md](verchanglog/v1.1.4.md)。
+
 ## v1.1.3
 
 - 修复删除 Agent 后旧后台刷新任务可能把宿主机、虚拟机和快照运行态缓存重新写回的问题。
