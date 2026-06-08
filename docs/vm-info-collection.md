@@ -87,6 +87,12 @@ virsh --connect <LIBVIRT_URI> list --all --name
 
 对每个名称再采集详情。
 
+Agent 执行外部命令时会统一注入以下环境变量，使 `virsh`、`qemu-img`、`df`、`ip` 等命令输出优先保持英文，避免中文系统区域设置导致状态、表头等文本解析不稳定：
+
+- `LC_ALL=C`
+- `LANG=C`
+- `LANGUAGE=C`
+
 ### 3.2 名称和 UUID
 
 字段：`name`、`uuid`、`description`
@@ -125,6 +131,8 @@ virsh --connect <LIBVIRT_URI> dumpxml <vm>
 ```bash
 virsh --connect <LIBVIRT_URI> domstate <vm>
 ```
+
+实际执行时同样携带统一的 C locale 环境，因此中文宿主机上 `运行中`、`关闭` 等本地化输出会优先稳定为英文 `running`、`shut off`。
 
 归一化规则：
 

@@ -234,10 +234,15 @@ func (p *VirshProvider) outputWithoutTimeout(name string, args ...string) (strin
 }
 
 func applyCommandEnvironment(cmd *exec.Cmd, name string) {
+	cmd.Env = commandEnvironment()
 	if !isLibguestfsCommand(name) || hasEnvVar(os.Environ(), "LIBGUESTFS_BACKEND") {
 		return
 	}
-	cmd.Env = append(os.Environ(), "LIBGUESTFS_BACKEND=direct")
+	cmd.Env = append(cmd.Env, "LIBGUESTFS_BACKEND=direct")
+}
+
+func commandEnvironment() []string {
+	return append(os.Environ(), "LC_ALL=C", "LANG=C", "LANGUAGE=C")
 }
 
 func isLibguestfsCommand(name string) bool {
