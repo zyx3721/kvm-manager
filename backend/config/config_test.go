@@ -33,6 +33,23 @@ func TestLoadRuntimeDeepSyncIntervalCanDisable(t *testing.T) {
 	}
 }
 
+func TestLoadRuntimeSyncTimeouts(t *testing.T) {
+	t.Setenv("JWT_SECRET", "test-secret")
+	t.Setenv("RUNTIME_SYNC_FAST_TIMEOUT_SECONDS", "20")
+	t.Setenv("RUNTIME_SYNC_FULL_TIMEOUT_SECONDS", "120")
+
+	cfg, err := Load(slog.Default())
+	if err != nil {
+		t.Fatalf("load config: %v", err)
+	}
+	if cfg.Runtime.SyncFastTimeout != 20*time.Second {
+		t.Fatalf("expected fast sync timeout 20s, got %s", cfg.Runtime.SyncFastTimeout)
+	}
+	if cfg.Runtime.SyncFullTimeout != 120*time.Second {
+		t.Fatalf("expected full sync timeout 120s, got %s", cfg.Runtime.SyncFullTimeout)
+	}
+}
+
 func TestLoadGeneratesTemporaryJWTSecretWhenMissing(t *testing.T) {
 	t.Setenv("JWT_SECRET", "")
 

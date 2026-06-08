@@ -295,6 +295,8 @@ REDIS_PASSWORD=123456
 REDIS_DB=0
 RUNTIME_SYNC_INTERVAL=30s
 RUNTIME_DEEP_SYNC_INTERVAL=10m
+RUNTIME_SYNC_FAST_TIMEOUT_SECONDS=12
+RUNTIME_SYNC_FULL_TIMEOUT_SECONDS=60
 RUNTIME_SYNC_CONCURRENCY=3
 METRIC_RETENTION_DAYS=30
 METRIC_STREAM_MAXLEN=10000
@@ -302,7 +304,7 @@ METRIC_STREAM_MAXLEN=10000
 
 **配置参数说明**：
 
-后端当前一共有 `20` 个可写入 `.env` 的环境变量：
+后端当前一共有 `22` 个可写入 `.env` 的环境变量：
 
 | 变量 | 默认值 | 说明 |
 | --- | --- | --- |
@@ -328,6 +330,8 @@ METRIC_STREAM_MAXLEN=10000
 | `REDIS_DB` | `0` | Redis 数据库编号 |
 | `RUNTIME_SYNC_INTERVAL` | `30s` | 后端 fast 定时刷新间隔，设为 `0` 可关闭轻量定时刷新 |
 | `RUNTIME_DEEP_SYNC_INTERVAL` | `10m` | 后端 full 低频深度刷新间隔，设为 `0` 可关闭低频深度刷新 |
+| `RUNTIME_SYNC_FAST_TIMEOUT_SECONDS` | `12` | 后端请求单个 Agent 执行 fast 同步的 HTTP 超时时间，单位秒 |
+| `RUNTIME_SYNC_FULL_TIMEOUT_SECONDS` | `60` | 后端请求单个 Agent 执行 full 同步或单台 VM full 刷新的 HTTP 超时时间，单位秒 |
 | `RUNTIME_SYNC_CONCURRENCY` | `3` | Agent 同步并发数 |
 | `METRIC_RETENTION_DAYS` | `30` | 指标原始样本保留天数 |
 | `METRIC_STREAM_MAXLEN` | `10000` | Redis 指标 Stream 近似最大长度 |
@@ -368,7 +372,7 @@ AGENT_TOKEN=yourt_agent_token_key
 AGENT_TLS_CERT=
 AGENT_TLS_KEY=
 LIBVIRT_URI=qemu:///system
-COMMAND_TIMEOUT_SECONDS=8
+COMMAND_TIMEOUT_SECONDS=30
 ```
 
 3. 运行 Agent 服务：
@@ -476,6 +480,8 @@ REDIS_DB=0
 
 RUNTIME_SYNC_INTERVAL=30s
 RUNTIME_DEEP_SYNC_INTERVAL=10m
+RUNTIME_SYNC_FAST_TIMEOUT_SECONDS=12
+RUNTIME_SYNC_FULL_TIMEOUT_SECONDS=60
 RUNTIME_SYNC_CONCURRENCY=3
 METRIC_RETENTION_DAYS=30
 METRIC_STREAM_MAXLEN=10000
@@ -770,6 +776,8 @@ REDIS_PASSWORD=123456
 REDIS_DB=0
 RUNTIME_SYNC_INTERVAL=30s
 RUNTIME_DEEP_SYNC_INTERVAL=10m
+RUNTIME_SYNC_FAST_TIMEOUT_SECONDS=12
+RUNTIME_SYNC_FULL_TIMEOUT_SECONDS=60
 RUNTIME_SYNC_CONCURRENCY=3
 METRIC_RETENTION_DAYS=30
 METRIC_STREAM_MAXLEN=10000
@@ -845,7 +853,7 @@ AGENT_TOKEN=yourt_agent_token_key
 AGENT_TLS_CERT=
 AGENT_TLS_KEY=
 LIBVIRT_URI=qemu:///system
-COMMAND_TIMEOUT_SECONDS=8
+COMMAND_TIMEOUT_SECONDS=30
 ```
 
 3. 构建后端可执行文件：
@@ -1174,8 +1182,10 @@ server {
 ## 5.5 刷新机制
 
 - 后端按 `RUNTIME_SYNC_INTERVAL` 周期性创建或复用 `runtime.refresh.fast` 全局运行态轻量刷新任务，默认 30 秒，设置为 `0` 可关闭。
+- fast 刷新中后端请求单个 Agent 的默认 HTTP 超时为 12 秒，可通过 `RUNTIME_SYNC_FAST_TIMEOUT_SECONDS` 调整。
 - fast 任务会更新宿主机运行态、VM 基础状态、CPU、内存使用率、磁盘 I/O 和网络吞吐指标样本。
 - 后端按 `RUNTIME_DEEP_SYNC_INTERVAL` 周期性创建或复用 `runtime.refresh.all` 低频深度刷新任务，默认 10 分钟，设置为 `0` 可关闭，用于补采 IP、操作系统、内存、磁盘和快照等较重详情。
+- full 同步和单台 VM full 刷新中后端请求单个 Agent 的默认 HTTP 超时为 60 秒，可通过 `RUNTIME_SYNC_FULL_TIMEOUT_SECONDS` 调整。
 - 低频深度刷新等待第一个间隔到达后再排队，并会避让已有 queued 或 running 的 fast/full 刷新任务，避免与手动刷新或启动时 fast 刷新堆积。
 - 右上角全量刷新图标或手动 `POST /api/refresh` 创建或复用 `runtime.refresh.all` full 全量刷新任务，会采集更完整的 VM 详情并同步快照。
 - 宿主机页新增 Agent 保存时会先测试连接并登记 Agent，保存成功后立即释放按钮，再后台触发该 Agent 的 full 同步并通过 SSE 更新页面。

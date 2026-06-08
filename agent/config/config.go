@@ -26,7 +26,7 @@ func Load() (Config, error) {
 		TLSCert:        strings.TrimSpace(os.Getenv("AGENT_TLS_CERT")),
 		TLSKey:         strings.TrimSpace(os.Getenv("AGENT_TLS_KEY")),
 		LibvirtURI:     envOrDefault("LIBVIRT_URI", "qemu:///system"),
-		CommandTimeout: time.Duration(envInt("COMMAND_TIMEOUT_SECONDS", 8)) * time.Second,
+		CommandTimeout: time.Duration(envInt("COMMAND_TIMEOUT_SECONDS", 30)) * time.Second,
 	}
 	if cfg.Token == "" {
 		return Config{}, fmt.Errorf("AGENT_TOKEN cannot be empty")

@@ -12,6 +12,9 @@
 4. 宿主机接口页面调用 `/api/host-interfaces/{agentId}`，由后端实时转发到对应 Agent 的 `/v1/host/interfaces`。
 5. 宿主机接口新增弹窗调用 `POST /api/host-interfaces/{agentId}`，由 Agent 创建 Linux bridge 接口并返回最新接口信息。
 6. 后端按 `RUNTIME_SYNC_INTERVAL` 自动触发面向所有 Agent 的全局运行态轻量刷新；如果当前没有已登记 Agent，自动刷新不会创建任务；手动 `/api/refresh` 触发 full 全量刷新。
+   - fast 同步中，后端请求单个 Agent 的 HTTP 超时默认 `12s`，可通过 `RUNTIME_SYNC_FAST_TIMEOUT_SECONDS` 调整。
+   - full 同步中，后端请求单个 Agent 的 HTTP 超时默认 `60s`，可通过 `RUNTIME_SYNC_FULL_TIMEOUT_SECONDS` 调整。
+   - 这两个配置限制的是后端等待 Agent 接口返回的总时间；Agent 内部单条宿主机命令超时仍由 Agent 侧 `COMMAND_TIMEOUT_SECONDS` 控制。
 7. 自动刷新创建或复用 `runtime.refresh.fast` 异步任务，手动刷新创建或复用 `runtime.refresh.all` 异步任务。
 8. 后台刷新 worker 按任务向每个已登记 Agent 调用 `/v1/host`，并根据刷新类型继续调用 `/v1/vms?level=fast` 或 `/v1/vms`。
 9. 虚拟机页面每行刷新按钮调用 `POST /api/vms/{id}/refresh`，只同步该虚拟机所属宿主机上的当前 VM 信息，刷新 IP 等 VM 详情但跳过快照采集，不创建全量刷新任务。

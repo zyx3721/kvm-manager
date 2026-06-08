@@ -54,6 +54,8 @@ type RedisConfig struct {
 type RuntimeConfig struct {
 	SyncInterval        time.Duration
 	DeepSyncInterval    time.Duration
+	SyncFastTimeout     time.Duration
+	SyncFullTimeout     time.Duration
 	SyncConcurrency     int
 	MetricRetentionDays int
 	MetricStreamMaxLen  int64
@@ -89,6 +91,8 @@ func Load(logger *slog.Logger) (Config, error) {
 		Runtime: RuntimeConfig{
 			SyncInterval:        envDuration("RUNTIME_SYNC_INTERVAL", 30*time.Second),
 			DeepSyncInterval:    envDuration("RUNTIME_DEEP_SYNC_INTERVAL", 10*time.Minute),
+			SyncFastTimeout:     time.Duration(envInt("RUNTIME_SYNC_FAST_TIMEOUT_SECONDS", 12)) * time.Second,
+			SyncFullTimeout:     time.Duration(envInt("RUNTIME_SYNC_FULL_TIMEOUT_SECONDS", 60)) * time.Second,
 			SyncConcurrency:     envInt("RUNTIME_SYNC_CONCURRENCY", 3),
 			MetricRetentionDays: envInt("METRIC_RETENTION_DAYS", 30),
 			MetricStreamMaxLen:  int64(envInt("METRIC_STREAM_MAXLEN", 10000)),

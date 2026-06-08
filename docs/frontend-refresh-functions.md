@@ -8,6 +8,8 @@
 
 后端按 `RUNTIME_SYNC_INTERVAL` 周期性创建或复用刷新任务，默认间隔为 `30s`。
 
+后端请求单个 Agent 执行 fast 同步的默认 HTTP 超时为 `12s`，可通过 `RUNTIME_SYNC_FAST_TIMEOUT_SECONDS` 调整。该超时限制的是后端等待 Agent fast 接口返回的总时间，不是 Agent 内部单条宿主机命令的超时。
+
 这条链路是全局范围刷新，因为它面向所有已登记 Agent：
 
 - 刷新任务类型为 `runtime.refresh.fast`。
@@ -42,6 +44,8 @@ fast 内存使用率来自 Agent 对运行中 VM 执行的 `dommemstat <vm>` 采
 ### 1.1.1 后端低频深度刷新
 
 后端按 `RUNTIME_DEEP_SYNC_INTERVAL` 周期性创建或复用 `runtime.refresh.all` 任务，默认间隔为 `10m`，设置为 `0` 可关闭。
+
+后端请求单个 Agent 执行 full 同步的默认 HTTP 超时为 `60s`，可通过 `RUNTIME_SYNC_FULL_TIMEOUT_SECONDS` 调整。手动全量刷新、低频深度刷新、单 Agent full 同步和单台 VM full 刷新均使用该超时。
 
 这条链路同样面向所有已登记 Agent，主要用于低频补齐不适合 30 秒 fast 刷新的重字段：
 

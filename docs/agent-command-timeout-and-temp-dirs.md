@@ -67,9 +67,14 @@ virt-filesystems --csv -d <vm> --all --long
 
 ## 4. `COMMAND_TIMEOUT_SECONDS` 作用范围
 
-`COMMAND_TIMEOUT_SECONDS` 是 Agent 外部命令的默认超时配置，默认值为 `8` 秒。
+`COMMAND_TIMEOUT_SECONDS` 是 Agent 外部命令的默认超时配置，默认值为 `30` 秒。
 
 该配置只作用于 Agent 内部通过 `p.output(...)` 执行的命令。它是单条外部命令的超时时间，不是一次 HTTP 请求、一次刷新任务或一次 full 采集的总超时时间。
+
+后端等待 Agent 同步接口返回的 HTTP 超时由后端环境变量控制：
+
+- `RUNTIME_SYNC_FAST_TIMEOUT_SECONDS`：fast 同步默认 `12` 秒。
+- `RUNTIME_SYNC_FULL_TIMEOUT_SECONDS`：full 同步和单台 VM full 刷新默认 `60` 秒。
 
 ### 4.1 受影响的常见操作
 
@@ -156,7 +161,7 @@ VM 配置和设备操作：
 
 残留更容易出现于以下场景：
 
-- `COMMAND_TIMEOUT_SECONDS` 设置过短，例如默认 `8` 秒不足以完成 libguestfs appliance 启动和磁盘探测。
+- `COMMAND_TIMEOUT_SECONDS` 设置过短。当前默认值已调整为 `30` 秒；如果仍不足以完成 libguestfs appliance 启动和磁盘探测，可继续调大。
 - 虚拟机磁盘较多、镜像较大、宿主机 I/O 忙或 libguestfs 首次启动较慢。
 - 客户机文件系统异常、分区表不可识别、LVM 拓扑复杂。
 - full 刷新同时涉及多台 VM，每台 VM 都需要执行 `virt-filesystems`。

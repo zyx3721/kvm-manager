@@ -65,7 +65,12 @@ func main() {
 	defer redisClient.Close()
 	logger.Info("redis runtime cache enabled", "addr", cfg.Redis.Addr)
 
-	runtimeService := realtime.New(store, logger, cfg.JWT.Secret, realtime.NewRedisRuntimeStore(redisClient), redisClient, cfg.Runtime.SyncConcurrency, cfg.Runtime.MetricStreamMaxLen)
+	runtimeService := realtime.NewWithOptions(store, logger, cfg.JWT.Secret, realtime.NewRedisRuntimeStore(redisClient), redisClient, realtime.Options{
+		SyncFastTimeout:    cfg.Runtime.SyncFastTimeout,
+		SyncFullTimeout:    cfg.Runtime.SyncFullTimeout,
+		SyncConcurrency:    cfg.Runtime.SyncConcurrency,
+		MetricStreamMaxLen: cfg.Runtime.MetricStreamMaxLen,
+	})
 	notificationService := notification.NewService(store, logger)
 	runtimeService.SetNotifier(notificationService)
 	runtimeService.StartRefreshWorker(ctx)

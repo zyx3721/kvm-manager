@@ -8,6 +8,9 @@
 
 1. 前端调用后端 `/api/vms` 读取运行态缓存。
 2. 后端按 `RUNTIME_SYNC_INTERVAL` 自动触发面向所有 Agent 的全局运行态轻量刷新；按 `RUNTIME_DEEP_SYNC_INTERVAL` 自动触发低频 full 深度刷新；手动 `/api/refresh` 也会触发 full 全量刷新。
+   - fast 同步中，后端请求单个 Agent 的 HTTP 超时默认 `12s`，可通过 `RUNTIME_SYNC_FAST_TIMEOUT_SECONDS` 调整。
+   - full 同步和单台 VM full 刷新中，后端请求单个 Agent 的 HTTP 超时默认 `60s`，可通过 `RUNTIME_SYNC_FULL_TIMEOUT_SECONDS` 调整。
+   - 这两个配置限制的是后端等待 Agent 接口返回的总时间；Agent 内部单条宿主机命令超时仍由 Agent 侧 `COMMAND_TIMEOUT_SECONDS` 控制。
 3. 轻量刷新创建或复用 `runtime.refresh.fast` 异步任务，低频深度刷新和手动刷新创建或复用 `runtime.refresh.all` 异步任务。
 4. 后台刷新 worker 按任务向每个已登记 Agent 调用 `/v1/host`、`/v1/vms?level=fast` 或 `/v1/vms`；全量任务还会调用 `/v1/vms/{name}/snapshots`。
 5. 虚拟机启动、恢复、暂停、关机、停止、强制关机、重启和强制重启成功后，后端会先更新运行态缓存中的 VM 状态并广播 `runtime.updated`，再延迟 8 秒执行一次 full 同步，避免电源操作响应被完整 Agent 同步阻塞。
@@ -1939,6 +1942,8 @@ virsh --connect <LIBVIRT_URI> update-device <vm> <graphics-xml> --config
 
 - `RUNTIME_SYNC_INTERVAL` 控制定时 fast 刷新，默认 `30s`，设置为 `0` 可关闭。
 - `RUNTIME_DEEP_SYNC_INTERVAL` 控制定时 full 深度刷新，默认 `10m`，设置为 `0` 可关闭。
+- `RUNTIME_SYNC_FAST_TIMEOUT_SECONDS` 控制后端等待单个 Agent fast 同步接口返回的 HTTP 超时，默认 `12` 秒。
+- `RUNTIME_SYNC_FULL_TIMEOUT_SECONDS` 控制后端等待单个 Agent full 同步或单台 VM full 刷新接口返回的 HTTP 超时，默认 `60` 秒。
 - `RUNTIME_SYNC_CONCURRENCY` 控制 Agent 同步并发数。
 - 前端主布局右上角全量刷新图标触发 `/api/refresh`。
 - 前端订阅 `/api/events`，收到 `runtime.updated` 后重新读取运行态缓存。

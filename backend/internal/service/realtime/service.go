@@ -22,12 +22,12 @@ type AlertNotifier interface {
 }
 
 const (
-	syncFastTimeout       = 12 * time.Second
-	syncFullTimeout       = 60 * time.Second
-	vmActionFullSyncDelay = 8 * time.Second
-	offlineFailureLimit   = 3
-	resourceAlertLimit    = 85
-	alertConsecutiveLimit = 3
+	defaultSyncFastTimeout = 12 * time.Second
+	defaultSyncFullTimeout = 60 * time.Second
+	vmActionFullSyncDelay  = 8 * time.Second
+	offlineFailureLimit    = 3
+	resourceAlertLimit     = 85
+	alertConsecutiveLimit  = 3
 )
 
 type alertRuntimeConfig struct {
@@ -51,6 +51,8 @@ type Service struct {
 	metricStream       redis.Cmdable
 	notifier           AlertNotifier
 	refreshQueue       chan string
+	syncFastTimeout    time.Duration
+	syncFullTimeout    time.Duration
 	syncConcurrency    int
 	metricStreamMaxLen int64
 	workerOnce         sync.Once
@@ -60,11 +62,31 @@ type Service struct {
 	alertCounts        map[string]int
 }
 
+type Options struct {
+	SyncFastTimeout    time.Duration
+	SyncFullTimeout    time.Duration
+	SyncConcurrency    int
+	MetricStreamMaxLen int64
+}
+
 func (s *Service) SetNotifier(notifier AlertNotifier) {
 	s.notifier = notifier
 }
 
 func New(store *repository.Store, logger *slog.Logger, secret string, runtimeStore *RedisRuntimeStore, metricStream redis.Cmdable, syncConcurrency int, metricStreamMaxLen int64) *Service {
+	return NewWithOptions(store, logger, secret, runtimeStore, metricStream, Options{
+		SyncConcurrency:    syncConcurrency,
+		MetricStreamMaxLen: metricStreamMaxLen,
+	})
+}
+
+func NewWithOptions(store *repository.Store, logger *slog.Logger, secret string, runtimeStore *RedisRuntimeStore, metricStream redis.Cmdable, options Options) *Service {
+	if options.SyncFastTimeout <= 0 {
+		options.SyncFastTimeout = defaultSyncFastTimeout
+	}
+	if options.SyncFullTimeout <= 0 {
+		options.SyncFullTimeout = defaultSyncFullTimeout
+	}
 	return &Service{
 		store:              store,
 		logger:             logger,
@@ -72,8 +94,10 @@ func New(store *repository.Store, logger *slog.Logger, secret string, runtimeSto
 		runtimeStore:       runtimeStore,
 		metricStream:       metricStream,
 		refreshQueue:       make(chan string, 32),
-		syncConcurrency:    syncConcurrency,
-		metricStreamMaxLen: metricStreamMaxLen,
+		syncFastTimeout:    options.SyncFastTimeout,
+		syncFullTimeout:    options.SyncFullTimeout,
+		syncConcurrency:    options.SyncConcurrency,
+		metricStreamMaxLen: options.MetricStreamMaxLen,
 		subs:               map[chan Event]struct{}{},
 		alertCounts:        map[string]int{},
 	}
@@ -236,10 +260,10 @@ func (s *Service) SyncVMWithToken(ctx context.Context, id string, token string, 
 	if err != nil {
 		return domain.VirtualMachine{}, err
 	}
-	ctx, cancel := context.WithTimeout(ctx, syncFullTimeout)
+	ctx, cancel := context.WithTimeout(ctx, s.syncFullTimeout)
 	defer cancel()
 	_ = s.store.MarkAgentSyncStarted(ctx, item.ID)
-	client := agent.NewClientWithTimeout(item.TLSInsecure, syncFullTimeout)
+	client := agent.NewClientWithTimeout(item.TLSInsecure, s.syncFullTimeout)
 	cfg := agent.Config{Endpoint: item.Endpoint, Token: token, TLSInsecure: item.TLSInsecure}
 	info, err := client.HostInfo(ctx, cfg)
 	if err != nil {
@@ -323,11 +347,15 @@ func (s *Service) SyncVMWithToken(ctx context.Context, id string, token string, 
 }
 
 func (s *Service) syncWithToken(ctx context.Context, item domain.Agent, token string, mode SyncMode) error {
-	ctx, cancel := context.WithTimeout(ctx, syncFullTimeout)
+	syncTimeout := s.syncFastTimeout
+	if mode == SyncFull {
+		syncTimeout = s.syncFullTimeout
+	}
+	ctx, cancel := context.WithTimeout(ctx, syncTimeout)
 	defer cancel()
 	_ = s.store.MarkAgentSyncStarted(ctx, item.ID)
-	fastClient := agent.NewClientWithTimeout(item.TLSInsecure, syncFastTimeout)
-	fullClient := agent.NewClientWithTimeout(item.TLSInsecure, syncFullTimeout)
+	fastClient := agent.NewClientWithTimeout(item.TLSInsecure, s.syncFastTimeout)
+	fullClient := agent.NewClientWithTimeout(item.TLSInsecure, s.syncFullTimeout)
 	client := fastClient
 	if mode == SyncFull {
 		client = fullClient
