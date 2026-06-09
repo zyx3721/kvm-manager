@@ -38,8 +38,6 @@ KVM Manager 是一个面向多宿主机 KVM/libvirt 环境的虚拟化资源管�
 | :------------------------------------------: |
 | ![home](.github/images/kvm-manager-home.jpg) |
 
-
-
 ## 1.3 核心功能
 
 - **用户认证**：管理员初始化、JWT 会话、登录状态校验、修改密码与注销。
@@ -244,7 +242,7 @@ psql -Upostgres -c "CREATE DATABASE kvm;"
 docker exec -it pg-prod psql -U postgres
 ```
 
-在 psql 中创建 blogdb 库（执行后输入 `\q` 退出）：
+在 psql 中创建 kvm 库（执行后输入 `\q` 退出）：
 
 ```bash
 CREATE DATABASE kvm;
@@ -924,7 +922,7 @@ npm run build
 在服务器上准备前端目录（例如 `/data/kvm-manager/frontend/dist`），**将本地 `dist` 目录中的所有文件和子目录整体上传到该目录**，保持结构不变，例如：
 
 ```bash
-/data/myBlog/admin/dist/
+/data/kvm-manager/admin/dist/
 ├── assets/
 ├── favicon.svg
 ├── index.html
