@@ -351,7 +351,7 @@ func TestStoragePoolNameForPath(t *testing.T) {
 		{Name: "other", Path: "/storage2"},
 	}
 
-	if got := storagePoolNameForPath("/storage/vm/10.22.12.175-vda.qcow2", pools); got != "Storage" {
+	if got := storagePoolNameForPath("/storage/vm/192.168.12.175-vda.qcow2", pools); got != "Storage" {
 		t.Fatalf("expected Storage, got %q", got)
 	}
 	if got := storagePoolNameForPath("/storage/vmware/disk.qcow2", pools); got != "default" {
@@ -733,9 +733,9 @@ func TestParseDomifaddrIPSkipsLoopbackAndLinkLocal(t *testing.T) {
 -------------------------------------------------------------------------------
  vnet0      52:54:00:11:22:33    ipv4         127.0.0.1/8
  vnet1      52:54:00:11:22:34    ipv4         169.254.10.20/16
- vnet2      52:54:00:11:22:35    ipv4         10.22.12.179/24`
+ vnet2      52:54:00:11:22:35    ipv4         192.168.12.179/24`
 
-	if got := parseDomifaddrIP(out); got != "10.22.12.179" {
+	if got := parseDomifaddrIP(out); got != "192.168.12.179" {
 		t.Fatalf("expected usable ip, got %q", got)
 	}
 }

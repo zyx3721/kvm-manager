@@ -221,7 +221,7 @@ export function StoragePoolDetailDialog({ agentId, hostName, item, canManage, on
   return (
     <DialogPortal>
     <div className="kvm-dialog-backdrop fixed inset-0 z-50 flex items-center justify-center px-3">
-      <div className="kvm-dialog-panel max-h-[92vh] w-[min(94vw,980px)] overflow-hidden rounded-2xl">
+      <div className="kvm-dialog-panel max-h-[92vh] w-[min(94vw,1000px)] overflow-hidden rounded-2xl">
         <header className="flex items-center justify-between border-b px-5 py-4" style={{ borderColor: 'var(--kvm-border)' }}>
           <div className="min-w-0">
             <h2 className="truncate text-base font-semibold" style={{ color: 'var(--kvm-text)' }}>{localItem.name}</h2>

@@ -208,19 +208,19 @@ func TestValidateRequestedAddressUniquenessAllowsDifferentSubnets(t *testing.T) 
 
 func TestValidateRequestedAddressUniquenessAllowsBridgeSourceAddress(t *testing.T) {
 	existing := []HostInterface{
-		{Name: "eth0", IPv4: "10.22.51.48/24", IPv4Mode: "static"},
-		{Name: "eth1", IPv4: "10.22.52.48/24", IPv4Mode: "static"},
+		{Name: "eth0", IPv4: "192.168.51.48/24", IPv4Mode: "static"},
+		{Name: "eth1", IPv4: "192.168.52.48/24", IPv4Mode: "static"},
 	}
-	if err := validateRequestedAddressUniqueness("static", "10.22.51.48/24", "ipv4", "eth0", existing); err != nil {
+	if err := validateRequestedAddressUniqueness("static", "192.168.51.48/24", "ipv4", "eth0", existing); err != nil {
 		t.Fatalf("expected bridge source IP to be reusable, got %v", err)
 	}
-	if err := validateRequestedAddressUniqueness("static", "10.22.52.48/24", "ipv4", "eth0", existing); err == nil {
+	if err := validateRequestedAddressUniqueness("static", "192.168.52.48/24", "ipv4", "eth0", existing); err == nil {
 		t.Fatal("expected non-source duplicate IP to be rejected")
 	}
 }
 
 func TestValidateInterfaceGatewayRejectsOutOfSubnetGateway(t *testing.T) {
-	if err := validateInterfaceGateway("static", "10.22.51.48/24", "10.22.52.254", "ipv4"); err == nil {
+	if err := validateInterfaceGateway("static", "192.168.51.48/24", "192.168.52.254", "ipv4"); err == nil {
 		t.Fatal("expected IPv4 gateway outside subnet to be rejected")
 	}
 	if err := validateInterfaceGateway("static", "2001:db8::10/64", "2001:db8:1::1", "ipv6"); err == nil {
@@ -229,19 +229,19 @@ func TestValidateInterfaceGatewayRejectsOutOfSubnetGateway(t *testing.T) {
 }
 
 func TestValidateInterfaceGatewayAllowsSameSubnetGateway(t *testing.T) {
-	if err := validateInterfaceGateway("static", "10.22.51.48/24", "10.22.51.254", "ipv4"); err != nil {
+	if err := validateInterfaceGateway("static", "192.168.51.48/24", "192.168.51.254", "ipv4"); err != nil {
 		t.Fatalf("expected IPv4 gateway in same subnet to be allowed, got %v", err)
 	}
 	if err := validateInterfaceGateway("static", "2001:db8::10/64", "2001:db8::1", "ipv6"); err != nil {
 		t.Fatalf("expected IPv6 gateway in same subnet to be allowed, got %v", err)
 	}
-	if err := validateInterfaceGateway("dhcp", "", "10.22.52.254", "ipv4"); err != nil {
+	if err := validateInterfaceGateway("dhcp", "", "192.168.52.254", "ipv4"); err != nil {
 		t.Fatalf("expected non-static gateway validation to be skipped, got %v", err)
 	}
 }
 
 func TestValidateInterfaceGatewayRejectsAddressAsGateway(t *testing.T) {
-	if err := validateInterfaceGateway("static", "10.22.51.48/24", "10.22.51.48", "ipv4"); err == nil {
+	if err := validateInterfaceGateway("static", "192.168.51.48/24", "192.168.51.48", "ipv4"); err == nil {
 		t.Fatal("expected IPv4 gateway equal to address to be rejected")
 	}
 	if err := validateInterfaceGateway("static", "2001:db8::10/64", "2001:db8::10", "ipv6"); err == nil {
@@ -251,25 +251,25 @@ func TestValidateInterfaceGatewayRejectsAddressAsGateway(t *testing.T) {
 
 func TestUpdateIFCFGDNSReplacesExistingDNS(t *testing.T) {
 	content := "DEVICE=br0\nBOOTPROTO=none\nDNS1=1.1.1.1\nDNS2=8.8.8.8\nONBOOT=yes\n"
-	got := updateIFCFGDNS(content, []string{"10.22.50.5", "8.8.4.4"})
-	expected := "DEVICE=br0\nBOOTPROTO=none\nONBOOT=yes\nDNS1=10.22.50.5\nDNS2=8.8.4.4\n"
+	got := updateIFCFGDNS(content, []string{"192.168.50.5", "8.8.4.4"})
+	expected := "DEVICE=br0\nBOOTPROTO=none\nONBOOT=yes\nDNS1=192.168.50.5\nDNS2=8.8.4.4\n"
 	if got != expected {
 		t.Fatalf("expected ifcfg dns update %q, got %q", expected, got)
 	}
 }
 
 func TestValidateDNSServersRejectsInvalidAddress(t *testing.T) {
-	if err := validateDNSServers([]string{"10.22.50.5", "bad-dns"}); err == nil {
+	if err := validateDNSServers([]string{"192.168.50.5", "bad-dns"}); err == nil {
 		t.Fatal("expected invalid DNS server to be rejected")
 	}
-	if err := validateDNSServers([]string{"10.22.50.5", "2001:db8::53"}); err != nil {
+	if err := validateDNSServers([]string{"192.168.50.5", "2001:db8::53"}); err != nil {
 		t.Fatalf("expected valid DNS servers to be allowed, got %v", err)
 	}
 }
 
 func TestSplitDNSServersSeparatesAddressFamilies(t *testing.T) {
-	ipv4, ipv6 := splitDNSServers([]string{"10.22.50.5", "2001:db8::53", "8.8.8.8"})
-	if strings.Join(ipv4, ",") != "10.22.50.5,8.8.8.8" {
+	ipv4, ipv6 := splitDNSServers([]string{"192.168.50.5", "2001:db8::53", "8.8.8.8"})
+	if strings.Join(ipv4, ",") != "192.168.50.5,8.8.8.8" {
 		t.Fatalf("unexpected IPv4 DNS list: %v", ipv4)
 	}
 	if strings.Join(ipv6, ",") != "2001:db8::53" {

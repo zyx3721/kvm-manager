@@ -62,7 +62,7 @@ func TestOperationErrorMessageForDuplicateShutdown(t *testing.T) {
 }
 
 func TestOperationErrorMessageForDeleteRunningVM(t *testing.T) {
-	err := errors.New("vm 10.22.12.179 must be stopped before delete")
+	err := errors.New("vm 192.168.12.179 must be stopped before delete")
 
 	message := operationErrorMessage("虚拟机操作失败", err)
 

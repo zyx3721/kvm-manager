@@ -148,12 +148,12 @@ if [ "$3" = "domifaddr" ] && [ "$5" = "--source" ] && [ "$6" = "agent" ]; then
  Name       MAC address          Protocol     Address
 -------------------------------------------------------------------------------
  lo         00:00:00:00:00:00    ipv4         127.0.0.1/8
- eth0       52:54:00:4f:d5:e0    ipv4         10.22.51.56/24
+ eth0       52:54:00:4f:d5:e0    ipv4         192.168.51.56/24
 OUT
   exit 0
 fi
 if [ "$3" = "domifaddr" ] && [ "$5" = "--source" ] && [ "$6" = "lease" ]; then
-  echo "eth0 52:54:00:4f:d5:e0 ipv4 10.22.51.99/24"
+  echo "eth0 52:54:00:4f:d5:e0 ipv4 192.168.51.99/24"
   exit 0
 fi
 exit 0
@@ -173,10 +173,10 @@ exit /b 0
 echo  Name       MAC address          Protocol     Address
 echo -------------------------------------------------------------------------------
 echo  lo         00:00:00:00:00:00    ipv4         127.0.0.1/8
-echo  eth0       52:54:00:4f:d5:e0    ipv4         10.22.51.56/24
+echo  eth0       52:54:00:4f:d5:e0    ipv4         192.168.51.56/24
 exit /b 0
 :domifaddr_lease
-echo eth0 52:54:00:4f:d5:e0 ipv4 10.22.51.99/24
+echo eth0 52:54:00:4f:d5:e0 ipv4 192.168.51.99/24
 exit /b 0
 `
 		perm = 0o644
@@ -187,7 +187,7 @@ exit /b 0
 	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
 
 	ip := NewVirshProvider("qemu:///system", 5*time.Second).primaryIP("demo")
-	if ip != "10.22.51.56" {
+	if ip != "192.168.51.56" {
 		t.Fatalf("expected primary ip from domifaddr agent, got %q", ip)
 	}
 }
@@ -200,7 +200,7 @@ if [ "$3" = "domifaddr" ] && [ "$5" = "--source" ] && [ "$6" = "agent" ]; then
   exit 1
 fi
 if [ "$3" = "domifaddr" ] && [ "$5" = "--source" ] && [ "$6" = "lease" ]; then
-  echo "eth0 52:54:00:4f:d5:e0 ipv4 10.22.51.99/24"
+  echo "eth0 52:54:00:4f:d5:e0 ipv4 192.168.51.99/24"
   exit 0
 fi
 exit 0
@@ -213,7 +213,7 @@ if "%3"=="domifaddr" if "%5"=="--source" if "%6"=="agent" exit /b 1
 if "%3"=="domifaddr" if "%5"=="--source" if "%6"=="lease" goto domifaddr_lease
 exit /b 0
 :domifaddr_lease
-echo eth0 52:54:00:4f:d5:e0 ipv4 10.22.51.99/24
+echo eth0 52:54:00:4f:d5:e0 ipv4 192.168.51.99/24
 exit /b 0
 `
 		perm = 0o644
@@ -224,7 +224,7 @@ exit /b 0
 	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
 
 	ip := NewVirshProvider("qemu:///system", 5*time.Second).primaryIP("demo")
-	if ip != "10.22.51.99" {
+	if ip != "192.168.51.99" {
 		t.Fatalf("expected primary ip from domifaddr lease, got %q", ip)
 	}
 }
