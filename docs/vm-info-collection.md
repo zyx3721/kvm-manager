@@ -1306,6 +1306,9 @@ Agent 执行命令：
 存储池列表容量字段：
 
 - Agent 通过 `virsh pool-info <pool> --bytes` 读取每个 libvirt 存储池的 `capacity`、`allocation` 和 `available`。
+- Agent 通过 `virsh vol-list <pool> --name` 对列表页卷数量做轻量计数。
+- 存储池列表页不会为卷数量执行完整卷详情解析，也不会对每个卷执行 `qemu-img info`。
+- 打开存储池详情弹窗时，Agent 仍通过 `/api/storage-pools/{agentId}/volumes/{pool}` 读取完整卷详情并识别卷格式。
 - 目录池会根据目标路径所在文件系统设备号返回 `capacitySource`。
 - 前端存储池页面的单个卡片继续展示对应 libvirt 池自身容量。
 - 顶部“总容量”和“已分配”按 `capacitySource` 去重汇总，多个目录池落在同一底层文件系统时只计入一次。

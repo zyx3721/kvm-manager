@@ -320,13 +320,7 @@ func (p *VirshProvider) storagePool(name string) (StoragePool, error) {
 		Capacity:       parsePoolBytes(info, "Capacity:"),
 		Allocation:     parsePoolBytes(info, "Allocation:"),
 		Available:      parsePoolBytes(info, "Available:"),
-		VolumeCount: func() int {
-			volumes, err := p.ListStorageVolumes(name)
-			if err != nil {
-				return 0
-			}
-			return len(volumes)
-		}(),
+		VolumeCount:    p.storageVolumeCount(name),
 	}, nil
 }
 
@@ -518,6 +512,29 @@ func parsePoolInfoText(info string, prefix string) string {
 		}
 	}
 	return ""
+}
+
+func (p *VirshProvider) storageVolumeCount(poolName string) int {
+	poolName = strings.TrimSpace(poolName)
+	if poolName == "" {
+		return 0
+	}
+	_, _ = p.output("virsh", "--connect", p.libvirtURI, "pool-refresh", poolName)
+	out, err := p.output("virsh", "--connect", p.libvirtURI, "vol-list", poolName, "--name")
+	if err != nil {
+		return 0
+	}
+	return parseStorageVolumeNameCount(out)
+}
+
+func parseStorageVolumeNameCount(output string) int {
+	count := 0
+	for _, line := range strings.Split(output, "\n") {
+		if strings.TrimSpace(line) != "" {
+			count++
+		}
+	}
+	return count
 }
 
 func (p *VirshProvider) parseStorageVolumes(poolName string, output string) []StorageVolume {
