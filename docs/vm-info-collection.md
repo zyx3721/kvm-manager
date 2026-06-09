@@ -536,6 +536,7 @@ Agent 解析 `snapshot-list` 表格输出：
 - 存储池详情弹窗会调用 `/api/storage-pools/{agentId}/volumes/{pool}` 读取该池全部卷或光盘镜像。
 - ISO 类型池展示为“光盘镜像”和“上传ISO”，其他池展示为“卷”和“添加镜像”。
 - Agent 先用 `virsh vol-list <pool> --details` 获取卷名称、路径、容量和已分配容量；若卷名或路径扩展名为 `.iso`，格式直接显示 `iso`。
+- Agent 会过滤 `virsh vol-list --details` 中 `Type` 为 `dir` 的目录条目，避免详情列表展示目录型条目。
 - 非 ISO 卷会对卷路径执行 `qemu-img info -U --output=json <path>` 读取真实 `format` 字段；若单个文件探测失败，则回退按扩展名判断，避免整个列表不可用。
 - ISO 类型池通过 `/api/storage-pools/{agentId}/volumes/{pool}/upload` 上传 ISO 文件。
 - 非 ISO 类型池通过 `/api/storage-pools/{agentId}/volumes/{pool}` 创建 qcow2、qcow、qed 或 raw 镜像卷，其中 qcow2 可传递 `preallocMetadata` 让 Agent 执行 `virsh vol-create-as --prealloc-metadata`。
@@ -1306,8 +1307,9 @@ Agent 执行命令：
 存储池列表容量字段：
 
 - Agent 通过 `virsh pool-info <pool> --bytes` 读取每个 libvirt 存储池的 `capacity`、`allocation` 和 `available`。
-- Agent 通过 `virsh vol-list <pool> --name` 对列表页卷数量做轻量计数。
+- Agent 通过 `virsh vol-list <pool> --details` 对列表页卷数量做轻量计数，并按真实 `Type` 排除 `dir` 目录条目。
 - 存储池列表页不会为卷数量执行完整卷详情解析，也不会对每个卷执行 `qemu-img info`。
+- 详情列表同样按 `--details` 中的真实 `Type` 过滤目录条目。
 - 打开存储池详情弹窗时，Agent 仍通过 `/api/storage-pools/{agentId}/volumes/{pool}` 读取完整卷详情并识别卷格式。
 - 目录池会根据目标路径所在文件系统设备号返回 `capacitySource`。
 - 前端存储池页面的单个卡片继续展示对应 libvirt 池自身容量。

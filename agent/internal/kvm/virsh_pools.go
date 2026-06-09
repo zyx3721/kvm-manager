@@ -520,21 +520,27 @@ func (p *VirshProvider) storageVolumeCount(poolName string) int {
 		return 0
 	}
 	_, _ = p.output("virsh", "--connect", p.libvirtURI, "pool-refresh", poolName)
-	out, err := p.output("virsh", "--connect", p.libvirtURI, "vol-list", poolName, "--name")
+	out, err := p.output("virsh", "--connect", p.libvirtURI, "vol-list", poolName, "--details")
 	if err != nil {
 		return 0
 	}
-	return parseStorageVolumeNameCount(out)
+	return parseStorageVolumeDetailsCount(out)
 }
 
-func parseStorageVolumeNameCount(output string) int {
+func parseStorageVolumeDetailsCount(output string) int {
 	count := 0
 	for _, line := range strings.Split(output, "\n") {
-		if strings.TrimSpace(line) != "" {
+		fields := strings.Fields(line)
+		if len(fields) >= 3 && !isStorageVolumeListHeader(fields[0]) && !strings.EqualFold(fields[2], "dir") {
 			count++
 		}
 	}
 	return count
+}
+
+func isStorageVolumeListHeader(value string) bool {
+	normalized := strings.ToLower(strings.Trim(value, "- \t"))
+	return normalized == "" || normalized == "name" || normalized == "名称"
 }
 
 func (p *VirshProvider) parseStorageVolumes(poolName string, output string) []StorageVolume {
@@ -545,6 +551,9 @@ func (p *VirshProvider) parseStorageVolumes(poolName string, output string) []St
 			continue
 		}
 		volumeType := fields[2]
+		if strings.EqualFold(volumeType, "dir") {
+			continue
+		}
 		format := ""
 		capacity := int64(0)
 		allocation := int64(0)

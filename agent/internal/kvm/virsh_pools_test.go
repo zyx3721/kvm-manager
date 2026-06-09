@@ -9,10 +9,40 @@ import (
 	"time"
 )
 
-func TestParseStorageVolumeNameCountSkipsBlankLines(t *testing.T) {
-	output := "\nbase.qcow2\n\nseed.iso\n  \nextra.raw\n"
-	if got := parseStorageVolumeNameCount(output); got != 3 {
-		t.Fatalf("expected 3 volume names, got %d", got)
+func TestParseStorageVolumeDetailsCountSkipsDirectoryVolumes(t *testing.T) {
+	output := `
+Name                 Path                                      Type   Capacity  Allocation
+-----------------------------------------------------------------------------------------
+backup               /data/backup                              dir    0.00 B    0.00 B
+base.qcow2           /data/base.qcow2                          file   10.00 GiB 1.00 GiB
+
+seed.iso             /data/seed.iso                            file   4.00 GiB 4.00 GiB
+extra.raw            /data/extra.raw                           block  8.00 GiB 2.00 GiB
+`
+	if got := parseStorageVolumeDetailsCount(output); got != 3 {
+		t.Fatalf("expected 3 volumes, got %d", got)
+	}
+}
+
+func TestParseStorageVolumesSkipsDirectoryVolumes(t *testing.T) {
+	output := `
+Name                 Path                                      Type   Capacity  Allocation
+-----------------------------------------------------------------------------------------
+backup               /data/backup                              dir    0.00 B    0.00 B
+demo.qcow2           /data/demo.qcow2                          file   10.00 GiB 1.00 GiB
+disk.raw             /dev/vg0/disk.raw                         block  20.00 GiB 2.00 GiB
+`
+	volumes := NewVirshProvider("qemu:///system", time.Second).parseStorageVolumes("data", output)
+	if len(volumes) != 2 {
+		t.Fatalf("expected directory volume to be skipped, got %d volumes: %#v", len(volumes), volumes)
+	}
+	for _, volume := range volumes {
+		if strings.EqualFold(volume.Type, "dir") {
+			t.Fatalf("did not expect dir volume in result: %#v", volumes)
+		}
+	}
+	if volumes[0].Name != "demo.qcow2" || volumes[1].Name != "disk.raw" {
+		t.Fatalf("unexpected volumes: %#v", volumes)
 	}
 }
 
@@ -56,12 +86,18 @@ fi
 if [ "$3" = "pool-refresh" ]; then
   exit 0
 fi
-if [ "$3" = "vol-list" ] && [ "$5" = "--name" ]; then
-  printf 'demo.qcow2\nseed.iso\n'
+if [ "$3" = "vol-list" ] && [ "$5" = "--details" ]; then
+  cat <<'OUT'
+Name                 Path                                      Type   Capacity  Allocation
+-----------------------------------------------------------------------------------------
+backup               /var/lib/libvirt/images/backup            dir    0.00 B    0.00 B
+demo.qcow2           /var/lib/libvirt/images/demo.qcow2        file   10.00 GiB 1.00 GiB
+seed.iso             /var/lib/libvirt/images/seed.iso          file   4.00 GiB 4.00 GiB
+OUT
   exit 0
 fi
 if [ "$3" = "vol-list" ]; then
-  echo "full vol-list should not be used for storage pool summary" >&2
+  echo "unexpected vol-list arguments" >&2
   exit 1
 fi
 exit 1
@@ -94,14 +130,14 @@ exit 1
 		t.Fatalf("read command log: %v", err)
 	}
 	log := string(logBytes)
-	if !strings.Contains(log, "vol-list images --name") {
+	if !strings.Contains(log, "vol-list images --details") {
 		t.Fatalf("expected lightweight vol-list command in log:\n%s", log)
+	}
+	if strings.Contains(log, "--name") {
+		t.Fatalf("did not expect unsupported vol-list --name during storage pool list:\n%s", log)
 	}
 	if strings.Contains(log, "qemu-img") {
 		t.Fatalf("did not expect qemu-img during storage pool list:\n%s", log)
-	}
-	if strings.Contains(log, "--details") {
-		t.Fatalf("did not expect full volume details during storage pool list:\n%s", log)
 	}
 }
 
