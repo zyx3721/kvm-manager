@@ -78,6 +78,7 @@ func main() {
 	runtimeService.StartScheduledRefresh(ctx, cfg.Runtime.SyncInterval)
 	runtimeService.StartScheduledDeepRefresh(ctx, cfg.Runtime.DeepSyncInterval)
 	runtimeService.StartMetricRetention(ctx, cfg.Runtime.MetricRetentionDays)
+	runtimeService.StartLogRetention(ctx, cfg.Runtime.LogRetentionDays)
 	runtimeService.StartMetricRollups(ctx)
 
 	addr := cfg.Server.Addr()

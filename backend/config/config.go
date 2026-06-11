@@ -58,6 +58,7 @@ type RuntimeConfig struct {
 	SyncFullTimeout     time.Duration
 	SyncConcurrency     int
 	MetricRetentionDays int
+	LogRetentionDays    int
 	MetricStreamMaxLen  int64
 }
 
@@ -95,6 +96,7 @@ func Load(logger *slog.Logger) (Config, error) {
 			SyncFullTimeout:     time.Duration(envInt("RUNTIME_SYNC_FULL_TIMEOUT_SECONDS", 60)) * time.Second,
 			SyncConcurrency:     envInt("RUNTIME_SYNC_CONCURRENCY", 3),
 			MetricRetentionDays: envInt("METRIC_RETENTION_DAYS", 30),
+			LogRetentionDays:    envInt("LOG_RETENTION_DAYS", 30),
 			MetricStreamMaxLen:  int64(envInt("METRIC_STREAM_MAXLEN", 10000)),
 		},
 	}

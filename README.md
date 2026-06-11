@@ -122,7 +122,7 @@ kvm-manager/
 │   ├── docs/                       # 后端 Swagger/OpenAPI 生成文件
 │   ├── internal/                   # 后端内部领域、仓储和业务服务
 │   │   ├── domain/                 # 后端领域模型
-│   │   ├── repository/             # PostgreSQL 仓储
+│   │   ├── repository/             # PostgreSQL 仓储、查询和保留清理
 │   │   └── service/                # 用户认证、通知和实时同步等业务服务
 │   └── pkg/                        # 后端基础设施与可复用能力
 │       ├── agent/                  # 访问 KVM Agent 的客户端与 VM 相关请求模型
@@ -287,7 +287,7 @@ JWT_SECRET=your_jwt_secret_key
 JWT_EXPIRE_HOURS=24
 SESSION_IDLE_TIMEOUT_HOURS=12
 
-# Redis 缓存与后台刷新
+# Redis 缓存与后台刷新配置
 REDIS_ADDR=redis:6379
 REDIS_PASSWORD=123456
 REDIS_DB=0
@@ -298,11 +298,14 @@ RUNTIME_SYNC_FULL_TIMEOUT_SECONDS=60
 RUNTIME_SYNC_CONCURRENCY=3
 METRIC_RETENTION_DAYS=30
 METRIC_STREAM_MAXLEN=10000
+
+# 保留任务审计告警日志天数配置
+LOG_RETENTION_DAYS=30
 ```
 
 **配置参数说明**：
 
-后端当前一共有 `22` 个可写入 `.env` 的环境变量：
+后端当前一共有 `23` 个可写入 `.env` 的环境变量：
 
 | 变量 | 默认值 | 说明 |
 | --- | --- | --- |
@@ -332,6 +335,7 @@ METRIC_STREAM_MAXLEN=10000
 | `RUNTIME_SYNC_FULL_TIMEOUT_SECONDS` | `60` | 后端请求单个 Agent 执行 full 同步或单台 VM full 刷新的 HTTP 超时时间，单位秒 |
 | `RUNTIME_SYNC_CONCURRENCY` | `3` | Agent 同步并发数 |
 | `METRIC_RETENTION_DAYS` | `30` | 指标原始样本保留天数 |
+| `LOG_RETENTION_DAYS` | `30` | 任务、审计和告警日志按创建时间保留天数，设为 `0` 可关闭自动清理 |
 | `METRIC_STREAM_MAXLEN` | `10000` | Redis 指标 Stream 近似最大长度 |
 
 `StartMetricWriter` 是后端启动时创建的指标写入后台协程，不是独立命令或额外服务。它随 Redis 运行态缓存一起启动，负责消费 `kvm:metrics:samples` Stream 中的 host/vm 指标事件，并写入 PostgreSQL 的 `host_metric_samples`、`vm_metric_samples` 表；Redis 连接失败时后端会直接启动失败。
@@ -483,6 +487,8 @@ RUNTIME_SYNC_FULL_TIMEOUT_SECONDS=60
 RUNTIME_SYNC_CONCURRENCY=3
 METRIC_RETENTION_DAYS=30
 METRIC_STREAM_MAXLEN=10000
+
+LOG_RETENTION_DAYS=30
 ```
 
 ## 3.3 构建镜像（可选）
@@ -779,6 +785,9 @@ RUNTIME_SYNC_FULL_TIMEOUT_SECONDS=60
 RUNTIME_SYNC_CONCURRENCY=3
 METRIC_RETENTION_DAYS=30
 METRIC_STREAM_MAXLEN=10000
+
+# 保留任务审计告警日志天数配置
+LOG_RETENTION_DAYS=30
 ```
 
 **配置参数说明详情见 [2.4](#24-后端配置与启动)。**
