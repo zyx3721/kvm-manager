@@ -76,7 +76,10 @@ export function HostInterfaceCreateDialog({
     dnsServers: dnsServers.map(item => item.trim()).filter(Boolean),
   };
   const deviceOptions = devices.map(item => ({ value: item.name, label: item.name }));
-  const setDNS = (index: number, value: string) => setDNSServers(current => current.map((item, itemIndex) => itemIndex === index ? value : item));
+  const setDNS = (index: number, value: string) =>
+    setDNSServers(current =>
+      current.map((item, itemIndex) => (itemIndex === index ? value : item))
+    );
 
   useEffect(() => {
     let cancelled = false;
@@ -103,29 +106,88 @@ export function HostInterfaceCreateDialog({
     <DialogPortal>
       <div className="kvm-dialog-backdrop fixed inset-0 z-50 flex items-center justify-center px-3">
         <div className="kvm-dialog-panel max-h-[88vh] w-[min(94vw,760px)] overflow-hidden rounded-2xl">
-          <header className="flex items-center justify-between border-b px-5 py-4" style={{ borderColor: 'var(--kvm-border)' }}>
+          <header
+            className="flex items-center justify-between border-b px-5 py-4"
+            style={{ borderColor: 'var(--kvm-border)' }}
+          >
             <div>
-              <h2 className="text-base font-semibold" style={{ color: 'var(--kvm-text)' }}>新增接口</h2>
-              <p className="mt-1 text-xs" style={{ color: 'var(--kvm-text-muted)' }}>{hostName}</p>
+              <h2 className="text-base font-semibold" style={{ color: 'var(--kvm-text)' }}>
+                新增接口
+              </h2>
+              <p className="mt-1 text-xs" style={{ color: 'var(--kvm-text-muted)' }}>
+                {hostName}
+              </p>
             </div>
-            <button type="button" onClick={onClose} disabled={submitting} aria-label="关闭" className="kvm-action-button inline-flex h-8 w-8 items-center justify-center rounded-lg border disabled:cursor-not-allowed disabled:opacity-60" style={buttonStyle}><XIcon size={15} /></button>
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={submitting}
+              aria-label="关闭"
+              className="kvm-action-button inline-flex h-8 w-8 items-center justify-center rounded-lg border disabled:cursor-not-allowed disabled:opacity-60"
+              style={buttonStyle}
+            >
+              <XIcon size={15} />
+            </button>
           </header>
           <div className="kvm-hidden-scrollbar max-h-[calc(88vh-138px)] overflow-y-auto">
             <div className="mx-auto max-w-[620px] space-y-4 p-5 md:pl-2 md:pr-8">
-              <Field label="名称"><input value={name} onChange={event => setName(event.target.value)} placeholder="br0" className="h-10 w-full rounded-lg px-3 text-sm outline-none" style={fieldStyle} /></Field>
+              <Field label="名称">
+                <input
+                  value={name}
+                  onChange={event => setName(event.target.value)}
+                  placeholder="br0"
+                  className="h-10 w-full rounded-lg px-3 text-sm outline-none"
+                  style={fieldStyle}
+                />
+              </Field>
               <Field label="启动模式">
-                <SelectMenu value={startMode} placeholder="请选择启动模式" options={startModeOptions()} optionTooltipPlacement="right" onChange={setStartMode} />
+                <SelectMenu
+                  value={startMode}
+                  placeholder="请选择启动模式"
+                  options={startModeOptions()}
+                  optionTooltipPlacement="right"
+                  onChange={setStartMode}
+                />
               </Field>
               <Field label="设备">
-                <SelectMenu value={device} disabled={deviceLoading} placeholder={deviceLoading ? '正在读取设备' : '不绑定设备'} options={[{ value: '', label: '不绑定设备' }, ...deviceOptions]} maxVisibleItems={8} onChange={setDevice} />
+                <SelectMenu
+                  value={device}
+                  disabled={deviceLoading}
+                  placeholder={deviceLoading ? '正在读取设备' : '不绑定设备'}
+                  options={[{ value: '', label: '不绑定设备' }, ...deviceOptions]}
+                  maxVisibleItems={8}
+                  onChange={setDevice}
+                />
               </Field>
               <Field label="类型">
-                <SelectMenu value={type} placeholder="请选择接口类型" options={interfaceTypeOptions()} onChange={setType} />
+                <SelectMenu
+                  value={type}
+                  placeholder="请选择接口类型"
+                  options={interfaceTypeOptions()}
+                  onChange={setType}
+                />
               </Field>
-              {type === 'bridge' && <Field label="STP">
-                <SelectMenu value={stp} placeholder="请选择 STP" options={['on', 'off'].map(item => ({ value: item, label: item }))} onChange={setStp} />
-              </Field>}
-              {type === 'bridge' && <Field label="Delay"><input value={delay} onChange={event => setDelay(event.target.value)} placeholder="0" className="h-10 w-full rounded-lg px-3 text-sm outline-none" style={fieldStyle} /></Field>}
+              {type === 'bridge' && (
+                <Field label="STP">
+                  <SelectMenu
+                    value={stp}
+                    placeholder="请选择 STP"
+                    options={['on', 'off'].map(item => ({ value: item, label: item }))}
+                    onChange={setStp}
+                  />
+                </Field>
+              )}
+              {type === 'bridge' && (
+                <Field label="Delay">
+                  <input
+                    value={delay}
+                    onChange={event => setDelay(event.target.value)}
+                    placeholder="0"
+                    className="h-10 w-full rounded-lg px-3 text-sm outline-none"
+                    style={fieldStyle}
+                  />
+                </Field>
+              )}
             </div>
             <div className="mx-auto grid max-w-[680px] gap-4 p-5 md:grid-cols-2">
               <AddressPanel
@@ -168,8 +230,19 @@ export function HostInterfaceCreateDialog({
               />
             </div>
           </div>
-          <footer className="flex justify-end gap-2 border-t px-5 py-4" style={{ borderColor: 'var(--kvm-border)' }}>
-            <button type="button" onClick={onClose} disabled={submitting} className="kvm-action-button rounded-lg border px-4 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-60" style={buttonStyle}>关闭</button>
+          <footer
+            className="flex justify-end gap-2 border-t px-5 py-4"
+            style={{ borderColor: 'var(--kvm-border)' }}
+          >
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={submitting}
+              className="kvm-action-button rounded-lg border px-4 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-60"
+              style={buttonStyle}
+            >
+              关闭
+            </button>
             <button
               type="button"
               disabled={submitting}
@@ -194,7 +267,14 @@ export function HostInterfaceCreateDialog({
 }
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
-  return <label className="grid gap-2 md:grid-cols-[110px_minmax(0,430px)] md:items-center"><span className="text-sm font-semibold md:text-right" style={{ color: 'var(--kvm-text)' }}>{label}</span>{children}</label>;
+  return (
+    <label className="grid gap-2 md:grid-cols-[110px_minmax(0,430px)] md:items-center">
+      <span className="text-sm font-semibold md:text-right" style={{ color: 'var(--kvm-text)' }}>
+        {label}
+      </span>
+      {children}
+    </label>
+  );
 }
 
 function startModeOptions() {

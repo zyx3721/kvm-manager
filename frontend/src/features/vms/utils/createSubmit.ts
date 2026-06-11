@@ -112,10 +112,18 @@ export function buildDiskTemplateCreatePayload(state: DiskTemplateCreateState): 
   const vmName = state.name.trim();
   const commonWarning = validateCommonCreateState(state, vmName);
   if (commonWarning) return { warning: commonWarning };
-  if (!state.sourcePool.trim() || !state.sourceName.trim() || !state.targetPool.trim() || !state.targetName.trim() || !state.bus.trim()) {
+  if (
+    !state.sourcePool.trim() ||
+    !state.sourceName.trim() ||
+    !state.targetPool.trim() ||
+    !state.targetName.trim() ||
+    !state.bus.trim()
+  ) {
     return { warning: '请完整填写模板磁盘配置' };
   }
-  const extensionError = diskExtensionError([{ name: state.targetName.trim(), format: state.format }]);
+  const extensionError = diskExtensionError([
+    { name: state.targetName.trim(), format: state.format },
+  ]);
   if (extensionError) return { warning: extensionError };
   return {
     vmName,

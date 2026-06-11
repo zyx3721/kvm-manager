@@ -36,7 +36,8 @@ export function TemplateVMCreatePanel({
         if (!ignore) setConfig(item);
       })
       .catch(error => {
-        if (!ignore) setConfigError(error instanceof Error ? error.message : '读取模板虚拟机配置失败');
+        if (!ignore)
+          setConfigError(error instanceof Error ? error.message : '读取模板虚拟机配置失败');
       });
     return () => {
       ignore = true;
@@ -56,7 +57,10 @@ export function TemplateVMCreatePanel({
   if (!templates.length) {
     return (
       <Panel title="虚拟机模板">
-        <div className="rounded-xl border px-4 py-8 text-center text-sm" style={{ borderColor: 'var(--kvm-border)', color: 'var(--kvm-text-muted)' }}>
+        <div
+          className="rounded-xl border px-4 py-8 text-center text-sm"
+          style={{ borderColor: 'var(--kvm-border)', color: 'var(--kvm-text-muted)' }}
+        >
           暂无已标记的虚拟机模板
         </div>
       </Panel>
@@ -74,14 +78,23 @@ export function TemplateVMCreatePanel({
             maxVisibleItems={6}
             onChange={onSelectedIdChange}
           />
-          <div className="flex min-w-0 flex-wrap items-center gap-2 text-xs" style={{ color: 'var(--kvm-text-muted)' }}>
+          <div
+            className="flex min-w-0 flex-wrap items-center gap-2 text-xs"
+            style={{ color: 'var(--kvm-text-muted)' }}
+          >
             <span
               className="inline-flex h-7 w-7 items-center justify-center rounded-lg border"
-              style={{ background: 'rgba(45,212,191,0.1)', borderColor: 'rgba(45,212,191,0.32)', color: 'var(--kvm-check-toggle-active-text)' }}
+              style={{
+                background: 'rgba(45,212,191,0.1)',
+                borderColor: 'rgba(45,212,191,0.32)',
+                color: 'var(--kvm-check-toggle-active-text)',
+              }}
             >
               <Layers3Icon size={15} />
             </span>
-            <span className="font-mono" style={{ color: 'var(--kvm-text)' }}>{selectedTemplate?.name}</span>
+            <span className="font-mono" style={{ color: 'var(--kvm-text)' }}>
+              {selectedTemplate?.name}
+            </span>
             <span>{selectedTemplate?.hostName || '-'}</span>
             <span>{selectedTemplate?.templateDescription || '未填写模板描述'}</span>
           </div>

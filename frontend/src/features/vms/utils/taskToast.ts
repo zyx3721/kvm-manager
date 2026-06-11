@@ -7,7 +7,10 @@ export const taskToastDoneOptions = {
   duration: 5000,
 };
 
-export function taskToastOptionsFor(id?: string | number, options?: { position?: 'top-left' | 'top-right' }) {
+export function taskToastOptionsFor(
+  id?: string | number,
+  options?: { position?: 'top-left' | 'top-right' }
+) {
   return {
     ...taskToastOptions,
     ...options,
@@ -15,7 +18,10 @@ export function taskToastOptionsFor(id?: string | number, options?: { position?:
   };
 }
 
-export function taskToastDoneOptionsFor(id?: string | number, options?: { position?: 'top-left' | 'top-right' }) {
+export function taskToastDoneOptionsFor(
+  id?: string | number,
+  options?: { position?: 'top-left' | 'top-right' }
+) {
   return {
     ...taskToastOptions,
     ...options,

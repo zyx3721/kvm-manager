@@ -12,7 +12,14 @@ import {
   type VirtualMachine,
 } from '../../../../lib/api';
 import { PrimaryButton } from '../VMEditControls';
-import { CardSection, FieldText, fieldStyle, FormGrid, InlineNotice, inputClass } from './EditShared';
+import {
+  CardSection,
+  FieldText,
+  fieldStyle,
+  FormGrid,
+  InlineNotice,
+  inputClass,
+} from './EditShared';
 import { bytesToMB } from './editUtils';
 import { isVMRunning } from '../../utils/vmStatus';
 
@@ -28,7 +35,9 @@ export function BasicInfoPanel({
   const [name, setName] = useState(config?.name || vm.name);
   const [description, setDescription] = useState(config?.description || '');
   const [autostart, setAutostart] = useState(Boolean(config?.autostart));
-  const [consolePasswordEnabled, setConsolePasswordEnabled] = useState(Boolean(config?.graphics?.passwordEnabled));
+  const [consolePasswordEnabled, setConsolePasswordEnabled] = useState(
+    Boolean(config?.graphics?.passwordEnabled)
+  );
   const [consolePassword, setConsolePassword] = useState('');
   const [editingConsolePassword, setEditingConsolePassword] = useState(false);
   const [consolePasswordVisible, setConsolePasswordVisible] = useState(false);
@@ -39,10 +48,11 @@ export function BasicInfoPanel({
   const descriptionChanged = Boolean(config && description !== (config.description || ''));
   const currentConsolePasswordEnabled = Boolean(config?.graphics?.passwordEnabled);
   const disableConsolePasswordBlocked = running && currentConsolePasswordEnabled;
-  const consolePasswordChanged = Boolean(config && (
-    consolePasswordEnabled !== currentConsolePasswordEnabled ||
-    (consolePasswordEnabled && consolePassword.trim() !== '')
-  ));
+  const consolePasswordChanged = Boolean(
+    config &&
+    (consolePasswordEnabled !== currentConsolePasswordEnabled ||
+      (consolePasswordEnabled && consolePassword.trim() !== ''))
+  );
 
   useEffect(() => {
     if (!config) return;
@@ -62,8 +72,10 @@ export function BasicInfoPanel({
     if (running && nameChanged) return toast.error('虚拟机正在运行，无法修改名称');
     if (disableConsolePasswordBlocked && !consolePasswordEnabled)
       return toast.error('运行中的虚拟机不支持关闭控制台密码，请先关闭虚拟机后再操作');
-    if (consolePasswordEnabled && consolePasswordChanged && !consolePassword.trim()) return toast.warning('请输入控制台密码');
-    if (!nameChanged && !descriptionChanged && !consolePasswordChanged) return toast.warning('请先修改配置');
+    if (consolePasswordEnabled && consolePasswordChanged && !consolePassword.trim())
+      return toast.warning('请输入控制台密码');
+    if (!nameChanged && !descriptionChanged && !consolePasswordChanged)
+      return toast.warning('请先修改配置');
 
     setSaving(true);
     try {
@@ -200,7 +212,12 @@ export function BasicInfoPanel({
         )}
         <FormGrid>
           <FieldText>控制台类型</FieldText>
-          <input value={(config?.graphics?.type || 'vnc').toUpperCase()} disabled className={inputClass + ' disabled:cursor-not-allowed disabled:opacity-60'} style={fieldStyle} />
+          <input
+            value={(config?.graphics?.type || 'vnc').toUpperCase()}
+            disabled
+            className={inputClass + ' disabled:cursor-not-allowed disabled:opacity-60'}
+            style={fieldStyle}
+          />
           <FieldText>密码状态</FieldText>
           <button
             type="button"
@@ -214,7 +231,9 @@ export function BasicInfoPanel({
             }}
             className="kvm-action-button inline-flex h-9 w-fit items-center rounded-lg border px-4 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60"
             style={{
-              background: consolePasswordEnabled ? 'rgba(16,185,129,0.12)' : 'var(--kvm-control-bg)',
+              background: consolePasswordEnabled
+                ? 'rgba(16,185,129,0.12)'
+                : 'var(--kvm-control-bg)',
               borderColor: consolePasswordEnabled ? 'rgba(16,185,129,0.38)' : 'var(--kvm-border)',
               color: consolePasswordEnabled ? '#86efac' : 'var(--kvm-text)',
             }}

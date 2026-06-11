@@ -141,7 +141,10 @@ export async function runStorageVolumeClone({ agentId, poolName, payload }: RunC
     toast.success(`${payload.name} 克隆完成`, storageVolumeToastDoneOptionsFor(toastId));
     return true;
   } catch (error) {
-    toast.error(friendlyVolumeError(error, '克隆镜像失败'), storageVolumeToastDoneOptionsFor(toastId));
+    toast.error(
+      friendlyVolumeError(error, '克隆镜像失败'),
+      storageVolumeToastDoneOptionsFor(toastId)
+    );
     return false;
   }
 }

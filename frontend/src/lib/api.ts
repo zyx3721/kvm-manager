@@ -1060,23 +1060,23 @@ export function precheckVMMigration(id: string, payload: VMMigratePayload) {
 }
 
 export function setupVMMigrationSSHKey(id: string, payload: VMMigrationSSHKeyPayload) {
-  return apiRequest<{ status: string; result: { ok: boolean; passwordRequired: boolean; message: string } }>(
-    `/api/vms/${encodeURIComponent(id)}/migrate-ssh-key`,
-    {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    }
-  );
+  return apiRequest<{
+    status: string;
+    result: { ok: boolean; passwordRequired: boolean; message: string };
+  }>(`/api/vms/${encodeURIComponent(id)}/migrate-ssh-key`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
 }
 
 export function setupVMMigrationHostname(id: string, payload: VMMigrationHostnamePayload) {
-  return apiRequest<{ status: string; result: { ok: boolean; passwordRequired: boolean; message: string } }>(
-    `/api/vms/${encodeURIComponent(id)}/migrate-hostname`,
-    {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    }
-  );
+  return apiRequest<{
+    status: string;
+    result: { ok: boolean; passwordRequired: boolean; message: string };
+  }>(`/api/vms/${encodeURIComponent(id)}/migrate-hostname`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
 }
 
 export function fetchHosts() {
@@ -1447,7 +1447,9 @@ export function resolveAlert(id: string) {
 }
 
 export function fetchAlertDeliveries(id: string) {
-  return apiRequest<ListResponse<AlertNotificationDelivery>>(`/api/alerts/${encodeURIComponent(id)}/deliveries`);
+  return apiRequest<ListResponse<AlertNotificationDelivery>>(
+    `/api/alerts/${encodeURIComponent(id)}/deliveries`
+  );
 }
 
 export function fetchNotifications(limit = 20) {
@@ -1478,7 +1480,12 @@ export function fetchNotificationChannels() {
 
 export function updateNotificationChannel(
   id: string,
-  payload: { enabled: boolean; passwordResetEnabled: boolean; clearConfig?: boolean; config: Record<string, unknown> }
+  payload: {
+    enabled: boolean;
+    passwordResetEnabled: boolean;
+    clearConfig?: boolean;
+    config: Record<string, unknown>;
+  }
 ) {
   return apiRequest<NotificationChannel>(`/api/settings/notifications/${encodeURIComponent(id)}`, {
     method: 'PUT',
@@ -1497,10 +1504,13 @@ export function previewNotificationChannel(
   id: string,
   payload: { enabled: boolean; passwordResetEnabled: boolean; config: Record<string, unknown> }
 ) {
-  return apiRequest<NotificationTemplatePreview>(`/api/settings/notifications/${encodeURIComponent(id)}/preview`, {
-    method: 'POST',
-    body: JSON.stringify(payload),
-  });
+  return apiRequest<NotificationTemplatePreview>(
+    `/api/settings/notifications/${encodeURIComponent(id)}/preview`,
+    {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }
+  );
 }
 
 export function fetchPasswordResetCaptcha() {

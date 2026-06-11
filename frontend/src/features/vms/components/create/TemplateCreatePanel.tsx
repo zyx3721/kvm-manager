@@ -49,7 +49,11 @@ export function TemplateCreatePanel({
   busy: boolean;
   onSelectedIdChange: (value: string) => void;
   onAgentChange: (value: string) => void;
-  onSubmit: (result: { payload?: VMCreatePayload; warning?: string; vmName?: string }) => Promise<void>;
+  onSubmit: (result: {
+    payload?: VMCreatePayload;
+    warning?: string;
+    vmName?: string;
+  }) => Promise<void>;
   onQueued: () => void;
 }) {
   const [kind, setKind] = useState<TemplateCreateKind>('vm');
@@ -129,7 +133,9 @@ function TemplateKindCard({
       style={{
         background: active ? 'rgba(59,130,246,0.12)' : 'var(--kvm-control-bg-soft)',
         borderColor: active ? 'rgba(147,197,253,0.55)' : 'var(--kvm-border)',
-        boxShadow: active ? 'inset 0 1px 0 rgba(255,255,255,0.08), 0 14px 28px rgba(59,130,246,0.12)' : 'none',
+        boxShadow: active
+          ? 'inset 0 1px 0 rgba(255,255,255,0.08), 0 14px 28px rgba(59,130,246,0.12)'
+          : 'none',
       }}
     >
       <div className="flex items-start gap-3">
@@ -150,7 +156,13 @@ function TemplateKindCard({
           <span className="mt-1 block text-xs" style={{ color: 'var(--kvm-text-muted)' }}>
             {summary}
           </span>
-          <span className="mt-2 inline-flex rounded-md border px-2 py-0.5 text-[11px]" style={{ borderColor: 'var(--kvm-border)', color: active ? '#93c5fd' : 'var(--kvm-text-muted)' }}>
+          <span
+            className="mt-2 inline-flex rounded-md border px-2 py-0.5 text-[11px]"
+            style={{
+              borderColor: 'var(--kvm-border)',
+              color: active ? '#93c5fd' : 'var(--kvm-text-muted)',
+            }}
+          >
             {meta}
           </span>
         </span>

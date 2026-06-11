@@ -54,18 +54,18 @@ export function DiskMetricCell({ vm }: { vm: VirtualMachine }) {
     const estimatedHeight = 74 + disks.length * 46;
     const gap = 10;
     const viewportGap = 12;
-    const placement = rect.right + gap + tooltipWidth <= window.innerWidth - viewportGap
-      ? 'right'
-      : 'left';
+    const placement =
+      rect.right + gap + tooltipWidth <= window.innerWidth - viewportGap ? 'right' : 'left';
     const rawLeft = placement === 'right' ? rect.right + gap : rect.left - gap;
     const rawTop = rect.top + rect.height / 2;
     const top = Math.min(
       window.innerHeight - viewportGap - estimatedHeight / 2,
       Math.max(viewportGap + estimatedHeight / 2, rawTop)
     );
-    const left = placement === 'right'
-      ? Math.min(window.innerWidth - viewportGap, rawLeft)
-      : Math.max(viewportGap, rawLeft);
+    const left =
+      placement === 'right'
+        ? Math.min(window.innerWidth - viewportGap, rawLeft)
+        : Math.max(viewportGap, rawLeft);
     setTooltip({ open: true, top, left, placement });
   }
 
@@ -75,8 +75,7 @@ export function DiskMetricCell({ vm }: { vm: VirtualMachine }) {
       style={{
         left: tooltip.left,
         top: tooltip.top,
-        transform:
-          tooltip.placement === 'right' ? 'translate(0, -50%)' : 'translate(-100%, -50%)',
+        transform: tooltip.placement === 'right' ? 'translate(0, -50%)' : 'translate(-100%, -50%)',
       }}
     >
       <div

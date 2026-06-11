@@ -35,7 +35,10 @@ export function VMBulkConfirmDialog({
           <div className="text-sm font-semibold" style={{ color: 'var(--kvm-text)' }}>
             将对 {selectedNames.length} 台虚拟机执行{meta.label}
           </div>
-          <div className="mt-2 max-h-28 overflow-y-auto text-xs leading-5" style={{ color: 'var(--kvm-text-muted)' }}>
+          <div
+            className="mt-2 max-h-28 overflow-y-auto text-xs leading-5"
+            style={{ color: 'var(--kvm-text-muted)' }}
+          >
             {selectedNames.join('、')}
           </div>
         </div>

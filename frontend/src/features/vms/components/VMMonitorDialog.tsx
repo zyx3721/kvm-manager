@@ -148,89 +148,89 @@ export function VMMonitorDialog({ vm, onClose }: { vm: VirtualMachine; onClose: 
 
   return (
     <DialogPortal>
-    <div className="kvm-dialog-backdrop fixed inset-0 z-50 flex items-center justify-center px-4 py-6">
-      <div className="kvm-dialog-panel flex max-h-[92vh] w-[96vw] max-w-[1680px] flex-col overflow-hidden rounded-xl shadow-2xl">
-        <div
-          className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b px-5 py-4"
-          style={{ borderColor: 'var(--kvm-border)' }}
-        >
-          <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <ActivityIcon size={17} style={{ color: '#2dd4bf' }} />
-              <h2 className="text-base font-semibold" style={{ color: 'var(--kvm-text)' }}>
-                {vm.name} 监控
-              </h2>
+      <div className="kvm-dialog-backdrop fixed inset-0 z-50 flex items-center justify-center px-4 py-6">
+        <div className="kvm-dialog-panel flex max-h-[92vh] w-[96vw] max-w-[1680px] flex-col overflow-hidden rounded-xl shadow-2xl">
+          <div
+            className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b px-5 py-4"
+            style={{ borderColor: 'var(--kvm-border)' }}
+          >
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <ActivityIcon size={17} style={{ color: '#2dd4bf' }} />
+                <h2 className="text-base font-semibold" style={{ color: 'var(--kvm-text)' }}>
+                  {vm.name} 监控
+                </h2>
+              </div>
+              <p className="mt-1 text-xs" style={{ color: 'var(--kvm-text-muted)' }}>
+                {vm.primaryIp || vm.hostName || '运行态指标'}
+              </p>
             </div>
-            <p className="mt-1 text-xs" style={{ color: 'var(--kvm-text-muted)' }}>
-              {vm.primaryIp || vm.hostName || '运行态指标'}
-            </p>
+            <div className="flex flex-wrap items-center gap-2">
+              <RangePicker value={range} onChange={setRange} />
+              {range === 'custom' && (
+                <CustomRangeInputs
+                  start={customStart}
+                  end={customEnd}
+                  onStartChange={setCustomStart}
+                  onEndChange={setCustomEnd}
+                />
+              )}
+              <button
+                type="button"
+                onClick={() => void load()}
+                disabled={loading}
+                className="kvm-action-button flex h-10 w-10 items-center justify-center rounded-lg border disabled:opacity-50"
+                style={{
+                  background: 'var(--kvm-control-bg)',
+                  borderColor: 'var(--kvm-border)',
+                  color: 'var(--kvm-text-muted)',
+                }}
+                aria-label="刷新监控"
+              >
+                <RefreshCwIcon size={15} className={loading ? 'animate-spin' : ''} />
+              </button>
+              <button
+                type="button"
+                onClick={onClose}
+                className="kvm-action-button flex h-10 w-10 items-center justify-center rounded-lg border"
+                style={{
+                  background: 'var(--kvm-control-bg)',
+                  borderColor: 'var(--kvm-border)',
+                  color: 'var(--kvm-text-muted)',
+                }}
+                aria-label="关闭监控"
+              >
+                <XIcon size={15} />
+              </button>
+            </div>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <RangePicker value={range} onChange={setRange} />
-            {range === 'custom' && (
-              <CustomRangeInputs
-                start={customStart}
-                end={customEnd}
-                onStartChange={setCustomStart}
-                onEndChange={setCustomEnd}
-              />
+          <div className="kvm-hidden-scrollbar overflow-y-auto p-5">
+            {error && (
+              <div
+                className="mb-4 rounded-lg p-3 text-sm"
+                style={{
+                  background: 'rgba(245,158,11,0.1)',
+                  border: '1px solid rgba(245,158,11,0.25)',
+                  color: '#f59e0b',
+                }}
+              >
+                {error}
+              </div>
             )}
-            <button
-              type="button"
-              onClick={() => void load()}
-              disabled={loading}
-              className="kvm-action-button flex h-10 w-10 items-center justify-center rounded-lg border disabled:opacity-50"
-              style={{
-                background: 'var(--kvm-control-bg)',
-                borderColor: 'var(--kvm-border)',
-                color: 'var(--kvm-text-muted)',
-              }}
-              aria-label="刷新监控"
-            >
-              <RefreshCwIcon size={15} className={loading ? 'animate-spin' : ''} />
-            </button>
-            <button
-              type="button"
-              onClick={onClose}
-              className="kvm-action-button flex h-10 w-10 items-center justify-center rounded-lg border"
-              style={{
-                background: 'var(--kvm-control-bg)',
-                borderColor: 'var(--kvm-border)',
-                color: 'var(--kvm-text-muted)',
-              }}
-              aria-label="关闭监控"
-            >
-              <XIcon size={15} />
-            </button>
-          </div>
-        </div>
-        <div className="kvm-hidden-scrollbar overflow-y-auto p-5">
-          {error && (
-            <div
-              className="mb-4 rounded-lg p-3 text-sm"
-              style={{
-                background: 'rgba(245,158,11,0.1)',
-                border: '1px solid rgba(245,158,11,0.25)',
-                color: '#f59e0b',
-              }}
-            >
-              {error}
+            <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+              {cards.map((card, index) => (
+                <MonitorChartCard
+                  key={card.title}
+                  card={card}
+                  data={data}
+                  window={chartWindow}
+                  wide={index === cards.length - 1}
+                />
+              ))}
             </div>
-          )}
-          <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-            {cards.map((card, index) => (
-              <MonitorChartCard
-                key={card.title}
-                card={card}
-                data={data}
-                window={chartWindow}
-                wide={index === cards.length - 1}
-              />
-            ))}
           </div>
         </div>
       </div>
-    </div>
     </DialogPortal>
   );
 }

@@ -17,7 +17,13 @@ import {
   UserIcon,
 } from 'lucide-react';
 import { useBaseConfig } from '../../lib/branding';
-import { clearSession, getStoredUser, logout, userHasAnyPermission, userHasPermission } from '../../lib/auth';
+import {
+  clearSession,
+  getStoredUser,
+  logout,
+  userHasAnyPermission,
+  userHasPermission,
+} from '../../lib/auth';
 import {
   fetchNotifications,
   fetchUnreadNotificationCount,
@@ -74,7 +80,10 @@ export default function KvmLayout() {
 
   const visibleNavItems = navItems.filter(item => userHasAnyPermission(user, item.permissions));
   const current = navItems.find(item => item.path === location.pathname) ?? visibleNavItems[0];
-  const activeNavIndex = Math.max(0, visibleNavItems.findIndex(item => item.path === current?.path));
+  const activeNavIndex = Math.max(
+    0,
+    visibleNavItems.findIndex(item => item.path === current?.path)
+  );
   const previousNavIndexRef = useRef(activeNavIndex);
   const [sidebarIndicatorDuration, setSidebarIndicatorDuration] = useState(0);
   const canManageAlerts = userHasPermission(user, 'alerts.manage');
@@ -92,7 +101,9 @@ export default function KvmLayout() {
   useEffect(() => {
     const previousIndex = previousNavIndexRef.current;
     const distance = Math.abs(activeNavIndex - previousIndex);
-    setSidebarIndicatorDuration(Math.min(sidebarTransitionMaxMs, distance * sidebarTransitionUnitMs));
+    setSidebarIndicatorDuration(
+      Math.min(sidebarTransitionMaxMs, distance * sidebarTransitionUnitMs)
+    );
     previousNavIndexRef.current = activeNavIndex;
   }, [activeNavIndex]);
 
@@ -169,7 +180,10 @@ export default function KvmLayout() {
     const close = (event: MouseEvent) => {
       const target = event.target as Node;
       if (!userMenuRef.current?.contains(target)) setUserMenuOpen(false);
-      if (!notificationRef.current?.contains(target) && !notificationPanelRef.current?.contains(target)) {
+      if (
+        !notificationRef.current?.contains(target) &&
+        !notificationPanelRef.current?.contains(target)
+      ) {
         setNotificationOpen(false);
       }
     };
@@ -329,7 +343,9 @@ export default function KvmLayout() {
         </div>
 
         <nav className="relative flex-1 px-2 py-4" style={sidebarIndicatorStyle}>
-          {visibleNavItems.length > 0 && <span className="kvm-sidebar-active-indicator" aria-hidden="true" />}
+          {visibleNavItems.length > 0 && (
+            <span className="kvm-sidebar-active-indicator" aria-hidden="true" />
+          )}
           {visibleNavItems.map(item => {
             const Icon = item.icon;
             const isActive = current.path === item.path;
@@ -449,26 +465,32 @@ export default function KvmLayout() {
                   {unreadCount > 0 && (
                     <span
                       className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[11px] font-semibold"
-                      style={{ background: '#ef4444', color: '#fff', border: '2px solid var(--kvm-header)' }}
+                      style={{
+                        background: '#ef4444',
+                        color: '#fff',
+                        border: '2px solid var(--kvm-header)',
+                      }}
                     >
                       {unreadCount > 99 ? '99+' : unreadCount}
                     </span>
                   )}
                 </button>
               </KvmTooltip>
-              {notificationOpen && typeof document !== 'undefined' ? createPortal(
-                <NotificationPanel
-                  ref={notificationPanelRef}
-                  items={notifications}
-                  unreadCount={unreadCount}
-                  position={notificationPanelPosition}
-                  onReadAll={() => void handleReadAll()}
-                  onClear={() => void handleClearNotifications()}
-                  onOpen={item => void handleNotificationClick(item)}
-                  onClose={() => setNotificationOpen(false)}
-                />,
-                document.body
-              ) : null}
+              {notificationOpen && typeof document !== 'undefined'
+                ? createPortal(
+                    <NotificationPanel
+                      ref={notificationPanelRef}
+                      items={notifications}
+                      unreadCount={unreadCount}
+                      position={notificationPanelPosition}
+                      onReadAll={() => void handleReadAll()}
+                      onClear={() => void handleClearNotifications()}
+                      onOpen={item => void handleNotificationClick(item)}
+                      onClose={() => setNotificationOpen(false)}
+                    />,
+                    document.body
+                  )
+                : null}
             </div>
             <KvmTooltip
               label={theme === 'dark' ? '切换浅色背景' : '切换深色背景'}
@@ -517,9 +539,7 @@ export default function KvmLayout() {
                   >
                     <UserIcon size={14} color="#fff" />
                   </div>
-                  <span className="min-w-0 truncate text-sm">
-                    {displayName}
-                  </span>
+                  <span className="min-w-0 truncate text-sm">{displayName}</span>
                   <ChevronDownIcon
                     size={14}
                     className={
@@ -575,7 +595,10 @@ export default function KvmLayout() {
           data-px-slot
         >
           {visibleNavItems.length === 0 ? (
-            <div className="flex h-full items-center justify-center px-6 text-sm" style={{ color: 'var(--kvm-text-muted)' }}>
+            <div
+              className="flex h-full items-center justify-center px-6 text-sm"
+              style={{ color: 'var(--kvm-text-muted)' }}
+            >
               暂无可访问的功能
             </div>
           ) : (
@@ -596,7 +619,9 @@ export default function KvmLayout() {
 
 function parseResourceUpdateEvent(data: string) {
   try {
-    const event = JSON.parse(data) as { payload?: { agentId?: unknown; name?: unknown; pool?: unknown } };
+    const event = JSON.parse(data) as {
+      payload?: { agentId?: unknown; name?: unknown; pool?: unknown };
+    };
     return {
       agentId: typeof event.payload?.agentId === 'string' ? event.payload.agentId : '',
       name: typeof event.payload?.name === 'string' ? event.payload.name : undefined,

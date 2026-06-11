@@ -82,7 +82,8 @@ export function XMLPanel({
           disabled={busy}
           onClick={() => {
             if (!editing) {
-              if (running) return toast.warning('虚拟机正在运行，无法修改 XML，请先关闭虚拟机后再操作');
+              if (running)
+                return toast.warning('虚拟机正在运行，无法修改 XML，请先关闭虚拟机后再操作');
               setEditing(true);
               return;
             }

@@ -49,7 +49,10 @@ export function StatusBadge({ status }: { status: string }) {
   );
 }
 
-type MetricBarThresholdConfig = Pick<SystemBaseConfig, 'resourceWarningThreshold' | 'resourceCriticalThreshold'>;
+type MetricBarThresholdConfig = Pick<
+  SystemBaseConfig,
+  'resourceWarningThreshold' | 'resourceCriticalThreshold'
+>;
 
 export function MetricBar({
   value,
@@ -185,8 +188,9 @@ export function KvmTooltip({
     >
       <span
         className={
-          (multiline ? 'block max-w-[420px] whitespace-pre-wrap leading-5 ' : 'whitespace-nowrap ') +
-          'rounded-lg border px-2.5 py-1.5 text-xs font-semibold'
+          (multiline
+            ? 'block max-w-[420px] whitespace-pre-wrap leading-5 '
+            : 'whitespace-nowrap ') + 'rounded-lg border px-2.5 py-1.5 text-xs font-semibold'
         }
         style={{
           background: 'var(--kvm-popover-bg)',

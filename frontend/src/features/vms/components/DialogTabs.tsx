@@ -6,7 +6,12 @@ export type VMDialogTab = 'form' | 'template' | 'xml';
 
 const tabs: Array<{ key: VMDialogTab; label: string; tooltip: string; Icon: LucideIcon }> = [
   { key: 'form', label: '常规', tooltip: '现有从空磁盘创建', Icon: SlidersHorizontalIcon },
-  { key: 'template', label: '模板', tooltip: '从已有虚拟机模板克隆系统盘后创建', Icon: Layers3Icon },
+  {
+    key: 'template',
+    label: '模板',
+    tooltip: '从已有虚拟机模板克隆系统盘后创建',
+    Icon: Layers3Icon,
+  },
   { key: 'xml', label: 'XML', tooltip: '现有 XML 创建', Icon: FileCode2Icon },
 ];
 

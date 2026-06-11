@@ -15,19 +15,8 @@ import {
 import { formatBytes } from '../../../../lib/format';
 import { extensionForFormat, replaceDiskExtension } from '../../utils/createDisk';
 import { buildDiskTemplateCreatePayload } from '../../utils/createSubmit';
-import {
-  BasicInfoPanel,
-  ComputePanel,
-  NetworkBootPanel,
-  PrimaryButton,
-} from './CreatePanels';
-import {
-  Field,
-  MetadataToggleRow,
-  Panel,
-  fieldStyle,
-  inputClass,
-} from './CreateFormShared';
+import { BasicInfoPanel, ComputePanel, NetworkBootPanel, PrimaryButton } from './CreatePanels';
+import { Field, MetadataToggleRow, Panel, fieldStyle, inputClass } from './CreateFormShared';
 
 type Option = { value: string; label: string; tooltip?: string };
 
@@ -66,7 +55,11 @@ export function DiskTemplateCreatePanel({
   firmwareOptions: Option[];
   busy: boolean;
   onAgentChange: (value: string) => void;
-  onSubmit: (result: { payload?: VMCreatePayload; warning?: string; vmName?: string }) => Promise<void>;
+  onSubmit: (result: {
+    payload?: VMCreatePayload;
+    warning?: string;
+    vmName?: string;
+  }) => Promise<void>;
 }) {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -103,7 +96,9 @@ export function DiskTemplateCreatePanel({
   const volumeOptions = templateVolumes.map(volume => ({
     value: volume.name,
     label: volume.name,
-    tooltip: [volume.path, volume.format || volume.type, formatBytes(volume.capacity, 'GB')].filter(Boolean).join(' · '),
+    tooltip: [volume.path, volume.format || volume.type, formatBytes(volume.capacity, 'GB')]
+      .filter(Boolean)
+      .join(' · '),
   }));
   const isoOptions = [
     { value: '', label: '不挂载 ISO' },
@@ -132,7 +127,9 @@ export function DiskTemplateCreatePanel({
         if (ignore) return;
         const items = response.items.filter(isTemplateVolume);
         setVolumes(response.items);
-        setSourceName(current => (items.some(item => item.name === current) ? current : items[0]?.name || ''));
+        setSourceName(current =>
+          items.some(item => item.name === current) ? current : items[0]?.name || ''
+        );
       })
       .catch(error => {
         if (!ignore) {
@@ -300,10 +297,17 @@ export function DiskTemplateCreatePanel({
             <SelectMenu value={bus} options={buses} placeholder="总线" onChange={setBus} />
           </Field>
         </div>
-        <div className="mt-3 flex flex-wrap items-center gap-2 text-xs" style={{ color: 'var(--kvm-text-muted)' }}>
+        <div
+          className="mt-3 flex flex-wrap items-center gap-2 text-xs"
+          style={{ color: 'var(--kvm-text-muted)' }}
+        >
           <span
             className="inline-flex h-7 w-7 items-center justify-center rounded-lg border"
-            style={{ background: 'rgba(59,130,246,0.12)', borderColor: 'rgba(59,130,246,0.34)', color: '#93c5fd' }}
+            style={{
+              background: 'rgba(59,130,246,0.12)',
+              borderColor: 'rgba(59,130,246,0.34)',
+              color: '#93c5fd',
+            }}
           >
             <FileStackIcon size={15} />
           </span>
@@ -341,7 +345,12 @@ export function DiskTemplateCreatePanel({
             />
           </Field>
           <Field label="光驱总线">
-            <SelectMenu value={isoBus} options={isoBuses} placeholder="光驱总线" onChange={setISOBus} />
+            <SelectMenu
+              value={isoBus}
+              options={isoBuses}
+              placeholder="光驱总线"
+              onChange={setISOBus}
+            />
           </Field>
         </div>
       </Panel>
@@ -379,7 +388,9 @@ function isTemplateVolume(volume: StorageVolume) {
   if (['qcow2', 'raw', 'qcow', 'qed'].includes(format)) return true;
   const name = volume.name.toLowerCase();
   const path = volume.path.toLowerCase();
-  return templateVolumeExtensions.some(extension => name.endsWith(extension) || path.endsWith(extension));
+  return templateVolumeExtensions.some(
+    extension => name.endsWith(extension) || path.endsWith(extension)
+  );
 }
 
 function templateFormat(volume?: StorageVolume) {

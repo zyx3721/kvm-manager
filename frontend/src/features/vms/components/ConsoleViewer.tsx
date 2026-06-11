@@ -96,7 +96,8 @@ export function ConsoleViewer({ vm, password = '' }: { vm: VirtualMachine; passw
       toggleFullscreen();
     }
     window.addEventListener('keydown', handleConsoleFullscreenKey, { capture: true });
-    return () => window.removeEventListener('keydown', handleConsoleFullscreenKey, { capture: true });
+    return () =>
+      window.removeEventListener('keydown', handleConsoleFullscreenKey, { capture: true });
   }, []);
 
   useEffect(() => {

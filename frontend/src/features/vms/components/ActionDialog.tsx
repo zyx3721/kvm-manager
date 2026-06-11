@@ -48,8 +48,18 @@ export function ActionDialog({
   const isReboot = pending.action === 'reboot';
   const stopChoices =
     pending.action === 'shutdown'
-      ? { normal: 'shutdown' as const, force: 'force-shutdown' as const, normalLabel: '正常关机', forceLabel: '强制关机' }
-      : { normal: 'stop' as const, force: 'force-stop' as const, normalLabel: '正常停止', forceLabel: '强制停止' };
+      ? {
+          normal: 'shutdown' as const,
+          force: 'force-shutdown' as const,
+          normalLabel: '正常关机',
+          forceLabel: '强制关机',
+        }
+      : {
+          normal: 'stop' as const,
+          force: 'force-stop' as const,
+          normalLabel: '正常停止',
+          forceLabel: '强制停止',
+        };
   const submitMeta = isStop
     ? actionMeta[shutdownMode]
     : isReboot
@@ -88,9 +98,13 @@ export function ActionDialog({
               className="kvm-action-button rounded-lg border px-3 py-2 text-left text-sm disabled:opacity-50"
               style={{
                 borderColor:
-                  shutdownMode === stopChoices.normal ? 'rgba(59,130,246,0.55)' : 'rgba(76,103,150,0.28)',
+                  shutdownMode === stopChoices.normal
+                    ? 'rgba(59,130,246,0.55)'
+                    : 'rgba(76,103,150,0.28)',
                 background:
-                  shutdownMode === stopChoices.normal ? 'rgba(59,130,246,0.14)' : 'rgba(255,255,255,0.035)',
+                  shutdownMode === stopChoices.normal
+                    ? 'rgba(59,130,246,0.14)'
+                    : 'rgba(255,255,255,0.035)',
                 color: 'var(--kvm-text)',
               }}
             >
@@ -107,7 +121,9 @@ export function ActionDialog({
                 className="kvm-action-button kvm-danger-button rounded-lg border px-3 py-2 text-left text-sm disabled:opacity-50"
                 style={{
                   borderColor:
-                    shutdownMode === stopChoices.force ? 'rgba(239,68,68,0.55)' : 'rgba(239,68,68,0.28)',
+                    shutdownMode === stopChoices.force
+                      ? 'rgba(239,68,68,0.55)'
+                      : 'rgba(239,68,68,0.28)',
                   background:
                     shutdownMode === stopChoices.force
                       ? 'rgba(239,68,68,0.14)'

@@ -85,7 +85,9 @@ export default function StoragePoolsPage() {
 
   async function refreshAfterEvent() {
     const latest = await load(selectedHost);
-    setDetailItem(current => current ? latest.find(next => next.name === current.name) ?? current : current);
+    setDetailItem(current =>
+      current ? (latest.find(next => next.name === current.name) ?? current) : current
+    );
   }
 
   const totals = useMemo(() => {
@@ -96,19 +98,35 @@ export default function StoragePoolsPage() {
     <div data-cmp="StoragePoolsPage" className="space-y-5 p-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-lg font-semibold" style={{ color: 'var(--kvm-text)' }}>存储池</h1>
+          <h1 className="text-lg font-semibold" style={{ color: 'var(--kvm-text)' }}>
+            存储池
+          </h1>
           <p className="mt-1 text-sm" style={{ color: 'var(--kvm-text-muted)' }}>
             按宿主机管理 libvirt 存储池与 ISO 镜像目录
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <HostPicker value={selectedHost} hosts={hosts} onChange={hostId => void load(hostId)} />
-          <button type="button" onClick={() => void load()} disabled={loading} className="kvm-action-button inline-flex h-10 items-center gap-2 rounded-lg border px-3 text-sm disabled:opacity-60" style={buttonStyle}>
-            <RefreshCwIcon size={15} className={loading ? 'animate-spin' : ''} />刷新
+          <button
+            type="button"
+            onClick={() => void load()}
+            disabled={loading}
+            className="kvm-action-button inline-flex h-10 items-center gap-2 rounded-lg border px-3 text-sm disabled:opacity-60"
+            style={buttonStyle}
+          >
+            <RefreshCwIcon size={15} className={loading ? 'animate-spin' : ''} />
+            刷新
           </button>
           {canManageStorage && (
-            <button type="button" disabled={!selectedHost} onClick={() => setDialogOpen(true)} className="kvm-action-button inline-flex h-10 items-center gap-2 rounded-lg border px-3 text-sm font-semibold disabled:opacity-60" style={primaryButtonStyle}>
-              <PlusIcon size={15} />新建存储池
+            <button
+              type="button"
+              disabled={!selectedHost}
+              onClick={() => setDialogOpen(true)}
+              className="kvm-action-button inline-flex h-10 items-center gap-2 rounded-lg border px-3 text-sm font-semibold disabled:opacity-60"
+              style={primaryButtonStyle}
+            >
+              <PlusIcon size={15} />
+              新建存储池
             </button>
           )}
         </div>
@@ -116,13 +134,25 @@ export default function StoragePoolsPage() {
 
       <section className="grid gap-3 md:grid-cols-3">
         <MetricCard icon={DatabaseIcon} label="存储池" value={`${items.length}`} />
-        <MetricCard icon={HardDriveIcon} label="总容量" value={formatBytes(totals.capacity, 'GB', 1)} />
-        <MetricCard icon={ArchiveIcon} label="已分配" value={formatBytes(totals.allocation, 'GB', 1)} />
+        <MetricCard
+          icon={HardDriveIcon}
+          label="总容量"
+          value={formatBytes(totals.capacity, 'GB', 1)}
+        />
+        <MetricCard
+          icon={ArchiveIcon}
+          label="已分配"
+          value={formatBytes(totals.allocation, 'GB', 1)}
+        />
       </section>
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {!loading && items.length === 0 && <Empty text={host ? '当前宿主机暂无存储池' : '暂无可用宿主机'} />}
-        {items.map(item => <StoragePoolCard key={item.name} item={item} onDetail={item => void openDetail(item)} />)}
+        {!loading && items.length === 0 && (
+          <Empty text={host ? '当前宿主机暂无存储池' : '暂无可用宿主机'} />
+        )}
+        {items.map(item => (
+          <StoragePoolCard key={item.name} item={item} onDetail={item => void openDetail(item)} />
+        ))}
       </section>
 
       {dialogOpen && selectedHost && (
@@ -154,10 +184,16 @@ export default function StoragePoolsPage() {
           onClose={() => setDetailItem(null)}
           onRefresh={async () => {
             const latest = await load(selectedHost);
-            setDetailItem(current => current ? latest.find(next => next.name === current.name) ?? current : current);
+            setDetailItem(current =>
+              current ? (latest.find(next => next.name === current.name) ?? current) : current
+            );
           }}
-          onUpdateState={async active => updateStoragePoolState(selectedHost, detailItem.name, active)}
-          onUpdateAutostart={async autostart => updateStoragePoolAutostart(selectedHost, detailItem.name, autostart)}
+          onUpdateState={async active =>
+            updateStoragePoolState(selectedHost, detailItem.name, active)
+          }
+          onUpdateAutostart={async autostart =>
+            updateStoragePoolAutostart(selectedHost, detailItem.name, autostart)
+          }
           onDeleted={async () => {
             await load(selectedHost);
           }}
@@ -167,7 +203,15 @@ export default function StoragePoolsPage() {
   );
 }
 
-function HostPicker({ value, hosts, onChange }: { value: string; hosts: Host[]; onChange: (id: string) => void }) {
+function HostPicker({
+  value,
+  hosts,
+  onChange,
+}: {
+  value: string;
+  hosts: Host[];
+  onChange: (id: string) => void;
+}) {
   return (
     <SelectMenu
       value={value}
@@ -181,18 +225,34 @@ function HostPicker({ value, hosts, onChange }: { value: string; hosts: Host[]; 
   );
 }
 
-function StoragePoolCard({ item, onDetail }: { item: StoragePool; onDetail: (item: StoragePool) => void }) {
+function StoragePoolCard({
+  item,
+  onDetail,
+}: {
+  item: StoragePool;
+  onDetail: (item: StoragePool) => void;
+}) {
   const used = item.capacity > 0 ? Math.round((item.allocation * 100) / item.capacity) : 0;
   return (
     <article className="kvm-surface-3d rounded-xl p-4">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <h2 className="truncate text-base font-semibold" style={{ color: 'var(--kvm-text)' }}>{item.name}</h2>
-          <p className="mt-1 text-xs uppercase" style={{ color: 'var(--kvm-text-muted)' }}>{item.type || 'unknown'} · {item.state || 'unknown'}</p>
+          <h2 className="truncate text-base font-semibold" style={{ color: 'var(--kvm-text)' }}>
+            {item.name}
+          </h2>
+          <p className="mt-1 text-xs uppercase" style={{ color: 'var(--kvm-text-muted)' }}>
+            {item.type || 'unknown'} · {item.state || 'unknown'}
+          </p>
         </div>
         <div className="flex items-center gap-2">
           <KvmTooltip label="查看详情" placement="top">
-            <button type="button" aria-label="查看详情" onClick={() => onDetail(item)} className="kvm-action-button inline-flex h-8 w-8 items-center justify-center rounded-lg border" style={buttonStyle}>
+            <button
+              type="button"
+              aria-label="查看详情"
+              onClick={() => onDetail(item)}
+              className="kvm-action-button inline-flex h-8 w-8 items-center justify-center rounded-lg border"
+              style={buttonStyle}
+            >
               <InfoIcon size={15} />
             </button>
           </KvmTooltip>
@@ -205,53 +265,97 @@ function StoragePoolCard({ item, onDetail }: { item: StoragePool; onDetail: (ite
         <Row label="卷" value={`${item.volumeCount}`} />
       </div>
       <div className="mt-4 h-2 rounded-full" style={{ background: 'rgba(148,163,184,0.18)' }}>
-        <div className="h-full rounded-full" style={{ width: `${Math.min(100, used)}%`, background: storageUsageColor(used) }} />
+        <div
+          className="h-full rounded-full"
+          style={{ width: `${Math.min(100, used)}%`, background: storageUsageColor(used) }}
+        />
       </div>
-      <div className="mt-2 text-xs" style={{ color: 'var(--kvm-text-muted)' }}>{used}% 已用</div>
+      <div className="mt-2 text-xs" style={{ color: 'var(--kvm-text-muted)' }}>
+        {used}% 已用
+      </div>
     </article>
   );
 }
 
-function MetricCard({ icon: Icon, label, value }: { icon: typeof DatabaseIcon; label: string; value: string }) {
-  return <div className="kvm-surface-3d rounded-xl p-4"><Icon size={17} style={{ color: '#3b82f6' }} /><div className="mt-3 text-xs" style={{ color: 'var(--kvm-text-muted)' }}>{label}</div><div className="mt-1 text-lg font-semibold" style={{ color: 'var(--kvm-text)' }}>{value}</div></div>;
+function MetricCard({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon: typeof DatabaseIcon;
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="kvm-surface-3d rounded-xl p-4">
+      <Icon size={17} style={{ color: '#3b82f6' }} />
+      <div className="mt-3 text-xs" style={{ color: 'var(--kvm-text-muted)' }}>
+        {label}
+      </div>
+      <div className="mt-1 text-lg font-semibold" style={{ color: 'var(--kvm-text)' }}>
+        {value}
+      </div>
+    </div>
+  );
 }
 
 function Empty({ text }: { text: string }) {
-  return <div className="kvm-empty-state col-span-full rounded-xl p-8 text-center text-sm" style={{ color: 'var(--kvm-text-muted)' }}>{text}</div>;
+  return (
+    <div
+      className="kvm-empty-state col-span-full rounded-xl p-8 text-center text-sm"
+      style={{ color: 'var(--kvm-text-muted)' }}
+    >
+      {text}
+    </div>
+  );
 }
 
 function Row({ label, value }: { label: string; value: string }) {
-  return <div className="flex justify-between gap-3"><span>{label}</span><span className="min-w-0 truncate font-mono" style={{ color: 'var(--kvm-text)' }}>{value}</span></div>;
+  return (
+    <div className="flex justify-between gap-3">
+      <span>{label}</span>
+      <span className="min-w-0 truncate font-mono" style={{ color: 'var(--kvm-text)' }}>
+        {value}
+      </span>
+    </div>
+  );
 }
 
 function storagePoolSummaryTotals(items: StoragePool[]) {
   const seenSources = new Set<string>();
-  return items.reduce((totals, item) => {
-    const source = item.capacitySource?.trim();
-    const key = source || `pool:${item.name}`;
-    if (seenSources.has(key)) {
-      return totals;
-    }
-    seenSources.add(key);
-    return {
-      capacity: totals.capacity + item.capacity,
-      allocation: totals.allocation + item.allocation,
-    };
-  }, { capacity: 0, allocation: 0 });
+  return items.reduce(
+    (totals, item) => {
+      const source = item.capacitySource?.trim();
+      const key = source || `pool:${item.name}`;
+      if (seenSources.has(key)) {
+        return totals;
+      }
+      seenSources.add(key);
+      return {
+        capacity: totals.capacity + item.capacity,
+        allocation: totals.allocation + item.allocation,
+      };
+    },
+    { capacity: 0, allocation: 0 }
+  );
 }
 
 function friendlyPoolError(error: unknown) {
   const raw = error instanceof Error ? error.message : '操作失败';
   const compact = raw.replace(/\s+/g, ' ').trim();
   const lower = compact.toLowerCase();
-  if (lower.includes('already exists') || lower.includes('exists already')) return '名称已存在，请重新更换名称';
+  if (lower.includes('already exists') || lower.includes('exists already'))
+    return '名称已存在，请重新更换名称';
   if (lower.includes('name is required')) return '请填写名称';
   if (lower.includes('absolute path') || lower.includes('绝对路径')) return '请填写绝对路径';
-  if (lower.includes('must be a directory') || lower.includes('路径必须是目录')) return '路径必须是目录';
-  if (lower.includes('must be a block device') || lower.includes('块设备')) return 'LVM 设备路径必须是块设备';
+  if (lower.includes('must be a directory') || lower.includes('路径必须是目录'))
+    return '路径必须是目录';
+  if (lower.includes('must be a block device') || lower.includes('块设备'))
+    return 'LVM 设备路径必须是块设备';
   if (lower.includes('path is required') || lower.includes('target')) return '请填写正确的路径';
   if (lower.includes('device is required')) return '请填写设备路径';
   if (lower.includes('unsupported')) return '当前类型或参数不受支持';
-  if (lower.includes('virsh') || lower.includes('error:')) return '宿主机命令执行失败，请检查名称、路径和权限';
+  if (lower.includes('virsh') || lower.includes('error:'))
+    return '宿主机命令执行失败，请检查名称、路径和权限';
   return compact.length > 120 ? `${compact.slice(0, 120)}...` : compact;
 }

@@ -60,7 +60,10 @@ export function SelectMenu({
 
     const updateMenuRect = () => {
       const rect = root.getBoundingClientRect();
-      const menuHeight = Math.min(maxVisibleItems ? maxVisibleItems * 40 + 8 : 256, options.length * 40 + 8);
+      const menuHeight = Math.min(
+        maxVisibleItems ? maxVisibleItems * 40 + 8 : 256,
+        options.length * 40 + 8
+      );
       const spaceBelow = window.innerHeight - rect.bottom;
       const spaceAbove = rect.top;
       const nextPlacement =
@@ -122,57 +125,66 @@ export function SelectMenu({
           style={{ color: 'var(--kvm-text-muted)' }}
         />
       </button>
-      {open && !closed && typeof document !== 'undefined' ? createPortal(
-        <div
-          ref={menuRef}
-          className={
-            'kvm-hidden-scrollbar fixed max-h-64 overflow-y-auto rounded-lg border p-1 shadow-2xl ' +
-            menuClassName
-          }
-          role="listbox"
-          style={{
-            background: 'var(--kvm-menu-bg)',
-            borderColor: 'var(--kvm-popover-border)',
-            boxShadow: 'var(--kvm-menu-shadow)',
-            left: menuRect.left,
-            top: menuRect.top,
-            width: menuRect.width,
-            zIndex: menuZIndex,
-            maxHeight: maxVisibleItems ? `${maxVisibleItems * 40 + 8}px` : undefined,
-          }}
-        >
-          {options.map(item => {
-            const active = item.value === value;
-            return (
-              <button
-                key={item.value}
-                type="button"
-                role="option"
-                aria-selected={active}
-                disabled={item.disabled}
-                onClick={() => {
-                  onChange(item.value);
-                  setOpen(false);
-                }}
-                className={
-                  'group flex h-10 w-full cursor-pointer items-center justify-between gap-3 rounded-md px-3 text-left text-sm font-semibold transition-colors hover:bg-[rgba(45,212,191,0.1)] disabled:cursor-not-allowed disabled:opacity-50 ' +
-                  optionClassName
-                }
-                style={{
-                  background: active ? 'rgba(45,212,191,0.14)' : undefined,
-                  color: active ? '#99f6e4' : 'var(--kvm-text)',
-                }}
-              >
-                <KvmTooltip label={item.tooltip} placement={optionTooltipPlacement} align="center" disabled={!item.tooltip} zIndex={menuZIndex + 1} className="min-w-0 flex-1">
-                  <span className="block min-w-0 truncate">{item.label}</span>
-                </KvmTooltip>
-                {active && <CheckIcon size={15} className="shrink-0" />}
-              </button>
-            );
-          })}
-        </div>,
-        document.body
-      ) : null}
+      {open && !closed && typeof document !== 'undefined'
+        ? createPortal(
+            <div
+              ref={menuRef}
+              className={
+                'kvm-hidden-scrollbar fixed max-h-64 overflow-y-auto rounded-lg border p-1 shadow-2xl ' +
+                menuClassName
+              }
+              role="listbox"
+              style={{
+                background: 'var(--kvm-menu-bg)',
+                borderColor: 'var(--kvm-popover-border)',
+                boxShadow: 'var(--kvm-menu-shadow)',
+                left: menuRect.left,
+                top: menuRect.top,
+                width: menuRect.width,
+                zIndex: menuZIndex,
+                maxHeight: maxVisibleItems ? `${maxVisibleItems * 40 + 8}px` : undefined,
+              }}
+            >
+              {options.map(item => {
+                const active = item.value === value;
+                return (
+                  <button
+                    key={item.value}
+                    type="button"
+                    role="option"
+                    aria-selected={active}
+                    disabled={item.disabled}
+                    onClick={() => {
+                      onChange(item.value);
+                      setOpen(false);
+                    }}
+                    className={
+                      'group flex h-10 w-full cursor-pointer items-center justify-between gap-3 rounded-md px-3 text-left text-sm font-semibold transition-colors hover:bg-[rgba(45,212,191,0.1)] disabled:cursor-not-allowed disabled:opacity-50 ' +
+                      optionClassName
+                    }
+                    style={{
+                      background: active ? 'rgba(45,212,191,0.14)' : undefined,
+                      color: active ? '#99f6e4' : 'var(--kvm-text)',
+                    }}
+                  >
+                    <KvmTooltip
+                      label={item.tooltip}
+                      placement={optionTooltipPlacement}
+                      align="center"
+                      disabled={!item.tooltip}
+                      zIndex={menuZIndex + 1}
+                      className="min-w-0 flex-1"
+                    >
+                      <span className="block min-w-0 truncate">{item.label}</span>
+                    </KvmTooltip>
+                    {active && <CheckIcon size={15} className="shrink-0" />}
+                  </button>
+                );
+              })}
+            </div>,
+            document.body
+          )
+        : null}
     </div>
   );
 }

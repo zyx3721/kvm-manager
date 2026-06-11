@@ -58,13 +58,9 @@ export function VMBulkActionBar({
         className="kvm-action-button h-10 w-20 shrink-0 rounded-lg border px-4 text-sm font-semibold disabled:opacity-60"
         style={{
           background:
-            actionMeta[action].tone === 'danger'
-              ? 'rgba(239,68,68,0.1)'
-              : 'rgba(59,130,246,0.12)',
+            actionMeta[action].tone === 'danger' ? 'rgba(239,68,68,0.1)' : 'rgba(59,130,246,0.12)',
           borderColor:
-            actionMeta[action].tone === 'danger'
-              ? 'rgba(239,68,68,0.36)'
-              : 'rgba(59,130,246,0.36)',
+            actionMeta[action].tone === 'danger' ? 'rgba(239,68,68,0.36)' : 'rgba(59,130,246,0.36)',
           color: actionMeta[action].tone === 'danger' ? '#fca5a5' : '#93c5fd',
         }}
       >

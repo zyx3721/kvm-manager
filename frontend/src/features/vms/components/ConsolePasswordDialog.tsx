@@ -43,16 +43,37 @@ export function ConsolePasswordDialog({
   return (
     <DialogFrame title="控制台密码" tone="normal" onClose={onClose}>
       <div className="space-y-4">
-        <div className="rounded-lg border p-3" style={{ borderColor: 'var(--kvm-border)', background: 'var(--kvm-control-bg-soft)' }}>
-          <div className="text-sm font-semibold" style={{ color: 'var(--kvm-text)' }}>{vm.name}</div>
-          <div className="mt-1 text-xs" style={{ color: 'var(--kvm-text-muted)' }}>该虚拟机已配置 VNC 访问密码</div>
+        <div
+          className="rounded-lg border p-3"
+          style={{ borderColor: 'var(--kvm-border)', background: 'var(--kvm-control-bg-soft)' }}
+        >
+          <div className="text-sm font-semibold" style={{ color: 'var(--kvm-text)' }}>
+            {vm.name}
+          </div>
+          <div className="mt-1 text-xs" style={{ color: 'var(--kvm-text-muted)' }}>
+            该虚拟机已配置 VNC 访问密码
+          </div>
         </div>
         <label>
-          <div className="mb-1.5 text-xs font-semibold" style={{ color: 'var(--kvm-text-muted)' }}>访问密码</div>
-          <input value={password} disabled={busy || validating} type="password" autoComplete="current-password" onChange={event => setPassword(event.target.value)} className={inputClass} style={fieldStyle} />
+          <div className="mb-1.5 text-xs font-semibold" style={{ color: 'var(--kvm-text-muted)' }}>
+            访问密码
+          </div>
+          <input
+            value={password}
+            disabled={busy || validating}
+            type="password"
+            autoComplete="current-password"
+            onChange={event => setPassword(event.target.value)}
+            className={inputClass}
+            style={fieldStyle}
+          />
         </label>
         <div className="flex justify-end pt-3">
-          <PrimaryButton label={busy || validating ? '验证中' : '打开控制台'} disabled={disabled} onClick={() => void handleConfirm()} />
+          <PrimaryButton
+            label={busy || validating ? '验证中' : '打开控制台'}
+            disabled={disabled}
+            onClick={() => void handleConfirm()}
+          />
         </div>
       </div>
     </DialogFrame>

@@ -3,11 +3,7 @@ import { useEffect, useState } from 'react';
 import { CpuIcon, HardDriveIcon, MemoryStickIcon } from 'lucide-react';
 import { toast } from 'sonner';
 
-import {
-  updateVMConfig,
-  type VMConfig,
-  type VirtualMachine,
-} from '../../../../lib/api';
+import { updateVMConfig, type VMConfig, type VirtualMachine } from '../../../../lib/api';
 import { formatBytes } from '../../../../lib/format';
 import { AllocationControl, CheckToggle, PrimaryButton } from '../VMEditControls';
 import { CardSection, FieldText, FormGrid, SummaryCard } from './EditShared';
@@ -47,7 +43,9 @@ export function ResourcesPanel({
   const [memoryStatsEnabled, setMemoryStatsEnabled] = useState(
     (config?.memoryStatsPeriod ?? 5) > 0
   );
-  const [memoryStatsPeriod, setMemoryStatsPeriod] = useState(String(config?.memoryStatsPeriod || 5));
+  const [memoryStatsPeriod, setMemoryStatsPeriod] = useState(
+    String(config?.memoryStatsPeriod || 5)
+  );
   const [saving, setSaving] = useState(false);
   const running = isVMRunning(config?.status || vm.status);
   const hostCpu = config?.hostCpu && config.hostCpu > 0 ? config.hostCpu : 0;
@@ -71,12 +69,8 @@ export function ResourcesPanel({
     setMaximumCpu(String(config.maximumCpu || maxCpu));
     const nextCurrentMemory = bytesToMB(config.currentMemoryBytes);
     const nextMaximumMemory = bytesToMB(config.maximumMemoryBytes);
-    setCurrentMemory(
-      String(nextCurrentMemory)
-    );
-    setMaximumMemory(
-      String(nextMaximumMemory)
-    );
+    setCurrentMemory(String(nextCurrentMemory));
+    setMaximumMemory(String(nextMaximumMemory));
     setCustomCurrentCpu(false);
     setCustomMaximumCpu(false);
     setCustomCurrentMemory(!memoryOptions.includes(nextCurrentMemory));
@@ -247,7 +241,9 @@ export function ResourcesPanel({
                   boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.045)',
                 }}
               />
-              <span className="text-sm" style={{ color: 'var(--kvm-text-muted)' }}>秒</span>
+              <span className="text-sm" style={{ color: 'var(--kvm-text-muted)' }}>
+                秒
+              </span>
             </div>
             <CheckToggle
               checked={memoryStatsEnabled}

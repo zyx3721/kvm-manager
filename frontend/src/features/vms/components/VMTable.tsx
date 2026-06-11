@@ -28,10 +28,31 @@ const tableScrollThreshold = 10;
 const tableHeaderHeight = 49;
 const tableRowHeight = 92;
 const selectColumnWidth = 4;
-const defaultVMTableColumns = ['identity', 'description', 'status', 'system', 'host', 'cpu', 'memory', 'disk', 'uptime'] as const;
-const defaultTemplateTableColumns = ['template', 'source', 'status', 'system', 'host', 'cpu', 'memory', 'disk'] as const;
+const defaultVMTableColumns = [
+  'identity',
+  'description',
+  'status',
+  'system',
+  'host',
+  'cpu',
+  'memory',
+  'disk',
+  'uptime',
+] as const;
+const defaultTemplateTableColumns = [
+  'template',
+  'source',
+  'status',
+  'system',
+  'host',
+  'cpu',
+  'memory',
+  'disk',
+] as const;
 
-export type VMTableColumnKey = typeof defaultVMTableColumns[number] | typeof defaultTemplateTableColumns[number];
+export type VMTableColumnKey =
+  | (typeof defaultVMTableColumns)[number]
+  | (typeof defaultTemplateTableColumns)[number];
 
 type VMTableColumnDefinition = {
   key: VMTableColumnKey;
@@ -98,11 +119,17 @@ export function VMTable({
     >
       <div
         data-vm-table-scroll
-        className={(shouldScrollTable ? 'overflow-y-auto ' : '') + 'kvm-hidden-scrollbar overflow-x-auto'}
+        className={
+          (shouldScrollTable ? 'overflow-y-auto ' : '') + 'kvm-hidden-scrollbar overflow-x-auto'
+        }
         style={shouldScrollTable ? { maxHeight: tableScrollHeight } : undefined}
       >
         <table className="w-full table-fixed border-separate border-spacing-0 text-center text-sm">
-          <VMTableColumns actionCount={actionCount} templateView={Boolean(templateView)} visibleColumns={visibleColumns} />
+          <VMTableColumns
+            actionCount={actionCount}
+            templateView={Boolean(templateView)}
+            visibleColumns={visibleColumns}
+          />
           <thead>
             <tr style={{ borderBottom: '1px solid var(--kvm-border)' }}>
               <VMSelectHeaderCell shouldScroll={shouldScrollTable} onClick={onToggleAllVisible}>
@@ -162,10 +189,20 @@ export function VMTable({
   );
 }
 
-function VMTableColumns({ actionCount, templateView, visibleColumns }: { actionCount: number; templateView: boolean; visibleColumns?: VMTableColumnKey[] }) {
+function VMTableColumns({
+  actionCount,
+  templateView,
+  visibleColumns,
+}: {
+  actionCount: number;
+  templateView: boolean;
+  visibleColumns?: VMTableColumnKey[];
+}) {
   const actionWidth = getActionColumnWidth(actionCount);
   const columns = tableColumns(templateView, visibleColumns);
-  const scale = (100 - selectColumnWidth - actionWidth) / columns.reduce((total, column) => total + column.width, 0);
+  const scale =
+    (100 - selectColumnWidth - actionWidth) /
+    columns.reduce((total, column) => total + column.width, 0);
   const widths = columns.map(column => `${(column.width * scale).toFixed(2)}%`);
 
   return (
@@ -180,7 +217,9 @@ function VMTableColumns({ actionCount, templateView, visibleColumns }: { actionC
 }
 
 function tableColumns(templateView: boolean, visibleColumns?: VMTableColumnKey[]) {
-  const selected = new Set(visibleColumns ?? (templateView ? defaultTemplateTableColumns : defaultVMTableColumns));
+  const selected = new Set(
+    visibleColumns ?? (templateView ? defaultTemplateTableColumns : defaultVMTableColumns)
+  );
   const definitions = templateView ? templateColumnDefinitions : vmColumnDefinitions;
   return definitions.filter(column => selected.has(column.key));
 }
@@ -238,7 +277,11 @@ function VMHeaderCell({
 }) {
   return (
     <th
-      className={(shouldScroll ? 'sticky top-0 z-20 ' : '') + className + ' py-3 text-center align-middle text-xs font-semibold'}
+      className={
+        (shouldScroll ? 'sticky top-0 z-20 ' : '') +
+        className +
+        ' py-3 text-center align-middle text-xs font-semibold'
+      }
       style={{
         background: 'var(--kvm-table-head-bg)',
         borderBottom: '1px solid var(--kvm-border)',
@@ -261,7 +304,10 @@ function VMSelectHeaderCell({
 }) {
   return (
     <th
-      className={(shouldScroll ? 'sticky top-0 z-20 ' : '') + 'cursor-pointer px-0 py-3 text-center align-middle'}
+      className={
+        (shouldScroll ? 'sticky top-0 z-20 ' : '') +
+        'cursor-pointer px-0 py-3 text-center align-middle'
+      }
       onClick={onClick}
       style={{
         background: 'var(--kvm-table-head-bg)',
@@ -276,7 +322,11 @@ function VMSelectHeaderCell({
 function VMEmptyRow({ text }: { text: string }) {
   return (
     <tr>
-      <td colSpan={12} className="px-4 py-10 text-center" style={{ color: 'var(--kvm-text-muted)' }}>
+      <td
+        colSpan={12}
+        className="px-4 py-10 text-center"
+        style={{ color: 'var(--kvm-text-muted)' }}
+      >
         {text}
       </td>
     </tr>
@@ -331,7 +381,10 @@ function VMTableRow({
 
   return (
     <tr className="transition-colors" style={{ borderBottom: '1px solid rgba(56,78,120,0.16)' }}>
-      <td className="cursor-pointer px-0 py-3 text-center align-middle" onClick={() => onToggleSelected(vm)}>
+      <td
+        className="cursor-pointer px-0 py-3 text-center align-middle"
+        onClick={() => onToggleSelected(vm)}
+      >
         <div className="flex justify-center">
           <VMSelectCheckbox
             checked={selected}
@@ -344,7 +397,13 @@ function VMTableRow({
         <VMDataCell key={column.key} columnKey={column.key} vm={vm} hosts={hosts} />
       ))}
       <td className="px-3 py-3 text-center">
-        <div className={templateView ? 'mx-auto inline-flex items-center justify-center gap-1.5' : 'mx-auto grid w-[198px] grid-cols-6 justify-center gap-1.5'}>
+        <div
+          className={
+            templateView
+              ? 'mx-auto inline-flex items-center justify-center gap-1.5'
+              : 'mx-auto grid w-[198px] grid-cols-6 justify-center gap-1.5'
+          }
+        >
           {permissions.update && (
             <ActionButton label="编辑" disabled={disabled} onClick={() => onEdit(vm)}>
               <PencilIcon size={15} />
@@ -359,53 +418,105 @@ function VMTableRow({
             </ActionButton>
           )}
           {templateView && permissions.create && (
-            <ActionButton label="从模板创建" variant="clone" disabled={disabled || running} onClick={() => onCreateFromTemplate(vm)}>
+            <ActionButton
+              label="从模板创建"
+              variant="clone"
+              disabled={disabled || running}
+              onClick={() => onCreateFromTemplate(vm)}
+            >
               <Layers3Icon size={15} />
             </ActionButton>
           )}
           {templateView && permissions.update && (
-            <ActionButton label="取消模板" danger disabled={disabled} onClick={() => onUnmarkTemplate(vm)}>
+            <ActionButton
+              label="取消模板"
+              danger
+              disabled={disabled}
+              onClick={() => onUnmarkTemplate(vm)}
+            >
               <XCircleIcon size={15} />
             </ActionButton>
           )}
           {!templateView && permissions.update && !vm.isTemplate && (
-            <ActionButton label="设为模板" variant="clone" disabled={disabled || running} onClick={() => onMarkTemplate(vm)}>
+            <ActionButton
+              label="设为模板"
+              variant="clone"
+              disabled={disabled || running}
+              onClick={() => onMarkTemplate(vm)}
+            >
               <BadgeCheckIcon size={15} />
             </ActionButton>
           )}
           {!templateView && permissions.console && (
-            <ActionButton label="控制台" variant="console" disabled={disabled} onClick={() => onConsole(vm)}>
+            <ActionButton
+              label="控制台"
+              variant="console"
+              disabled={disabled}
+              onClick={() => onConsole(vm)}
+            >
               <MonitorIcon size={15} />
             </ActionButton>
           )}
           {!templateView && permissions.clone && (
-            <ActionButton label="克隆" variant="clone" disabled={disabled || running} onClick={() => onClone(vm)}>
+            <ActionButton
+              label="克隆"
+              variant="clone"
+              disabled={disabled || running}
+              onClick={() => onClone(vm)}
+            >
               <CopyPlusIcon size={15} />
             </ActionButton>
           )}
           {!templateView && permissions.migrate && (
-            <ActionButton label="迁移" variant="clone" disabled={disabled || hosts.length < 2} onClick={() => onMigrate(vm)}>
+            <ActionButton
+              label="迁移"
+              variant="clone"
+              disabled={disabled || hosts.length < 2}
+              onClick={() => onMigrate(vm)}
+            >
               <MoveRightIcon size={15} />
             </ActionButton>
           )}
           {!templateView && permissions.power && (
             <>
-              <ActionButton label={paused ? '恢复' : '启动'} disabled={disabled || running} onClick={() => onAction(vm, paused ? 'resume' : 'start')}>
+              <ActionButton
+                label={paused ? '恢复' : '启动'}
+                disabled={disabled || running}
+                onClick={() => onAction(vm, paused ? 'resume' : 'start')}
+              >
                 <PlayIcon size={15} />
               </ActionButton>
-              <ActionButton label="暂停" disabled={disabled || !running} onClick={() => onAction(vm, 'pause')}>
+              <ActionButton
+                label="暂停"
+                disabled={disabled || !running}
+                onClick={() => onAction(vm, 'pause')}
+              >
                 <PauseIcon size={15} />
               </ActionButton>
-              <ActionButton label="重启" disabled={disabled || !running} onClick={() => onAction(vm, 'reboot')}>
+              <ActionButton
+                label="重启"
+                disabled={disabled || !running}
+                onClick={() => onAction(vm, 'reboot')}
+              >
                 <RepeatIcon size={15} />
               </ActionButton>
-              <ActionButton label="关机" disabled={disabled || stopped} danger onClick={() => onAction(vm, 'shutdown')}>
+              <ActionButton
+                label="关机"
+                disabled={disabled || stopped}
+                danger
+                onClick={() => onAction(vm, 'shutdown')}
+              >
                 <SquareIcon size={15} />
               </ActionButton>
             </>
           )}
           {!templateView && permissions.delete && (
-            <ActionButton label="删除" disabled={disabled} danger onClick={() => onAction(vm, 'delete')}>
+            <ActionButton
+              label="删除"
+              disabled={disabled}
+              danger
+              onClick={() => onAction(vm, 'delete')}
+            >
               <Trash2Icon size={15} />
             </ActionButton>
           )}
@@ -462,7 +573,10 @@ function VMDataCell({
   }
   if (columnKey === 'description') {
     return (
-      <td className="px-4 py-3 text-center text-xs align-middle" style={{ color: 'var(--kvm-text-muted)' }}>
+      <td
+        className="px-4 py-3 text-center text-xs align-middle"
+        style={{ color: 'var(--kvm-text-muted)' }}
+      >
         <div className="line-clamp-2 leading-5">{vmDescription(vm)}</div>
       </td>
     );
@@ -485,7 +599,10 @@ function VMDataCell({
   }
   if (columnKey === 'host') {
     return (
-      <td className="px-4 py-3 text-center font-mono text-xs" style={{ color: 'var(--kvm-text-muted)' }}>
+      <td
+        className="px-4 py-3 text-center font-mono text-xs"
+        style={{ color: 'var(--kvm-text-muted)' }}
+      >
         {hostAddress(vm, hosts)}
       </td>
     );
@@ -493,14 +610,22 @@ function VMDataCell({
   if (columnKey === 'cpu') {
     return (
       <td className="min-w-36 px-4 py-3 text-center">
-        <VMMetricCell value={vm.cpuUsage} available={vm.cpuUsageAvailable} prefix={`${vm.cpuCores} vCPU`} />
+        <VMMetricCell
+          value={vm.cpuUsage}
+          available={vm.cpuUsageAvailable}
+          prefix={`${vm.cpuCores} vCPU`}
+        />
       </td>
     );
   }
   if (columnKey === 'memory') {
     return (
       <td className="min-w-36 px-4 py-3 text-center">
-        <VMMetricCell value={vm.memoryUsage} available={vm.memoryUsageAvailable} prefix={formatMemoryBytes(vm.memoryBytes)} />
+        <VMMetricCell
+          value={vm.memoryUsage}
+          available={vm.memoryUsageAvailable}
+          prefix={formatMemoryBytes(vm.memoryBytes)}
+        />
       </td>
     );
   }
@@ -548,7 +673,10 @@ function VMSelectCheckbox({
   'aria-label': string;
 }) {
   return (
-    <label className="group inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-lg" onClick={event => event.stopPropagation()}>
+    <label
+      className="group inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-lg"
+      onClick={event => event.stopPropagation()}
+    >
       <input
         type="checkbox"
         checked={checked}
@@ -559,7 +687,9 @@ function VMSelectCheckbox({
       <span
         className="flex h-5 w-5 items-center justify-center rounded-md border transition-all duration-150 peer-focus-visible:ring-2 peer-focus-visible:ring-blue-300 peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-transparent group-hover:-translate-y-0.5 group-active:translate-y-0"
         style={{
-          background: checked ? 'linear-gradient(135deg, #3b82f6, #06b6d4)' : 'var(--kvm-control-bg)',
+          background: checked
+            ? 'linear-gradient(135deg, #3b82f6, #06b6d4)'
+            : 'var(--kvm-control-bg)',
           borderColor: checked ? 'rgba(147,197,253,0.72)' : 'var(--kvm-border)',
           boxShadow: checked
             ? '0 8px 18px rgba(59,130,246,0.22), inset 0 1px 0 rgba(255,255,255,0.22)'
@@ -568,7 +698,9 @@ function VMSelectCheckbox({
       >
         <CheckIcon
           size={14}
-          className={checked ? 'scale-100 opacity-100 transition-all' : 'scale-75 opacity-0 transition-all'}
+          className={
+            checked ? 'scale-100 opacity-100 transition-all' : 'scale-75 opacity-0 transition-all'
+          }
           color="#ffffff"
           strokeWidth={3}
         />

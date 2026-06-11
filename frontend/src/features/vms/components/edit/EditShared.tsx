@@ -56,7 +56,13 @@ export function FormGrid({
   );
 }
 
-export function FieldText({ children, className = '' }: { children: ReactNode; className?: string }) {
+export function FieldText({
+  children,
+  className = '',
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
   return (
     <div className={'text-right text-sm ' + className} style={{ color: 'var(--kvm-text)' }}>
       {children}
@@ -64,7 +70,13 @@ export function FieldText({ children, className = '' }: { children: ReactNode; c
   );
 }
 
-export function InlineNotice({ children, tone }: { children: ReactNode; tone: 'info' | 'warning' }) {
+export function InlineNotice({
+  children,
+  tone,
+}: {
+  children: ReactNode;
+  tone: 'info' | 'warning';
+}) {
   const warning = tone === 'warning';
   return (
     <div

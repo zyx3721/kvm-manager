@@ -97,32 +97,94 @@ export function ExportDialog<T>({
   return (
     <DialogPortal>
       <div className="kvm-dialog-backdrop fixed inset-0 z-[1500] flex items-center justify-center px-4 py-6">
-        <section className="kvm-dialog-panel flex max-h-[88vh] w-[min(94vw,680px)] flex-col overflow-hidden rounded-2xl shadow-2xl" role="dialog" aria-modal="true" aria-label={title}>
-          <div className="flex items-start justify-between gap-4 border-b p-5" style={{ borderColor: 'var(--kvm-border)' }}>
+        <section
+          className="kvm-dialog-panel flex max-h-[88vh] w-[min(94vw,680px)] flex-col overflow-hidden rounded-2xl shadow-2xl"
+          role="dialog"
+          aria-modal="true"
+          aria-label={title}
+        >
+          <div
+            className="flex items-start justify-between gap-4 border-b p-5"
+            style={{ borderColor: 'var(--kvm-border)' }}
+          >
             <div className="min-w-0">
-              <h3 className="text-base font-semibold" style={{ color: 'var(--kvm-text)' }}>{title}</h3>
-              <p className="mt-1 text-xs" style={{ color: 'var(--kvm-text-muted)' }}>{loading ? loadingText : `将当前筛选后的 ${rows.length} 条记录导出为文件`}</p>
+              <h3 className="text-base font-semibold" style={{ color: 'var(--kvm-text)' }}>
+                {title}
+              </h3>
+              <p className="mt-1 text-xs" style={{ color: 'var(--kvm-text-muted)' }}>
+                {loading ? loadingText : `将当前筛选后的 ${rows.length} 条记录导出为文件`}
+              </p>
             </div>
-            <button type="button" onClick={onClose} className="kvm-action-button flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border" style={{ borderColor: 'var(--kvm-border)', color: 'var(--kvm-text-muted)', background: 'rgba(255,255,255,0.04)' }} aria-label="关闭"><XIcon size={15} /></button>
+            <button
+              type="button"
+              onClick={onClose}
+              className="kvm-action-button flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border"
+              style={{
+                borderColor: 'var(--kvm-border)',
+                color: 'var(--kvm-text-muted)',
+                background: 'rgba(255,255,255,0.04)',
+              }}
+              aria-label="关闭"
+            >
+              <XIcon size={15} />
+            </button>
           </div>
           <div className="kvm-hidden-scrollbar flex-1 space-y-5 overflow-y-auto p-5">
             <div className="grid gap-4 md:grid-cols-[1fr_180px]">
-              <label className="block space-y-1.5 text-xs" style={{ color: 'var(--kvm-text-muted)' }}>
+              <label
+                className="block space-y-1.5 text-xs"
+                style={{ color: 'var(--kvm-text-muted)' }}
+              >
                 <div>导出名称</div>
-                <input value={fileName} onChange={event => setFileName(event.target.value)} placeholder={`${defaultName}-${localTimestamp()}`} className="h-10 w-full rounded-lg px-3 text-sm outline-none" style={{ background: 'var(--kvm-control-bg)', border: '1px solid var(--kvm-border)', color: 'var(--kvm-text)' }} />
+                <input
+                  value={fileName}
+                  onChange={event => setFileName(event.target.value)}
+                  placeholder={`${defaultName}-${localTimestamp()}`}
+                  className="h-10 w-full rounded-lg px-3 text-sm outline-none"
+                  style={{
+                    background: 'var(--kvm-control-bg)',
+                    border: '1px solid var(--kvm-border)',
+                    color: 'var(--kvm-text)',
+                  }}
+                />
               </label>
               <div className="space-y-1.5 text-xs" style={{ color: 'var(--kvm-text-muted)' }}>
                 <div>扩展名</div>
-                <SelectMenu value={format} options={formatOptions} placeholder="选择格式" menuZIndex={1600} placement="bottom" onChange={value => setFormat(value as ExportFormat)} />
+                <SelectMenu
+                  value={format}
+                  options={formatOptions}
+                  placeholder="选择格式"
+                  menuZIndex={1600}
+                  placement="bottom"
+                  onChange={value => setFormat(value as ExportFormat)}
+                />
               </div>
             </div>
-            <div className="space-y-3 rounded-xl border p-4" style={{ borderColor: 'var(--kvm-border)', background: 'rgba(255,255,255,0.022)' }}>
+            <div
+              className="space-y-3 rounded-xl border p-4"
+              style={{ borderColor: 'var(--kvm-border)', background: 'rgba(255,255,255,0.022)' }}
+            >
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
-                  <div className="text-xs font-semibold" style={{ color: 'var(--kvm-text)' }}>导出字段</div>
-                  <div className="mt-1 text-xs" style={{ color: 'var(--kvm-text-muted)' }}>默认导出全部字段，可按需取消</div>
+                  <div className="text-xs font-semibold" style={{ color: 'var(--kvm-text)' }}>
+                    导出字段
+                  </div>
+                  <div className="mt-1 text-xs" style={{ color: 'var(--kvm-text-muted)' }}>
+                    默认导出全部字段，可按需取消
+                  </div>
                 </div>
-                <button type="button" onClick={toggleAllColumns} className="kvm-action-button rounded-lg border px-3 py-2 text-xs font-semibold" style={{ borderColor: 'var(--kvm-border)', color: 'var(--kvm-text-muted)', background: 'rgba(255,255,255,0.035)' }}>{allSelected ? '取消全选' : '全选'}</button>
+                <button
+                  type="button"
+                  onClick={toggleAllColumns}
+                  className="kvm-action-button rounded-lg border px-3 py-2 text-xs font-semibold"
+                  style={{
+                    borderColor: 'var(--kvm-border)',
+                    color: 'var(--kvm-text-muted)',
+                    background: 'rgba(255,255,255,0.035)',
+                  }}
+                >
+                  {allSelected ? '取消全选' : '全选'}
+                </button>
               </div>
               <div className="grid grid-cols-2 gap-2 md:grid-cols-3">
                 {columns.map(column => {
@@ -140,22 +202,74 @@ export function ExportDialog<T>({
                         color: selected ? 'var(--kvm-text)' : 'var(--kvm-text-muted)',
                       }}
                     >
-                      <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded border" style={{ borderColor: selected ? 'rgba(45,212,191,0.7)' : 'var(--kvm-border)', background: selected ? 'rgba(45,212,191,0.22)' : 'transparent' }}>{selected && <CheckIcon size={12} />}</span>
+                      <span
+                        className="flex h-4 w-4 shrink-0 items-center justify-center rounded border"
+                        style={{
+                          borderColor: selected ? 'rgba(45,212,191,0.7)' : 'var(--kvm-border)',
+                          background: selected ? 'rgba(45,212,191,0.22)' : 'transparent',
+                        }}
+                      >
+                        {selected && <CheckIcon size={12} />}
+                      </span>
                       <span className="min-w-0 truncate">{column.header}</span>
                     </button>
                   );
                 })}
               </div>
             </div>
-            <div className="flex items-center gap-3 rounded-lg border p-3 text-sm" style={{ borderColor: 'var(--kvm-border)', color: 'var(--kvm-text-muted)', background: 'rgba(255,255,255,0.028)' }}>
-              {loading ? <Loader2Icon size={16} className="animate-spin" /> : <FileDownIcon size={16} />}
+            <div
+              className="flex items-center gap-3 rounded-lg border p-3 text-sm"
+              style={{
+                borderColor: 'var(--kvm-border)',
+                color: 'var(--kvm-text-muted)',
+                background: 'rgba(255,255,255,0.028)',
+              }}
+            >
+              {loading ? (
+                <Loader2Icon size={16} className="animate-spin" />
+              ) : (
+                <FileDownIcon size={16} />
+              )}
               <span className="min-w-0 truncate">{previewName}</span>
-              <span className="ml-auto shrink-0 text-xs">{loading ? '读取中' : `${selectedColumns.length}/${columns.length} 列`}</span>
+              <span className="ml-auto shrink-0 text-xs">
+                {loading ? '读取中' : `${selectedColumns.length}/${columns.length} 列`}
+              </span>
             </div>
           </div>
-          <div className="flex justify-end gap-2 border-t p-4" style={{ borderColor: 'var(--kvm-border)', background: 'rgba(255,255,255,0.018)' }}>
-            <button type="button" onClick={onClose} className="kvm-action-button rounded-lg border px-3 py-2 text-sm" style={{ borderColor: 'var(--kvm-border)', color: 'var(--kvm-text-muted)', background: 'rgba(255,255,255,0.035)' }}>取消</button>
-            <button type="button" disabled={loading} onClick={handleExport} className="kvm-action-button flex items-center gap-2 rounded-lg border px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-60" style={{ borderColor: 'rgba(59,130,246,0.38)', color: 'var(--kvm-accent-text)', background: 'rgba(59,130,246,0.1)' }}>{loading ? <Loader2Icon size={14} className="animate-spin" /> : <DownloadIcon size={14} />}{loading ? '读取中' : '导出'}</button>
+          <div
+            className="flex justify-end gap-2 border-t p-4"
+            style={{ borderColor: 'var(--kvm-border)', background: 'rgba(255,255,255,0.018)' }}
+          >
+            <button
+              type="button"
+              onClick={onClose}
+              className="kvm-action-button rounded-lg border px-3 py-2 text-sm"
+              style={{
+                borderColor: 'var(--kvm-border)',
+                color: 'var(--kvm-text-muted)',
+                background: 'rgba(255,255,255,0.035)',
+              }}
+            >
+              取消
+            </button>
+            <button
+              type="button"
+              disabled={loading}
+              onClick={handleExport}
+              className="kvm-action-button flex items-center gap-2 rounded-lg border px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-60"
+              style={{
+                borderColor: 'rgba(59,130,246,0.38)',
+                color: 'var(--kvm-accent-text)',
+                background: 'rgba(59,130,246,0.1)',
+              }}
+            >
+              {loading ? (
+                <Loader2Icon size={14} className="animate-spin" />
+              ) : (
+                <DownloadIcon size={14} />
+              )}
+              {loading ? '读取中' : '导出'}
+            </button>
           </div>
         </section>
       </div>

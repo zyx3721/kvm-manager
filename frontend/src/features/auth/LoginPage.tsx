@@ -1,7 +1,16 @@
 import React, { type FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { CheckIcon, ChevronDownIcon, EyeIcon, EyeOffIcon, LockIcon, MoonIcon, SunIcon, UserIcon } from 'lucide-react';
+import {
+  CheckIcon,
+  ChevronDownIcon,
+  EyeIcon,
+  EyeOffIcon,
+  LockIcon,
+  MoonIcon,
+  SunIcon,
+  UserIcon,
+} from 'lucide-react';
 import { isAuthenticated, login as loginRequest } from '../../lib/auth';
 import { KvmTooltip } from '../../components/kvm/StatusBadge';
 import { fetchPublicAuthProviders, type PublicAuthProvider } from '../../lib/api';
@@ -119,7 +128,9 @@ export default function Login() {
             src={baseConfig.iconData}
             alt={baseConfig.loginName}
           />
-          <p className="kvm-gradient-text text-2xl font-bold tracking-wide">{baseConfig.loginName}</p>
+          <p className="kvm-gradient-text text-2xl font-bold tracking-wide">
+            {baseConfig.loginName}
+          </p>
           <p
             className="mt-1 text-xs uppercase tracking-[0.28em]"
             style={{ color: 'var(--kvm-text-muted)' }}
@@ -300,7 +311,10 @@ function LoginProviderSelect({
 }) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement | null>(null);
-  const options = [{ id: 'local', name: '本地账号' }, ...providers.map(item => ({ id: item.id, name: item.name }))];
+  const options = [
+    { id: 'local', name: '本地账号' },
+    ...providers.map(item => ({ id: item.id, name: item.name })),
+  ];
   const selected = options.find(item => item.id === value) ?? options[0];
 
   useEffect(() => {
@@ -341,7 +355,11 @@ function LoginProviderSelect({
         aria-expanded={open}
       >
         <span className="truncate">{selected.name}</span>
-        <ChevronDownIcon size={16} className={open ? 'rotate-180 transition-transform' : 'transition-transform'} style={{ color: 'var(--kvm-text-muted)' }} />
+        <ChevronDownIcon
+          size={16}
+          className={open ? 'rotate-180 transition-transform' : 'transition-transform'}
+          style={{ color: 'var(--kvm-text-muted)' }}
+        />
       </button>
       {open && (
         <div

@@ -9,7 +9,7 @@
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "format": "prettier --write \"**/*.{js,ts,vue,json,css,scss}\"",
+    "format": "prettier --write \"**/*.{js,ts,tsx,vue,json,css,scss}\"",
     "type-check": "tsc --noEmit -p tsconfig.app.json",
     "preview": "vite preview"
   },

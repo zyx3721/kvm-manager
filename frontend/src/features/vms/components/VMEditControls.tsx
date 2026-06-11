@@ -143,7 +143,12 @@ export function AllocationControl({
       ) : (
         <NumberSelect value={value} values={values} disabled={disabled} onChange={onValueChange} />
       )}
-      <CheckToggle checked={custom} disabled={disabled} onChange={onCustomChange} label="自定义值" />
+      <CheckToggle
+        checked={custom}
+        disabled={disabled}
+        onChange={onCustomChange}
+        label="自定义值"
+      />
     </div>
   );
 }

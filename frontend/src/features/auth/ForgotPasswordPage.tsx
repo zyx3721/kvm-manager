@@ -219,7 +219,9 @@ export default function ForgotPasswordPage() {
             src={baseConfig.iconData}
             alt={baseConfig.loginName}
           />
-          <p className="kvm-gradient-text text-2xl font-bold tracking-wide">{baseConfig.loginName}</p>
+          <p className="kvm-gradient-text text-2xl font-bold tracking-wide">
+            {baseConfig.loginName}
+          </p>
           <p
             className="mt-1 text-xs uppercase tracking-[0.28em]"
             style={{ color: 'var(--kvm-text-muted)' }}
@@ -228,9 +230,7 @@ export default function ForgotPasswordPage() {
           </p>
         </div>
 
-        <section
-          className="kvm-login-frame kvm-login-reveal w-full rounded-[28px] p-1"
-        >
+        <section className="kvm-login-frame kvm-login-reveal w-full rounded-[28px] p-1">
           <div
             className="rounded-[24px] p-6 sm:p-8"
             style={{
@@ -301,7 +301,9 @@ export default function ForgotPasswordPage() {
                         borderColor: 'var(--kvm-border)',
                       }}
                     >
-                      <span className="text-base tracking-[0.12em]">{captcha?.question ?? '--'}</span>
+                      <span className="text-base tracking-[0.12em]">
+                        {captcha?.question ?? '--'}
+                      </span>
                       <RefreshCwIcon size={15} style={{ color: 'var(--kvm-text-muted)' }} />
                     </button>
                   </div>
@@ -317,7 +319,10 @@ export default function ForgotPasswordPage() {
                   icon={SendIcon}
                   hideIcon
                   action={
-                    <span className="text-xs font-semibold" style={{ color: 'var(--kvm-text-muted)' }}>
+                    <span
+                      className="text-xs font-semibold"
+                      style={{ color: 'var(--kvm-text-muted)' }}
+                    >
                       当前账号：<span style={{ color: 'var(--kvm-text)' }}>{username}</span>
                     </span>
                   }

@@ -1,6 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
-import { fetchHosts, fetchVMConsoleInfo, fetchVMs, refreshVM, runVMAction, unmarkVMTemplate, type Host, type VirtualMachine } from '../../lib/api';
+import {
+  fetchHosts,
+  fetchVMConsoleInfo,
+  fetchVMs,
+  refreshVM,
+  runVMAction,
+  unmarkVMTemplate,
+  type Host,
+  type VirtualMachine,
+} from '../../lib/api';
 import { VMEditDialog } from './components/VMEditDialog';
 import { VMCloneDialog } from './components/VMCloneDialog';
 import { VMMonitorDialog } from './components/VMMonitorDialog';
@@ -85,22 +94,31 @@ export default function VMs() {
   const [bulkConfirmText, setBulkConfirmText] = useState('');
   const [exportOpen, setExportOpen] = useState(false);
   const [exportRows, setExportRows] = useState<VirtualMachine[]>([]);
-  const [vmVisibleColumns, setVMVisibleColumns] = useState<VMTableColumnKey[]>(() => vmColumnOptions.map(option => option.key));
-  const [templateVisibleColumns, setTemplateVisibleColumns] = useState<VMTableColumnKey[]>(() => templateColumnOptions.map(option => option.key));
-  const [shutdownMode, setShutdownMode] = useState<'stop' | 'force-stop' | 'shutdown' | 'force-shutdown'>('shutdown');
+  const [vmVisibleColumns, setVMVisibleColumns] = useState<VMTableColumnKey[]>(() =>
+    vmColumnOptions.map(option => option.key)
+  );
+  const [templateVisibleColumns, setTemplateVisibleColumns] = useState<VMTableColumnKey[]>(() =>
+    templateColumnOptions.map(option => option.key)
+  );
+  const [shutdownMode, setShutdownMode] = useState<
+    'stop' | 'force-stop' | 'shutdown' | 'force-shutdown'
+  >('shutdown');
   const [rebootMode, setRebootMode] = useState<'reboot' | 'force-reboot'>('reboot');
   const [deleteMode, setDeleteMode] = useState<'delete' | 'force-delete'>('delete');
   const loadSeqRef = useRef(0);
-  const permissions = useMemo(() => ({
-    create: can('vms.create'),
-    update: can('vms.update'),
-    power: can('vms.power'),
-    delete: can('vms.delete'),
-    force: can('vms.force'),
-    console: can('vms.console'),
-    clone: can('vms.clone'),
-    migrate: can('vms.migrate'),
-  }), []);
+  const permissions = useMemo(
+    () => ({
+      create: can('vms.create'),
+      update: can('vms.update'),
+      power: can('vms.power'),
+      delete: can('vms.delete'),
+      force: can('vms.force'),
+      console: can('vms.console'),
+      clone: can('vms.clone'),
+      migrate: can('vms.migrate'),
+    }),
+    []
+  );
 
   const loadVMs = useCallback(async () => {
     const seq = ++loadSeqRef.current;
@@ -164,7 +182,10 @@ export default function VMs() {
   );
 
   const selectedVMs = useMemo(
-    () => selectedIds.map(id => vms.find(vm => vm.id === id)).filter((vm): vm is VirtualMachine => Boolean(vm)),
+    () =>
+      selectedIds
+        .map(id => vms.find(vm => vm.id === id))
+        .filter((vm): vm is VirtualMachine => Boolean(vm)),
     [selectedIds, vms]
   );
   const hostOptions = useMemo(
@@ -242,7 +263,7 @@ export default function VMs() {
           ? rebootMode
           : pendingAction.action === 'delete'
             ? deleteMode
-          : pendingAction.action;
+            : pendingAction.action;
     if ((action === 'delete' || action === 'force-delete') && confirmName.trim() !== vm.name) {
       toast.error('请输入虚拟机名称以确认删除');
       return;
@@ -337,14 +358,18 @@ export default function VMs() {
         const action = resolveBulkVMAction(vm, bulkAction);
         await runVMAction(vm.id, action);
         success += 1;
-        toast.success(`[${success}/${total}] ${vm.name}: ${actionMeta[action].label}执行完成`, { id: toastId });
+        toast.success(`[${success}/${total}] ${vm.name}: ${actionMeta[action].label}执行完成`, {
+          id: toastId,
+        });
         setSelectedIds([]);
         await loadVMs();
       } catch (err) {
         const failedVM = targets[success];
         const failedName = failedVM?.name ?? '未知虚拟机';
         const message = err instanceof Error ? err.message : '批量操作失败';
-        toast.error(`[${Math.min(success + 1, total)}/${total}] ${failedName}: ${message}`, { id: toastId });
+        toast.error(`[${Math.min(success + 1, total)}/${total}] ${failedName}: ${message}`, {
+          id: toastId,
+        });
         await loadVMs();
       } finally {
         setBulkBusy(false);
@@ -579,7 +604,11 @@ export default function VMs() {
 
 const vmExportColumns: ExportColumn<VirtualMachine>[] = [
   { id: 'name', header: '名称', value: vm => vm.name },
-  { id: 'description', header: '描述', value: vm => vm.templateDescription || vm.description || '-' },
+  {
+    id: 'description',
+    header: '描述',
+    value: vm => vm.templateDescription || vm.description || '-',
+  },
   { id: 'host', header: '宿主机', value: vm => vm.hostName },
   { id: 'status', header: '状态', value: vm => vmStatusLabel(vm.status) },
   { id: 'primaryIp', header: '主 IP', value: vm => vm.primaryIp || '-' },

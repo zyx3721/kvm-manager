@@ -36,7 +36,11 @@ export async function runVMMigrate({
     return true;
   } catch (error) {
     const message = error instanceof Error ? error.message : '迁移虚拟机失败';
-    if (toastId === undefined && error instanceof ApiError && error.code === 'vm_migrate_ssh_password_required') {
+    if (
+      toastId === undefined &&
+      error instanceof ApiError &&
+      error.code === 'vm_migrate_ssh_password_required'
+    ) {
       onSSHPasswordRequired?.(message);
       return false;
     }

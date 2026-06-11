@@ -20,7 +20,10 @@ import { CardSection, InlineNotice, SummaryCard, fieldStyle, inputClass } from '
 import { NewDiskCard, volumeExtensionForFormat, type NewDiskDraft } from './NewDiskCard';
 import { isVMRunning } from '../../utils/vmStatus';
 const bytesPerGB = 1024 ** 3;
-const interfaceModelOptions = ['virtio', 'e1000', 'e1000e', 'rtl8139', 'vmxnet3'].map(value => ({ value, label: value }));
+const interfaceModelOptions = ['virtio', 'e1000', 'e1000e', 'rtl8139', 'vmxnet3'].map(value => ({
+  value,
+  label: value,
+}));
 
 export function DevicesPanel({
   vm,
@@ -33,32 +36,57 @@ export function DevicesPanel({
   diskLabel: string;
   onConfigChange: (config: VMConfig) => void;
 }) {
-  const disks = useMemo<VMConfigDisk[]>(() => config?.disks.length
-    ? config.disks
-    : vm.disks.length > 0
-      ? vm.disks.map(disk => ({ ...disk, sourcePath: disk.path, pool: '', bus: '', device: 'disk', type: 'file' }))
-      : [{ name: 'disk', path: '-', sourcePath: '-', bytes: vm.diskBytes, pool: '', bus: '', device: 'disk', type: 'file' }], [config?.disks, vm.diskBytes, vm.disks]);
-  const interfaces = useMemo(() => config?.interfaces.length ? config.interfaces : [], [config?.interfaces]);
+  const disks = useMemo<VMConfigDisk[]>(
+    () =>
+      config?.disks.length
+        ? config.disks
+        : vm.disks.length > 0
+          ? vm.disks.map(disk => ({
+              ...disk,
+              sourcePath: disk.path,
+              pool: '',
+              bus: '',
+              device: 'disk',
+              type: 'file',
+            }))
+          : [
+              {
+                name: 'disk',
+                path: '-',
+                sourcePath: '-',
+                bytes: vm.diskBytes,
+                pool: '',
+                bus: '',
+                device: 'disk',
+                type: 'file',
+              },
+            ],
+    [config?.disks, vm.diskBytes, vm.disks]
+  );
+  const interfaces = useMemo(
+    () => (config?.interfaces.length ? config.interfaces : []),
+    [config?.interfaces]
+  );
   const [networkPools, setNetworkPools] = useState<NetworkPool[]>([]);
   const [storagePools, setStoragePools] = useState<StoragePool[]>([]);
   const [interfacePools, setInterfacePools] = useState<Record<string, string>>({});
   const [deletedInterfaces, setDeletedInterfaces] = useState<Record<string, boolean>>({});
-  const [newInterfaces, setNewInterfaces] = useState<Array<{ id: string; source: string; model: string }>>([]);
+  const [newInterfaces, setNewInterfaces] = useState<
+    Array<{ id: string; source: string; model: string }>
+  >([]);
   const [diskCapacities, setDiskCapacities] = useState<Record<string, string>>({});
   const [deletedDisks, setDeletedDisks] = useState<Record<string, boolean>>({});
   const [newDisks, setNewDisks] = useState<NewDiskDraft[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const running = isVMRunning(config?.status || vm.status);
-  const diskByName = useMemo(
-    () => new Map(disks.map(disk => [disk.name, disk])),
-    [disks]
-  );
+  const diskByName = useMemo(() => new Map(disks.map(disk => [disk.name, disk])), [disks]);
   const diskResizes = useMemo(
-    () => disks
-      .filter(disk => !deletedDisks[disk.name])
-      .map(disk => ({ disk, capacityBytes: gbInputToBytes(diskCapacities[disk.name]) }))
-      .filter(item => item.capacityBytes > item.disk.bytes),
+    () =>
+      disks
+        .filter(disk => !deletedDisks[disk.name])
+        .map(disk => ({ disk, capacityBytes: gbInputToBytes(diskCapacities[disk.name]) }))
+        .filter(item => item.capacityBytes > item.disk.bytes),
     [deletedDisks, diskCapacities, disks]
   );
   const activeInterfaces = useMemo(
@@ -71,21 +99,39 @@ export function DevicesPanel({
   );
   const networkChanged = interfaces.some(item => {
     if (deletedInterfaces[interfaceKey(item)]) return false;
-    return (interfacePools[interfaceKey(item)] || networkPoolValueForInterface(item, networkPools)) !== networkPoolValueForInterface(item, networkPools);
+    return (
+      (interfacePools[interfaceKey(item)] || networkPoolValueForInterface(item, networkPools)) !==
+      networkPoolValueForInterface(item, networkPools)
+    );
   });
   const interfaceDeleteChanged = Object.values(deletedInterfaces).some(Boolean);
   const diskDeleteChanged = Object.values(deletedDisks).some(Boolean);
   const newInterfaceReady = newInterfaces.length > 0;
   const newDiskReady = newDisks.length > 0;
-  const changed = networkChanged || interfaceDeleteChanged || newInterfaceReady || diskResizes.length > 0 || diskDeleteChanged || newDiskReady;
+  const changed =
+    networkChanged ||
+    interfaceDeleteChanged ||
+    newInterfaceReady ||
+    diskResizes.length > 0 ||
+    diskDeleteChanged ||
+    newDiskReady;
 
   useEffect(() => {
-    setInterfacePools(Object.fromEntries(interfaces.map(item => [interfaceKey(item), networkPoolValueForInterface(item, networkPools)])));
+    setInterfacePools(
+      Object.fromEntries(
+        interfaces.map(item => [
+          interfaceKey(item),
+          networkPoolValueForInterface(item, networkPools),
+        ])
+      )
+    );
     setDeletedInterfaces({});
   }, [interfaces, networkPools]);
 
   useEffect(() => {
-    setDiskCapacities(Object.fromEntries(disks.map(disk => [disk.name, bytesToGBInput(disk.bytes)])));
+    setDiskCapacities(
+      Object.fromEntries(disks.map(disk => [disk.name, bytesToGBInput(disk.bytes)]))
+    );
     setDeletedDisks({});
   }, [disks]);
 
@@ -98,7 +144,14 @@ export function DevicesPanel({
         if (ignore) return;
         setNetworkPools(networkBody.items);
         setStoragePools(storageBody.items);
-        setInterfacePools(Object.fromEntries(interfaces.map(item => [interfaceKey(item), networkPoolValueForInterface(item, networkBody.items)])));
+        setInterfacePools(
+          Object.fromEntries(
+            interfaces.map(item => [
+              interfaceKey(item),
+              networkPoolValueForInterface(item, networkBody.items),
+            ])
+          )
+        );
       })
       .catch(error => toast.error(error instanceof Error ? error.message : '读取资源池失败'))
       .finally(() => {
@@ -117,7 +170,9 @@ export function DevicesPanel({
       return value > 0 && value < disk.bytes;
     });
     if (shrinkDisks.length > 0) {
-      return toast.warning(`${shrinkDisks.map(disk => disk.name || '磁盘').join('、')} 磁盘不能修改小于当前容量`);
+      return toast.warning(
+        `${shrinkDisks.map(disk => disk.name || '磁盘').join('、')} 磁盘不能修改小于当前容量`
+      );
     }
     if (!changed) return toast.warning('请先修改配置');
     if (running && diskDeleteChanged) {
@@ -142,12 +197,27 @@ export function DevicesPanel({
       capacityBytes: gbInputToBytes(disk.capacityGB),
       preallocMetadata: disk.preallocMetadata,
     }));
-    if (normalizedNewDisks.some(item => !item.name || !item.pool || !item.target || !item.bus || !item.format || item.capacityBytes <= 0)) {
+    if (
+      normalizedNewDisks.some(
+        item =>
+          !item.name ||
+          !item.pool ||
+          !item.target ||
+          !item.bus ||
+          !item.format ||
+          item.capacityBytes <= 0
+      )
+    ) {
       return toast.warning('请完整填写新增磁盘配置');
     }
     const extensionError = newDiskExtensionError(normalizedNewDisks);
     if (extensionError) return toast.warning(extensionError);
-    if (hasDuplicate(normalizedNewDisks.map(item => item.target), disks.map(disk => disk.name))) {
+    if (
+      hasDuplicate(
+        normalizedNewDisks.map(item => item.target),
+        disks.map(disk => disk.name)
+      )
+    ) {
       return toast.warning('新增磁盘目标设备不能重复');
     }
     if (hasDuplicate(normalizedNewDisks.map(item => item.name))) {
@@ -163,17 +233,21 @@ export function DevicesPanel({
     }
 
     const payload = {
-      interfaces: running ? [] : interfaces
-        .filter(item => !deletedInterfaces[interfaceKey(item)])
-        .map(item => ({
-          name: item.name,
-          mac: item.mac,
-          source: (interfacePools[interfaceKey(item)] || item.source || '').trim(),
-        })),
+      interfaces: running
+        ? []
+        : interfaces
+            .filter(item => !deletedInterfaces[interfaceKey(item)])
+            .map(item => ({
+              name: item.name,
+              mac: item.mac,
+              source: (interfacePools[interfaceKey(item)] || item.source || '').trim(),
+            })),
       newInterfaces: running ? [] : normalizedNewInterfaces,
-      deletedInterfaces: running ? [] : interfaces
-        .filter(item => deletedInterfaces[interfaceKey(item)])
-        .map(item => ({ name: item.name, mac: item.mac })),
+      deletedInterfaces: running
+        ? []
+        : interfaces
+            .filter(item => deletedInterfaces[interfaceKey(item)])
+            .map(item => ({ name: item.name, mac: item.mac })),
       diskResizes: resizePayload,
       newDisks: normalizedNewDisks,
       deletedDisks: disks
@@ -236,7 +310,12 @@ export function DevicesPanel({
           value={`${Math.round((vm.networkRxBytesPerSecond + vm.networkTxBytesPerSecond) / 1024)} KB/s`}
           color="#22d3ee"
         />
-        <SummaryCard icon={NetworkIcon} label="网络设备" value={`${activeInterfaces.length + newInterfaces.length} 块网卡`} color="#60a5fa" />
+        <SummaryCard
+          icon={NetworkIcon}
+          label="网络设备"
+          value={`${activeInterfaces.length + newInterfaces.length} 块网卡`}
+          color="#60a5fa"
+        />
         <SummaryCard icon={HardDriveIcon} label="存储设备" value={diskLabel} color="#f59e0b" />
       </div>
       <InlineNotice tone={running ? 'warning' : 'info'}>
@@ -262,7 +341,9 @@ export function DevicesPanel({
                   <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_36px]">
                     <SelectMenu
                       value={value}
-                      disabled={running || deleting || loading || saving || networkPools.length === 0}
+                      disabled={
+                        running || deleting || loading || saving || networkPools.length === 0
+                      }
                       placeholder="选择网络池"
                       maxVisibleItems={4}
                       options={networkPools.map(pool => ({
@@ -277,7 +358,9 @@ export function DevicesPanel({
                       disabled={running || saving}
                       danger={!deleting}
                       active={deleting}
-                      onClick={() => setDeletedInterfaces(current => ({ ...current, [key]: !current[key] }))}
+                      onClick={() =>
+                        setDeletedInterfaces(current => ({ ...current, [key]: !current[key] }))
+                      }
                     />
                   </div>
                 </DeviceRow>
@@ -305,7 +388,11 @@ export function DevicesPanel({
                       label: pool.name,
                       tooltip: networkPoolTooltip(pool),
                     }))}
-                    onChange={source => setNewInterfaces(current => current.map(next => next.id === item.id ? { ...next, source } : next))}
+                    onChange={source =>
+                      setNewInterfaces(current =>
+                        current.map(next => (next.id === item.id ? { ...next, source } : next))
+                      )
+                    }
                   />
                 </DeviceField>
                 <DeviceField label="网卡模型">
@@ -314,14 +401,20 @@ export function DevicesPanel({
                     disabled={running || loading || saving}
                     placeholder="模型"
                     options={interfaceModelOptions}
-                    onChange={model => setNewInterfaces(current => current.map(next => next.id === item.id ? { ...next, model } : next))}
+                    onChange={model =>
+                      setNewInterfaces(current =>
+                        current.map(next => (next.id === item.id ? { ...next, model } : next))
+                      )
+                    }
                   />
                 </DeviceField>
                 <IconAction
                   label="移除新增网卡"
                   disabled={running || saving}
                   danger
-                  onClick={() => setNewInterfaces(current => current.filter(next => next.id !== item.id))}
+                  onClick={() =>
+                    setNewInterfaces(current => current.filter(next => next.id !== item.id))
+                  }
                 />
               </div>
             </DeviceRow>
@@ -352,8 +445,15 @@ export function DevicesPanel({
               deleting={Boolean(deletedDisks[disk.name])}
               disabled={loading || saving || Boolean(deletedDisks[disk.name])}
               onChange={value => setDiskCapacities(current => ({ ...current, [disk.name]: value }))}
-              onToggleDelete={() => setDeletedDisks(current => ({ ...current, [disk.name]: !current[disk.name] }))}
-              deleteDisabled={index === 0 || running || saving || (activeDisks.length <= 1 && !deletedDisks[disk.name])}
+              onToggleDelete={() =>
+                setDeletedDisks(current => ({ ...current, [disk.name]: !current[disk.name] }))
+              }
+              deleteDisabled={
+                index === 0 ||
+                running ||
+                saving ||
+                (activeDisks.length <= 1 && !deletedDisks[disk.name])
+              }
             />
           ))}
           {newDisks.map(disk => (
@@ -362,7 +462,11 @@ export function DevicesPanel({
               disk={disk}
               disabled={loading || saving}
               storagePools={storagePools}
-              onChange={next => setNewDisks(current => current.map(item => item.id === disk.id ? { ...item, ...next } : item))}
+              onChange={next =>
+                setNewDisks(current =>
+                  current.map(item => (item.id === disk.id ? { ...item, ...next } : item))
+                )
+              }
               onRemove={() => setNewDisks(current => current.filter(item => item.id !== disk.id))}
             />
           ))}
@@ -429,7 +533,12 @@ function ExistingDiskRow({
             style={fieldStyle}
             aria-label={`${disk.name} 扩容容量`}
           />
-          <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs" style={{ color: 'var(--kvm-text-muted)' }}>GB</span>
+          <span
+            className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs"
+            style={{ color: 'var(--kvm-text-muted)' }}
+          >
+            GB
+          </span>
         </div>
         <IconAction
           label={deleting ? '取消删除磁盘' : '删除磁盘'}
@@ -468,9 +577,13 @@ function DeviceRow({
         border: `1px solid ${active ? 'rgba(96,165,250,0.34)' : danger ? 'rgba(248,113,113,0.34)' : 'var(--kvm-border)'}`,
       }}
     >
-      <div className="text-right text-sm" style={{ color: 'var(--kvm-text)' }}>{name}</div>
+      <div className="text-right text-sm" style={{ color: 'var(--kvm-text)' }}>
+        {name}
+      </div>
       <div className="min-w-0">
-        <div className="break-all font-mono text-sm" style={{ color: 'var(--kvm-text-muted)' }}>{detail}</div>
+        <div className="break-all font-mono text-sm" style={{ color: 'var(--kvm-text-muted)' }}>
+          {detail}
+        </div>
       </div>
       {children}
     </div>
@@ -511,7 +624,14 @@ function IconAction({
 }
 
 function EmptyText({ children }: { children: React.ReactNode }) {
-  return <div className="rounded-lg border px-3 py-2 text-xs" style={{ borderColor: 'var(--kvm-border)', color: 'var(--kvm-text-muted)' }}>{children}</div>;
+  return (
+    <div
+      className="rounded-lg border px-3 py-2 text-xs"
+      style={{ borderColor: 'var(--kvm-border)', color: 'var(--kvm-text-muted)' }}
+    >
+      {children}
+    </div>
+  );
 }
 
 function diskDetail(disk: VMConfigDisk) {
@@ -524,7 +644,9 @@ function diskDetail(disk: VMConfigDisk) {
 
 function networkDeviceDetail(item: VMConfig['interfaces'][number], pool: NetworkPool | undefined) {
   const selected = pool ? networkPoolDeviceDetail(pool) : { source: item.source, type: item.type };
-  return [item.mac || '-', selected.source || '', selected.type || '-', item.model || '-'].filter(Boolean).join(' · ');
+  return [item.mac || '-', selected.source || '', selected.type || '-', item.model || '-']
+    .filter(Boolean)
+    .join(' · ');
 }
 
 function networkPoolDeviceDetail(pool: NetworkPool) {
@@ -547,10 +669,7 @@ function interfaceKey(item: VMConfig['interfaces'][number]) {
 }
 
 function networkPoolTooltip(pool: NetworkPool) {
-  return [
-    pool.bridge || '-',
-    pool.forward || 'isolated',
-  ].join(' · ');
+  return [pool.bridge || '-', pool.forward || 'isolated'].join(' · ');
 }
 
 function gbInputToBytes(value: string | undefined) {

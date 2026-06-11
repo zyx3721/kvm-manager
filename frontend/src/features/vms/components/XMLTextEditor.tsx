@@ -1,6 +1,13 @@
 import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 
-import { ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, ChevronUpIcon, SearchIcon, XIcon } from 'lucide-react';
+import {
+  ChevronDownIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  ChevronUpIcon,
+  SearchIcon,
+  XIcon,
+} from 'lucide-react';
 
 import { KvmTooltip } from '../../../components/kvm/StatusBadge';
 
@@ -29,7 +36,10 @@ export function XMLTextEditor({
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const matches = useMemo(() => findMatches(value, query), [query, value]);
   const matchCount = matches.length;
-  const highlightedXML = useMemo(() => renderHighlightedXML(value, matches, activeMatch), [activeMatch, matches, value]);
+  const highlightedXML = useMemo(
+    () => renderHighlightedXML(value, matches, activeMatch),
+    [activeMatch, matches, value]
+  );
 
   useEffect(() => {
     if (!searchOpen) return;
@@ -42,7 +52,9 @@ export function XMLTextEditor({
       setSelectionMode(false);
       return;
     }
-    const anchor = selectionMode ? textareaRef.current?.selectionStart || 0 : getTextareaSearchAnchor(textareaRef.current, value);
+    const anchor = selectionMode
+      ? textareaRef.current?.selectionStart || 0
+      : getTextareaSearchAnchor(textareaRef.current, value);
     setActiveMatch(findMatchIndexAtOrAfter(matches, anchor));
     setSelectionMode(true);
   }, [matches, matchCount, selectionMode, value]);
@@ -190,7 +202,9 @@ export function XMLTextEditor({
           >
             <code
               className="block min-h-full whitespace-pre-wrap break-words"
-              style={{ transform: `translate(${-textareaScroll.left}px, ${-textareaScroll.top}px)` }}
+              style={{
+                transform: `translate(${-textareaScroll.left}px, ${-textareaScroll.top}px)`,
+              }}
             >
               {highlightedXML}
             </code>
@@ -258,7 +272,11 @@ function findMatches(text: string, query: string) {
   return matches;
 }
 
-function renderHighlightedXML(text: string, matches: Array<{ start: number; end: number }>, activeMatch: number) {
+function renderHighlightedXML(
+  text: string,
+  matches: Array<{ start: number; end: number }>,
+  activeMatch: number
+) {
   if (!matches.length) return text;
   const nodes: ReactNode[] = [];
   let cursor = 0;

@@ -21,10 +21,7 @@ import {
   replaceDiskExtension,
   replaceDiskTargetAndExtension,
 } from '../utils/createDisk';
-import {
-  buildBlankCreatePayload,
-  buildXMLCreatePayload,
-} from '../utils/createSubmit';
+import { buildBlankCreatePayload, buildXMLCreatePayload } from '../utils/createSubmit';
 import { runVMCreate } from '../utils/runVMCreate';
 import { DialogTabs, type VMDialogTab } from './DialogTabs';
 import {
@@ -414,40 +411,40 @@ export function VMCreateDialog({ hosts, onClose }: { hosts: Host[]; onClose: () 
                     onCPUModelChange={setCPUModel}
                   />
                   <BlankStoragePanel
-                      busy={busy}
-                      storagePoolsLength={storagePools.length}
-                      systemDiskTarget={systemDiskTarget}
-                      diskPool={diskPool}
-                      diskFormat={diskFormat}
-                      diskBus={diskBus}
-                      diskSize={diskSize}
-                      diskName={diskName}
-                      preallocMetadata={preallocMetadata}
-                      extraDisks={extraDisks}
-                      storageOptions={storageOptions}
-                      formats={formats}
-                      buses={buses}
-                      isoPool={isoPool}
-                      isoPath={isoPath}
-                      isoBus={isoBus}
-                      isoOptions={isoOptions}
-                      isoBuses={isoBuses}
-                      onDiskPoolChange={setDiskPool}
-                      onDiskFormatChange={updateSystemFormat}
-                      onDiskBusChange={updateSystemBus}
-                      onDiskSizeChange={setDiskSize}
-                      onDiskNameChange={setDiskName}
-                      onDiskNameTouched={() => setDiskNameTouched(true)}
-                      onPreallocChange={setPreallocMetadata}
-                      onISOPoolChange={setISOPool}
-                      onISOPathChange={setISOPath}
-                      onISOBusChange={setISOBus}
-                      onAddExtraDisk={addExtraDisk}
-                      onUpdateExtraDisk={(id, capacityGB) => updateExtraDisk(id, { capacityGB })}
-                      onRemoveExtraDisk={id =>
-                        setExtraDisks(current => current.filter(item => item.id !== id))
-                      }
-                    />
+                    busy={busy}
+                    storagePoolsLength={storagePools.length}
+                    systemDiskTarget={systemDiskTarget}
+                    diskPool={diskPool}
+                    diskFormat={diskFormat}
+                    diskBus={diskBus}
+                    diskSize={diskSize}
+                    diskName={diskName}
+                    preallocMetadata={preallocMetadata}
+                    extraDisks={extraDisks}
+                    storageOptions={storageOptions}
+                    formats={formats}
+                    buses={buses}
+                    isoPool={isoPool}
+                    isoPath={isoPath}
+                    isoBus={isoBus}
+                    isoOptions={isoOptions}
+                    isoBuses={isoBuses}
+                    onDiskPoolChange={setDiskPool}
+                    onDiskFormatChange={updateSystemFormat}
+                    onDiskBusChange={updateSystemBus}
+                    onDiskSizeChange={setDiskSize}
+                    onDiskNameChange={setDiskName}
+                    onDiskNameTouched={() => setDiskNameTouched(true)}
+                    onPreallocChange={setPreallocMetadata}
+                    onISOPoolChange={setISOPool}
+                    onISOPathChange={setISOPath}
+                    onISOBusChange={setISOBus}
+                    onAddExtraDisk={addExtraDisk}
+                    onUpdateExtraDisk={(id, capacityGB) => updateExtraDisk(id, { capacityGB })}
+                    onRemoveExtraDisk={id =>
+                      setExtraDisks(current => current.filter(item => item.id !== id))
+                    }
+                  />
                   <NetworkBootPanel
                     networkSource={networkSource}
                     networkOptions={networkOptions}
