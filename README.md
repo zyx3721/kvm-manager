@@ -265,7 +265,7 @@ go mod download
 
 ```bash
 # 步骤1：复制模板文件
-cp env.example .env
+cp .env.example .env
 
 # 步骤2：编辑 .env，配置数据库连接等信息
 vim .env
@@ -469,7 +469,7 @@ DB_HOST=postgres
 DB_PORT=5432
 DB_NAME=kvm-manager
 DB_USER=postgres
-DB_PASSWORD=Sunline2024
+DB_PASSWORD=123456ok!
 DB_SSLMODE=disable
 
 JWT_SECRET=change-me-in-production
@@ -624,7 +624,7 @@ server {
 }
 ```
 
-### 3.7.2 HTTPS 实例
+### 3.7.2 HTTPS 示例
 
 > HTTPS 示例（含 80→443 跳转，请替换证书路径）：
 
@@ -752,7 +752,7 @@ go mod download
 
 ```bash
 # 步骤1：复制模板文件
-cp env.example .env
+cp .env.example .env
 
 # 步骤2：编辑 .env，配置数据库连接等信息
 vim .env
