@@ -41,7 +41,9 @@ jobs:
         uses: actions/setup-go@v6
         with:
           go-version: '1.25'
-          cache-dependency-path: backend/go.sum
+          cache-dependency-path: |
+            backend/go.sum
+            agent/go.sum
 
       - name: 设置 Node 环境
         uses: actions/setup-node@v6
@@ -50,7 +52,7 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
-      - name: 交叉编译 Backend 多平台二进制文件
+      - name: 交叉编译 Backend 二进制文件
         working-directory: backend
         run: |
           VERSION=${GITHUB_REF#refs/tags/v}
@@ -77,35 +79,14 @@ jobs:
           tar -czf dist/kvm-manager_${VERSION}_linux_arm64.tar.gz -C dist linux_arm64
           rm -rf dist/linux_arm64
 
-          echo "🔨 编译 macOS AMD64..."
-          GOOS=darwin GOARCH=amd64 CGO_ENABLED=0 go build -ldflags="-s -w" -o kvm-manager ./cmd/server/main.go
-          prepare_package "dist/darwin_amd64"
-          mv kvm-manager dist/darwin_amd64/
-          tar -czf dist/kvm-manager_${VERSION}_darwin_amd64.tar.gz -C dist darwin_amd64
-          rm -rf dist/darwin_amd64
-
-          echo "🔨 编译 macOS ARM64..."
-          GOOS=darwin GOARCH=arm64 CGO_ENABLED=0 go build -ldflags="-s -w" -o kvm-manager ./cmd/server/main.go
-          prepare_package "dist/darwin_arm64"
-          mv kvm-manager dist/darwin_arm64/
-          tar -czf dist/kvm-manager_${VERSION}_darwin_arm64.tar.gz -C dist darwin_arm64
-          rm -rf dist/darwin_arm64
-
-          echo "🔨 编译 Windows AMD64..."
-          GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -ldflags="-s -w" -o kvm-manager.exe ./cmd/server/main.go
-          prepare_package "dist/windows_amd64"
-          mv kvm-manager.exe dist/windows_amd64/
-          cd dist && zip -r kvm-manager_${VERSION}_windows_amd64.zip windows_amd64 && cd ..
-          rm -rf dist/windows_amd64
-
           echo "📝 生成校验和..."
           cd dist
-          sha256sum *.tar.gz *.zip > checksums.txt
+          sha256sum *.tar.gz > kvm-manager_${VERSION}_checksums.txt
           cd ..
 
           echo "✅ 编译完成"
 
-      - name: 交叉编译 Agent 多平台二进制文件
+      - name: 交叉编译 Agent 二进制文件
         working-directory: agent
         run: |
           VERSION=${GITHUB_REF#refs/tags/v}
@@ -134,7 +115,7 @@ jobs:
 
           echo "📝 生成 Agent 校验和..."
           cd dist
-          sha256sum *.tar.gz > checksums.txt
+          sha256sum *.tar.gz > kvm-agent_${VERSION}_checksums.txt
           cd ..
 
           echo "✅ Agent 编译完成"
@@ -156,7 +137,7 @@ jobs:
 
           echo "📝 生成 Frontend 校验和..."
           cd dist-release
-          sha256sum *.tar.gz > checksums.txt
+          sha256sum *.tar.gz > kvm-manager-frontend_${VERSION}_checksums.txt
           cd ..
 
           echo "✅ Frontend 构建完成"
@@ -208,15 +189,12 @@ jobs:
           ### 📦 二进制下载
           - Linux AMD64: \`kvm-manager_${VERSION}_linux_amd64.tar.gz\`
           - Linux ARM64: \`kvm-manager_${VERSION}_linux_arm64.tar.gz\`
-          - macOS AMD64: \`kvm-manager_${VERSION}_darwin_amd64.tar.gz\`
-          - macOS ARM64: \`kvm-manager_${VERSION}_darwin_arm64.tar.gz\`
-          - Windows AMD64: \`kvm-manager_${VERSION}_windows_amd64.zip\`
           - Agent Linux AMD64: \`kvm-agent_${VERSION}_linux_amd64.tar.gz\`
           - Agent Linux ARM64: \`kvm-agent_${VERSION}_linux_arm64.tar.gz\`
           - Frontend 静态资源包: \`kvm-manager-frontend_${VERSION}.tar.gz\`
 
           ### 🔐 校验和
-          请下载对应的 \`checksums.txt\` 验证文件完整性。
+          请下载对应的 \`kvm-xxx_${VERSION}_checksums.txt\` 验证文件完整性。
           EOF
 
           echo "version=${VERSION}" >> $GITHUB_OUTPUT
@@ -231,9 +209,8 @@ jobs:
           generate_release_notes: false
           files: |
             backend/dist/*.tar.gz
-            backend/dist/*.zip
-            backend/dist/checksums.txt
+            backend/dist/*_checksums.txt
             agent/dist/*.tar.gz
-            agent/dist/checksums.txt
+            agent/dist/*_checksums.txt
             frontend/dist-release/*.tar.gz
-            frontend/dist-release/checksums.txt
+            frontend/dist-release/*_checksums.txt
