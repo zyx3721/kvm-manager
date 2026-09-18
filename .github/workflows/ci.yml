@@ -160,6 +160,8 @@ jobs:
           platforms: linux/amd64,linux/arm64
           build-args: |
             APP_VERSION=${{ github.ref_name }}
+            NPM_REGISTRY=https://registry.npmjs.org
+            GOPROXY=https://proxy.golang.org,direct
 
       - name: 生成 Changelog
         id: changelog

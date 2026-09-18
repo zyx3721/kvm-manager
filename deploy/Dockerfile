@@ -5,8 +5,10 @@ FROM node:22-alpine AS frontend-builder
 
 WORKDIR /src/frontend
 
+ARG NPM_REGISTRY=https://registry.npmmirror.com
+
 COPY frontend/package*.json ./
-RUN npm ci --registry=https://registry.npmmirror.com
+RUN npm ci --registry=${NPM_REGISTRY}
 
 COPY frontend/ ./
 RUN npm run build
