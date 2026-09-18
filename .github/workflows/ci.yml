@@ -16,6 +16,13 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: 登录阿里云镜像仓库
+        uses: docker/login-action@v4
+        with:
+          registry: registry.cn-shenzhen.aliyuncs.com
+          username: ${{ secrets.ALIYUN_REGISTRY_USERNAME }}
+          password: ${{ secrets.ALIYUN_REGISTRY_PASSWORD }}
+
       - name: 登录 Docker Hub
         uses: docker/login-action@v4
         with:
@@ -33,14 +40,15 @@ jobs:
       - name: 生成标签
         id: tags
         run: |
+          ALIYUN_IMAGE="registry.cn-shenzhen.aliyuncs.com/zyx3721/kvm-manager"
           IMAGE="${{ secrets.DOCKERHUB_USERNAME }}/kvm-manager"
           VERSION=${GITHUB_REF#refs/tags/v}
           if [[ "$VERSION" =~ (alpha|beta|rc|pre) ]]; then
-            echo "tags=${IMAGE}:${VERSION}" >> $GITHUB_OUTPUT
+            echo "tags=${ALIYUN_IMAGE}:${VERSION},${IMAGE}:${VERSION}" >> $GITHUB_OUTPUT
             echo "is_prerelease=true" >> $GITHUB_OUTPUT
             echo "📦 检测到预发布版本: v${VERSION} (不打 latest 标签)"
           else
-            echo "tags=${IMAGE}:${VERSION},${IMAGE}:latest" >> $GITHUB_OUTPUT
+            echo "tags=${ALIYUN_IMAGE}:${VERSION},${ALIYUN_IMAGE}:latest,${IMAGE}:${VERSION},${IMAGE}:latest" >> $GITHUB_OUTPUT
             echo "is_prerelease=false" >> $GITHUB_OUTPUT
             echo "🚀 正式版本: v${VERSION} (打 latest 标签)"
           fi
@@ -158,6 +166,7 @@ jobs:
           push: true
           tags: ${{ steps.tags.outputs.tags }}
           platforms: linux/amd64,linux/arm64
+          provenance: false
           build-args: |
             APP_VERSION=${{ github.ref_name }}
             NPM_REGISTRY=https://registry.npmjs.org
@@ -194,6 +203,9 @@ jobs:
 
           ### 🐳 Docker 镜像
           \`\`\`bash
+          # 阿里云镜像仓库（国内推荐）
+          docker pull registry.cn-shenzhen.aliyuncs.com/zyx3721/kvm-manager:${VERSION}
+          # Docker Hub
           docker pull ${{ secrets.DOCKERHUB_USERNAME }}/kvm-manager:${VERSION}
           \`\`\`
 
