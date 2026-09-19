@@ -630,6 +630,19 @@ export default function KvmLayout() {
                     boxShadow: 'var(--kvm-menu-shadow)',
                   }}
                 >
+                  <button
+                    type="button"
+                    className="kvm-action-button flex h-10 w-full items-center gap-2 rounded-lg px-3 text-left text-sm"
+                    role="menuitem"
+                    onClick={() => {
+                      setUserMenuOpen(false);
+                      setPasswordDialogOpen(true);
+                    }}
+                    style={{ color: 'var(--kvm-text)', background: 'transparent' }}
+                  >
+                    <KeyRoundIcon size={16} />
+                    修改密码
+                  </button>
                   {wecomEnabled && (
                     <button
                       type="button"
@@ -647,19 +660,6 @@ export default function KvmLayout() {
                       {wecomBound ? '解绑企微' : '绑定企微'}
                     </button>
                   )}
-                  <button
-                    type="button"
-                    className="kvm-action-button flex h-10 w-full items-center gap-2 rounded-lg px-3 text-left text-sm"
-                    role="menuitem"
-                    onClick={() => {
-                      setUserMenuOpen(false);
-                      setPasswordDialogOpen(true);
-                    }}
-                    style={{ color: 'var(--kvm-text)', background: 'transparent' }}
-                  >
-                    <KeyRoundIcon size={16} />
-                    修改密码
-                  </button>
                   <button
                     type="button"
                     className="kvm-action-button kvm-danger-button flex h-10 w-full items-center gap-2 rounded-lg px-3 text-left text-sm"
