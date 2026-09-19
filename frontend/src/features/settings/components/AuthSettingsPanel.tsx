@@ -87,7 +87,7 @@ const wecomDirectFields: Field[] = [
     key: 'redirectPrefix',
     label: '回调地址前缀',
     placeholder: '留空则按当前访问地址推断',
-    helper: '企业微信服务器需能访问，如 https://kvm.example.com',
+    labelHint: '企业微信服务器需能访问，如 https://kvm.example.com',
   },
 ];
 
@@ -97,14 +97,14 @@ const wecomSsoFields: Field[] = [
     label: '认证中心地址',
     placeholder: 'https://auth.example.com',
     required: true,
-    helper: '统一认证中心（wecom-auth-center）的外部访问地址',
+    labelHint: '统一认证中心（wecom-auth-center）的外部访问地址',
   },
   {
     key: 'ssoAppID',
     label: '应用标识',
     placeholder: 'kvm',
     required: true,
-    helper: '认证中心 config.yaml 中 apps 下的条目名',
+    labelHint: '认证中心 config.yaml 中 apps 下的条目名',
   },
   {
     key: 'ssoAppSecret',
@@ -399,45 +399,47 @@ function LdapSettingsPanel({
       <p className="mb-4 text-sm leading-6" style={{ color: 'var(--kvm-text-muted)' }}>
         通过企业目录服务实现统一身份认证，支持 AD/LDAP 登录。
       </p>
-      <EnableMediaToggle
-        enabled={enabled}
-        disabled={!canManage}
-        onChange={setEnabled}
-        label="启用认证"
-        enabledText="登录页将显示 AD/LDAP 认证登录方式"
-        disabledText="关闭后不会显示在登录页"
-      />
-      <ConfigField
-        field={{ key: 'name', label: '显示名称', placeholder: 'AD/LDAP', required: true }}
-        value={name}
-        disabled={!canManage}
-        onChange={value => setName(String(value ?? ''))}
-      />
-      <div className="mt-4 space-y-3">
-        <SectionTitle title="必填配置" />
-        {ldapRequiredFields.map(field => (
-          <ConfigField
-            key={field.key}
-            field={field}
-            value={displayValue(field, form[field.key])}
-            secretConfigured={secretConfigured(field, form)}
-            disabled={!canManage}
-            onChange={value => updateField(field, value)}
-          />
-        ))}
-      </div>
-      <div className="mt-5 space-y-3">
-        <SectionTitle title="可选配置" />
-        {ldapOptionalFields.map(field => (
-          <ConfigField
-            key={field.key}
-            field={field}
-            value={displayValue(field, form[field.key])}
-            secretConfigured={secretConfigured(field, form)}
-            disabled={!canManage}
-            onChange={value => updateField(field, value)}
-          />
-        ))}
+      <div className="space-y-3">
+        <EnableMediaToggle
+          enabled={enabled}
+          disabled={!canManage}
+          onChange={setEnabled}
+          label="启用认证"
+          enabledText="登录页将显示 AD/LDAP 认证登录方式"
+          disabledText="关闭后不会显示在登录页"
+        />
+        <ConfigField
+          field={{ key: 'name', label: '显示名称', placeholder: 'AD/LDAP', required: true }}
+          value={name}
+          disabled={!canManage}
+          onChange={value => setName(String(value ?? ''))}
+        />
+        <div className="space-y-3">
+          <SectionTitle title="必填配置" />
+          {ldapRequiredFields.map(field => (
+            <ConfigField
+              key={field.key}
+              field={field}
+              value={displayValue(field, form[field.key])}
+              secretConfigured={secretConfigured(field, form)}
+              disabled={!canManage}
+              onChange={value => updateField(field, value)}
+            />
+          ))}
+        </div>
+        <div className="space-y-3">
+          <SectionTitle title="可选配置" />
+          {ldapOptionalFields.map(field => (
+            <ConfigField
+              key={field.key}
+              field={field}
+              value={displayValue(field, form[field.key])}
+              secretConfigured={secretConfigured(field, form)}
+              disabled={!canManage}
+              onChange={value => updateField(field, value)}
+            />
+          ))}
+        </div>
       </div>
     </SettingsDetailPanel>
   );
@@ -555,52 +557,54 @@ function WecomSettingsPanel({
       <p className="mb-4 text-sm leading-6" style={{ color: 'var(--kvm-text-muted)' }}>
         启用后登录页提供企业微信扫码登录，用户可在右上角菜单绑定与解绑企微账号。
       </p>
-      <EnableMediaToggle
-        enabled={enabled}
-        disabled={!canManage}
-        onChange={setEnabled}
-        label="启用认证"
-        enabledText="登录页将显示企业微信扫码登录方式"
-        disabledText="关闭后不会显示在登录页"
-      />
-      <ConfigField
-        field={{ key: 'name', label: '显示名称', placeholder: '企业微信' }}
-        value={provider?.name || '企业微信'}
-        disabled={true}
-        onChange={() => undefined}
-      />
-      <div className="mt-4 space-y-3">
-        <SectionTitle title="认证方式" />
-        <AuthModeSwitch
-          value={authMode}
+      <div className="space-y-3">
+        <EnableMediaToggle
+          enabled={enabled}
           disabled={!canManage}
-          onChange={value => setForm(current => ({ ...current, authMode: value }))}
+          onChange={setEnabled}
+          label="启用认证"
+          enabledText="登录页将显示企业微信扫码登录方式"
+          disabledText="关闭后不会显示在登录页"
         />
-        <SectionTitle title="应用配置" />
-        {activeFields.map(field => (
-          <ConfigField
-            key={field.key}
-            field={field}
-            value={displayValue(field, form[field.key])}
-            secretConfigured={
-              (field.key === 'secret' && Boolean(form.hasSecret)) ||
-              (field.key === 'ssoAppSecret' && Boolean(form.hasSsoAppSecret))
-            }
+        <ConfigField
+          field={{ key: 'name', label: '显示名称', placeholder: '企业微信' }}
+          value={provider?.name || '企业微信'}
+          disabled={true}
+          onChange={() => undefined}
+        />
+        <div className="space-y-3">
+          <SectionTitle title="认证方式" />
+          <AuthModeSwitch
+            value={authMode}
             disabled={!canManage}
-            onChange={value => updateField(field, value)}
+            onChange={value => setForm(current => ({ ...current, authMode: value }))}
           />
-        ))}
+          <SectionTitle title="应用配置" />
+          {activeFields.map(field => (
+            <ConfigField
+              key={field.key}
+              field={field}
+              value={displayValue(field, form[field.key])}
+              secretConfigured={
+                (field.key === 'secret' && Boolean(form.hasSecret)) ||
+                (field.key === 'ssoAppSecret' && Boolean(form.hasSsoAppSecret))
+              }
+              disabled={!canManage}
+              onChange={value => updateField(field, value)}
+            />
+          ))}
+        </div>
+        <p
+          className="rounded-lg p-3 text-xs leading-5"
+          style={{
+            border: '1px solid var(--kvm-border)',
+            background: 'var(--kvm-control-bg-soft)',
+            color: 'var(--kvm-text-muted)',
+          }}
+        >
+          {authMode === 'sso' ? wecomSsoGuidance : wecomDirectGuidance}
+        </p>
       </div>
-      <p
-        className="mt-5 rounded-lg p-3 text-xs leading-5"
-        style={{
-          border: '1px solid var(--kvm-border)',
-          background: 'var(--kvm-control-bg-soft)',
-          color: 'var(--kvm-text-muted)',
-        }}
-      >
-        {authMode === 'sso' ? wecomSsoGuidance : wecomDirectGuidance}
-      </p>
     </SettingsDetailPanel>
   );
 }
@@ -625,7 +629,7 @@ function AuthModeSwitch({
             disabled={disabled}
             onClick={() => onChange(option.value)}
             className={[
-              'rounded-xl border p-3 text-left transition-all duration-300 ease-out',
+              'cursor-pointer rounded-xl border p-3 text-left transition-all duration-300 ease-out',
               'hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0',
               active
                 ? 'border-[var(--kvm-accent-text)] bg-[rgba(59,130,246,0.12)] hover:shadow-[0_6px_18px_rgba(37,99,235,0.16)]'

@@ -454,7 +454,7 @@ function SecurityPanel({
       />
       <NumberControl
         label="企业微信扫码有效期"
-        description="企微授权 state 的有效窗口，超时需重新扫码登录或绑定"
+        description="企微授权 state 的有效窗口"
         unit="分钟"
         value={form.wecomStateTtlMinutes}
         min={1}

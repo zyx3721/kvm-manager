@@ -10,6 +10,8 @@ export type Field = {
   placeholder: string;
   required?: boolean;
   helper?: string;
+  /** 悬浮提示：label 文字带虚线下划线，hover 时以 Tooltip 展示（对齐 itdb-new 的 labelHint） */
+  labelHint?: string;
   inputMode?: React.HTMLAttributes<HTMLInputElement>['inputMode'];
   type?: 'text' | 'password' | 'number' | 'checkbox' | 'textarea' | 'select';
   options?: { value: string; label: string }[];
@@ -50,7 +52,7 @@ export function SettingsDetailPanel({
 }: {
   header: React.ReactNode;
   children: React.ReactNode;
-  actions: React.ReactNode;
+  actions?: React.ReactNode;
 }) {
   return (
     <aside
@@ -58,8 +60,17 @@ export function SettingsDetailPanel({
       style={{ background: 'rgba(255,255,255,0.035)', border: '1px solid var(--kvm-border)' }}
     >
       {header}
-      <div className="kvm-hidden-scrollbar min-h-0 flex-1 overflow-y-auto pr-2">{children}</div>
-      {actions && <div className="mt-5 flex shrink-0 justify-end gap-2">{actions}</div>}
+      <div className="kvm-hidden-scrollbar min-h-0 flex-1 overflow-y-auto pt-1 pr-2">
+        {children}
+      </div>
+      {actions ? (
+        <div
+          className="mt-5 flex shrink-0 flex-wrap justify-end gap-2 border-t pt-4"
+          style={{ borderColor: 'var(--kvm-border)' }}
+        >
+          {actions}
+        </div>
+      ) : null}
     </aside>
   );
 }
@@ -251,7 +262,15 @@ export function ConfigField({
   return (
     <label className="block space-y-1.5 text-xs" style={{ color: 'var(--kvm-text-muted)' }}>
       <span className="flex items-center gap-1">
-        {field.label}
+        {field.labelHint ? (
+          <KvmTooltip label={field.labelHint} placement="top">
+            <span className="cursor-help underline decoration-dotted underline-offset-4">
+              {field.label}
+            </span>
+          </KvmTooltip>
+        ) : (
+          field.label
+        )}
         {field.required && <span style={{ color: '#f87171' }}>*</span>}
       </span>
       {field.type === 'textarea' ? (
