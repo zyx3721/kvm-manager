@@ -248,7 +248,7 @@ docker exec -it pg-prod psql -U postgres
 CREATE DATABASE kvm;
 ```
 
-后端启动时会自动按文件名顺序执行 `backend/pkg/database/migrations/` 下的迁移脚本（`001_init.sql` 初始化库表，`002_wecom_auth.sql` 新增企业微信认证提供方与 OAuth 登录 state 表）。迁移记录保存在 `schema_migrations` 表中，重复启动会跳过已应用版本，不会重复初始化已有数据。当前数据库保存用户、会话、角色权限、Agent、任务、审计日志、告警、通知渠道、系统配置、认证配置、OAuth 登录 state、指标样本和快照/模板标注等项目自身数据，不创建宿主机、虚拟机、快照资源表。
+后端启动时会自动按文件名顺序执行 `backend/pkg/database/migrations/` 下的迁移脚本（`001_init.sql` 初始化库表，`002_wecom_auth.sql` 新增企业微信认证提供方、OAuth 登录 state 表与企业微信账号绑定表）。迁移记录保存在 `schema_migrations` 表中，重复启动会跳过已应用版本，不会重复初始化已有数据。当前数据库保存用户、会话、角色权限、Agent、任务、审计日志、告警、通知渠道、系统配置、认证配置、OAuth 登录 state、指标样本和快照/模板标注等项目自身数据，不创建宿主机、虚拟机、快照资源表。
 
 ## 2.4 后端配置与启动
 
