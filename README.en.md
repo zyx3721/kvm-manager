@@ -19,7 +19,8 @@ A lightweight agent on each KVM host collects runtime state and applies changes,
 </p>
 
 <p>
-  <b><a href="#what-it-does">What it does</a></b> ·
+  <b><a href="#preview">Preview</a></b> ·
+  <a href="#what-it-does">What it does</a> ·
   <a href="#how-it-works">How it works</a> ·
   <a href="#tech-stack">Tech stack</a> ·
   <a href="#quick-start">Quick start</a> ·
@@ -36,6 +37,20 @@ A lightweight agent on each KVM host collects runtime state and applies changes,
 ---
 
 KVM Manager is a unified operations console for Libvirt/KVM environments: the backend (Go 1.25 + the standard-library `net/http` router) owns accounts, permissions, tasks, auditing, alerting and system settings; a lightweight agent on every KVM host collects host and VM runtime state via `virsh` / `qemu-img` and applies changes such as start/stop, clone, migrate and snapshot; the database stores only the platform's own data, while host and VM runtime state lives in a Redis cache served to the React console over the API and SSE.
+
+## Preview
+
+### Sign in
+
+An internal system with no public registration. Local passwords, AD/LDAP and WeCom (WeChat Work) QR-code sign-in are supported, with password recovery over a captcha plus an email code.
+
+![Sign-in page](.github/images/kvm-manager-login.jpg)
+
+### Console home
+
+A dashboard summary of host and VM runtime state, resource usage and recent alerts. The sidebar shows or hides each entry based on the signed-in user's permissions, so actions you cannot perform never appear.
+
+![Console home](.github/images/kvm-manager-home.jpg)
 
 ## What it does
 
