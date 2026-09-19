@@ -4,6 +4,8 @@
 
 <p><b>KVM 虚拟化统一管理平台</b> — 宿主机 · 虚拟机 · 快照 · 存储池 · 网络池 · 任务 · 告警</p>
 
+<p><b>简体中文</b> · <a href="README.en.md">English</a></p>
+
 机房里的 KVM 宿主机，日常启停虚机、看资源、拍快照，通常要挨台 SSH 上去敲 `virsh`。  
 KVM Manager 把它们收进一套**自托管**的控制台：Go 后端 + React 前端 + PostgreSQL + Redis，  
 每台宿主机跑一个轻量 Agent 采集运行态并执行变更，平台侧统一展示、操作、告警与审计。
