@@ -10,11 +10,14 @@ export type AuthUser = {
   displayName: string;
   role: string;
   permissions?: string[];
+  /** 当前用户是否已绑定企业微信账号 */
+  wecomBound?: boolean;
 };
 
 type LoginResponse = {
   token: string;
   expires_at: string;
+  wecom_bound?: boolean;
   user: AuthUser;
 };
 
@@ -22,6 +25,9 @@ type ApiErrorResponse = {
   error?: string;
   message?: string;
 };
+
+/** 绑定弹窗向主窗口通知结果的 postMessage 类型标识 */
+export const WECOM_BIND_MESSAGE = 'kvm:wecom-bind';
 
 export function getAuthToken() {
   return window.localStorage.getItem(TOKEN_KEY);
@@ -75,9 +81,47 @@ export function userHasAnyPermission(user: AuthUser | null, permissions: string[
 
 export function persistSession(session: LoginResponse) {
   window.localStorage.setItem(TOKEN_KEY, session.token);
-  window.localStorage.setItem(USER_KEY, JSON.stringify(session.user));
+  const user = {
+    ...session.user,
+    wecomBound: session.wecom_bound ?? session.user.wecomBound ?? false,
+  };
+  window.localStorage.setItem(USER_KEY, JSON.stringify(user));
   window.localStorage.setItem(EXPIRES_AT_KEY, session.expires_at);
   markSessionActivity();
+}
+
+/** 就地更新本地会话中的用户信息（如绑定状态变化），返回更新后的用户 */
+export function updateStoredUser(patch: Partial<AuthUser>): AuthUser | null {
+  const user = getStoredUser();
+  if (!user) return null;
+  const next = { ...user, ...patch };
+  window.localStorage.setItem(USER_KEY, JSON.stringify(next));
+  return next;
+}
+
+/** 获取当前用户的企业微信绑定跳转地址（直连或统一认证中心按启用情况自动分派） */
+export async function fetchWecomBindUrl() {
+  const response = await fetch('/api/auth/wecom/bind-url', {
+    headers: { Authorization: `Bearer ${getAuthToken()}` },
+  });
+  if (!response.ok) {
+    throw new Error(await readApiError(response));
+  }
+  const data = (await response.json()) as { url: string };
+  return data.url;
+}
+
+/** 解除当前用户的企业微信绑定，返回被解绑的企微账号（未绑定为 -） */
+export async function unbindWecom() {
+  const response = await fetch('/api/auth/wecom/bind', {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${getAuthToken()}` },
+  });
+  if (!response.ok) {
+    throw new Error(await readApiError(response));
+  }
+  const data = (await response.json()) as { status: string; userid: string };
+  return data.userid;
 }
 
 export function clearSession() {

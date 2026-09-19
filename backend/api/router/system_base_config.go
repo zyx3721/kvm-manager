@@ -28,6 +28,7 @@ type systemBaseConfigRequest struct {
 	AlertNotificationRetryBaseSeconds int     `json:"alertNotificationRetryBaseSeconds"`
 	AlertNotificationRetryMaxMinutes  int     `json:"alertNotificationRetryMaxMinutes"`
 	AlertNotificationBatchSize        int     `json:"alertNotificationBatchSize"`
+	WecomStateTTLMinutes              int     `json:"wecomStateTtlMinutes"`
 }
 
 func (r *router) handlePublicSystemBaseConfig(w http.ResponseWriter, req *http.Request) {
@@ -59,6 +60,7 @@ func defaultSystemBaseConfig() domain.SystemBaseConfig {
 		AlertNotificationRetryBaseSeconds: 30,
 		AlertNotificationRetryMaxMinutes:  15,
 		AlertNotificationBatchSize:        50,
+		WecomStateTTLMinutes:              5,
 	}
 }
 
@@ -130,6 +132,7 @@ func sanitizeSystemBaseConfig(w http.ResponseWriter, body systemBaseConfigReques
 	alertNotificationRetryBaseSeconds := positiveOrDefault(body.AlertNotificationRetryBaseSeconds, 30)
 	alertNotificationRetryMaxMinutes := positiveOrDefault(body.AlertNotificationRetryMaxMinutes, 15)
 	alertNotificationBatchSize := positiveOrDefault(body.AlertNotificationBatchSize, 50)
+	wecomStateTTLMinutes := positiveOrDefault(body.WecomStateTTLMinutes, 5)
 	if passwordResetCodeTTLMinutes < 1 || passwordResetCodeTTLMinutes > 60 {
 		writeError(w, http.StatusBadRequest, "invalid_base_config", "找回密码验证码有效期需在 1 到 60 分钟之间")
 		return nil, false
@@ -201,6 +204,7 @@ func sanitizeSystemBaseConfig(w http.ResponseWriter, body systemBaseConfigReques
 		"alertNotificationRetryBaseSeconds": alertNotificationRetryBaseSeconds,
 		"alertNotificationRetryMaxMinutes":  alertNotificationRetryMaxMinutes,
 		"alertNotificationBatchSize":        alertNotificationBatchSize,
+		"wecomStateTtlMinutes":              wecomStateTTLMinutes,
 	}, true
 }
 

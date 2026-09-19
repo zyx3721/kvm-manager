@@ -66,6 +66,8 @@ func NewRouter(cfg config.Config, store *repository.Store, runtime *realtime.Ser
 	mux.HandleFunc("GET /api/auth/wecom/callback", r.handleWecomCallback)
 	mux.HandleFunc("GET /api/auth/wecom-center/authorize", r.handleWecomCenterAuthorize)
 	mux.HandleFunc("GET /api/auth/wecom-center/callback", r.handleWecomCenterCallback)
+	mux.Handle("GET /api/auth/wecom/bind-url", r.requireAuth(http.HandlerFunc(r.handleWecomBindURL)))
+	mux.Handle("DELETE /api/auth/wecom/bind", r.requireAuth(http.HandlerFunc(r.handleWecomUnbind)))
 	mux.HandleFunc("GET /api/auth/password-reset/captcha", r.handlePasswordResetCaptcha)
 	mux.HandleFunc("POST /api/auth/password-reset/verify", r.handlePasswordResetVerify)
 	mux.HandleFunc("POST /api/auth/password-reset/send-code", r.handlePasswordResetSendCode)
@@ -198,7 +200,11 @@ func (r *router) handleLogin(w http.ResponseWriter, req *http.Request) {
 
 func (r *router) handleMe(w http.ResponseWriter, req *http.Request) {
 	session := currentSession(req)
-	writeJSON(w, http.StatusOK, map[string]any{"user": session.User, "expires_at": session.ExpiresAt, "last_seen_at": session.LastSeenAt})
+	wecomBound, err := r.auth.WecomBoundFor(req.Context(), session.User.ID)
+	if err != nil {
+		wecomBound = false
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"user": session.User, "expires_at": session.ExpiresAt, "last_seen_at": session.LastSeenAt, "wecom_bound": wecomBound})
 }
 
 func (r *router) handleLogout(w http.ResponseWriter, req *http.Request) {

@@ -12,11 +12,19 @@ func mustAuthProvider(id, config string) *domain.AuthProvider {
 }
 
 func TestSanitizeWeComProviderConfigRequiresFieldsWhenEnabled(t *testing.T) {
-	_, err := sanitizeAuthProviderConfigWithPrevious("wecom", map[string]any{"corpId": "ww123"}, nil, true)
-	if err == nil || !strings.Contains(err.Error(), "外部访问地址") {
-		t.Fatalf("external url should be required, got %v", err)
-	}
+	// 外部访问地址可选：留空时运行时按当前访问地址推断回调前缀
 	config, err := sanitizeAuthProviderConfigWithPrevious("wecom", map[string]any{
+		"corpId":  "ww123",
+		"agentId": float64(1000002),
+		"secret":  "s",
+	}, nil, true)
+	if err != nil {
+		t.Fatalf("config without external url should pass: %v", err)
+	}
+	if _, exists := config["externalUrl"]; exists {
+		t.Fatalf("empty external url should be removed, got %v", config["externalUrl"])
+	}
+	config, err = sanitizeAuthProviderConfigWithPrevious("wecom", map[string]any{
 		"corpId":      "ww123",
 		"agentId":     float64(1000002),
 		"secret":      "s",

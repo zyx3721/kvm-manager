@@ -16,8 +16,11 @@ type fakeStore struct {
 
 	provider    domain.AuthProvider
 	user        domain.User
+	userByID    domain.User
 	createdUser string
 	states      map[string]domain.AuthState
+	bindings    map[string]string
+	baseConfig  domain.SystemBaseConfig
 }
 
 func (s *fakeStore) FindUserByUsername(_ context.Context, username string) (domain.User, string, error) {
@@ -25,6 +28,59 @@ func (s *fakeStore) FindUserByUsername(_ context.Context, username string) (doma
 		return s.user, "password-hash", nil
 	}
 	return domain.User{}, "", errors.New("not found")
+}
+
+func (s *fakeStore) FindUserByID(_ context.Context, id string) (domain.User, error) {
+	if s.userByID.ID != "" && s.userByID.ID == id {
+		return s.userByID, nil
+	}
+	return domain.User{}, errors.New("not found")
+}
+
+func (s *fakeStore) FindUserByWecomAccount(_ context.Context, userid string) (domain.User, error) {
+	if ownerID, ok := s.bindings[userid]; ok && ownerID == s.user.ID {
+		return s.user, nil
+	}
+	return domain.User{}, errors.New("not found")
+}
+
+func (s *fakeStore) BindWecomAccount(_ context.Context, userID, userid string) error {
+	if ownerID, ok := s.bindings[userid]; ok && ownerID != userID {
+		return ErrWecomAlreadyBound
+	}
+	if s.bindings == nil {
+		s.bindings = map[string]string{}
+	}
+	for account, owner := range s.bindings {
+		if owner == userID {
+			delete(s.bindings, account)
+		}
+	}
+	s.bindings[userid] = userID
+	return nil
+}
+
+func (s *fakeStore) UnbindWecomAccount(_ context.Context, userID string) (string, error) {
+	for account, owner := range s.bindings {
+		if owner == userID {
+			delete(s.bindings, account)
+			return account, nil
+		}
+	}
+	return "", nil
+}
+
+func (s *fakeStore) UserHasWecomBinding(_ context.Context, userID string) (bool, error) {
+	for _, owner := range s.bindings {
+		if owner == userID {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+func (s *fakeStore) GetSystemBaseConfig(context.Context) (domain.SystemBaseConfig, error) {
+	return s.baseConfig, nil
 }
 
 func (s *fakeStore) UpsertUser(context.Context, string, string, string, string) (domain.User, error) {

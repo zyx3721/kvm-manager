@@ -239,14 +239,14 @@ func sanitizeWeComProviderConfig(config map[string]any, previous map[string]any,
 	if stringValue(config["corpId"]) == "" {
 		return nil, fmt.Errorf("企业 ID 不能为空")
 	}
-	if stringValue(config["externalUrl"]) == "" {
-		return nil, fmt.Errorf("外部访问地址不能为空")
+	// 外部访问地址可选：留空时运行时按用户当前访问地址推断回调前缀
+	if stringValue(config["externalUrl"]) != "" {
+		externalURL, err := normalizeBaseURL(stringValue(config["externalUrl"]), "外部访问地址")
+		if err != nil {
+			return nil, err
+		}
+		config["externalUrl"] = externalURL
 	}
-	externalURL, err := normalizeBaseURL(stringValue(config["externalUrl"]), "外部访问地址")
-	if err != nil {
-		return nil, err
-	}
-	config["externalUrl"] = externalURL
 	if mode := stringValue(config["mode"]); mode == "" {
 		config["mode"] = "qrcode"
 	} else if mode != "qrcode" && mode != "inside" {

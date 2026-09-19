@@ -8,6 +8,8 @@ import {
   ChevronRightIcon,
   CpuIcon,
   KeyRoundIcon,
+  Link2Icon,
+  Link2OffIcon,
   Loader2Icon,
   LogOutIcon,
   MoonIcon,
@@ -19,13 +21,18 @@ import {
 import { useBaseConfig } from '../../lib/branding';
 import {
   clearSession,
+  fetchWecomBindUrl,
   getStoredUser,
   logout,
+  unbindWecom,
+  updateStoredUser,
   userHasAnyPermission,
   userHasPermission,
+  WECOM_BIND_MESSAGE,
 } from '../../lib/auth';
 import {
   fetchNotifications,
+  fetchPublicAuthProviders,
   fetchUnreadNotificationCount,
   markAllNotificationsRead,
   clearNotifications,
@@ -72,6 +79,9 @@ export default function KvmLayout() {
   const [theme, setTheme] = useState<KvmTheme>(getInitialKvmTheme);
   const baseConfig = useBaseConfig();
   const [user] = useState(() => getStoredUser());
+  const [wecomEnabled, setWecomEnabled] = useState(false);
+  const [wecomBound, setWecomBound] = useState(() => Boolean(getStoredUser()?.wecomBound));
+  const [wecomBusy, setWecomBusy] = useState(false);
   const userMenuRef = useRef<HTMLDivElement | null>(null);
   const notificationRef = useRef<HTMLDivElement | null>(null);
   const notificationPanelRef = useRef<HTMLDivElement | null>(null);
@@ -118,6 +128,61 @@ export default function KvmLayout() {
     clearSession();
     navigate('/login', { replace: true });
   };
+
+  const startWecomBind = async () => {
+    setUserMenuOpen(false);
+    setWecomBusy(true);
+    try {
+      const url = await fetchWecomBindUrl();
+      const popup = window.open(url, 'kvm-wecom-bind', 'width=680,height=680');
+      if (!popup) {
+        toast.error('浏览器拦截了绑定窗口，请允许弹窗后重试');
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : '获取企业微信绑定地址失败');
+    } finally {
+      setWecomBusy(false);
+    }
+  };
+
+  const handleWecomUnbind = async () => {
+    setUserMenuOpen(false);
+    setWecomBusy(true);
+    try {
+      await unbindWecom();
+      setWecomBound(false);
+      updateStoredUser({ wecomBound: false });
+      toast.success('已解绑企业微信');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : '解绑企业微信失败');
+    } finally {
+      setWecomBusy(false);
+    }
+  };
+
+  // 企业微信认证启用时显示绑定/解绑入口；监听绑定弹窗结果并同步本地会话
+  useEffect(() => {
+    void fetchPublicAuthProviders()
+      .then(response => setWecomEnabled(response.items.some(item => Boolean(item.authorize_path))))
+      .catch(() => setWecomEnabled(false));
+  }, []);
+
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      if (event.origin !== window.location.origin) return;
+      const data = event.data as { type?: string; ok?: boolean; message?: string } | null;
+      if (data?.type !== WECOM_BIND_MESSAGE) return;
+      if (data.ok) {
+        setWecomBound(true);
+        updateStoredUser({ wecomBound: true });
+        toast.success('企业微信绑定成功');
+      } else {
+        toast.error(data.message || '企业微信绑定失败');
+      }
+    };
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, []);
 
   const loadNotifications = async () => {
     const [items, count] = await Promise.all([
@@ -573,6 +638,25 @@ export default function KvmLayout() {
                     <KeyRoundIcon size={16} />
                     修改密码
                   </button>
+                  {wecomEnabled && (
+                    <button
+                      type="button"
+                      className="kvm-action-button flex h-10 w-full items-center gap-2 rounded-lg px-3 text-left text-sm disabled:cursor-not-allowed disabled:opacity-60"
+                      role="menuitem"
+                      disabled={wecomBusy}
+                      onClick={() => void (wecomBound ? handleWecomUnbind() : startWecomBind())}
+                      style={{ color: 'var(--kvm-text)', background: 'transparent' }}
+                    >
+                      {wecomBusy ? (
+                        <Loader2Icon size={16} className="animate-spin" />
+                      ) : wecomBound ? (
+                        <Link2OffIcon size={16} />
+                      ) : (
+                        <Link2Icon size={16} />
+                      )}
+                      {wecomBound ? '解绑企业微信' : '绑定企业微信'}
+                    </button>
+                  )}
                   <button
                     type="button"
                     className="kvm-action-button kvm-danger-button flex h-10 w-full items-center gap-2 rounded-lg px-3 text-left text-sm"

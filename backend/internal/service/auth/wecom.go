@@ -32,6 +32,8 @@ const (
 )
 
 var ErrAuthProviderDisabled = errors.New("auth provider is disabled or missing")
+var ErrWecomNotBound = errors.New("wecom account is not bound to a platform user")
+var ErrWecomAlreadyBound = errors.New("wecom account is already bound to another user")
 
 // WeComUserInfo 企业微信换取到的用户身份，Name 可为空。
 type WeComUserInfo struct {
@@ -69,9 +71,6 @@ func decodeWeComConfig(data []byte) (WeComConfig, error) {
 	if cfg.Mode != wecomModeInside {
 		cfg.Mode = wecomModeQRCode
 	}
-	if cfg.ExternalURL == "" {
-		return WeComConfig{}, fmt.Errorf("wecom external url is required")
-	}
 	if !cfg.Mock {
 		if cfg.CorpID == "" || cfg.Secret == "" {
 			return WeComConfig{}, fmt.Errorf("wecom corp id and secret are required")
@@ -83,17 +82,21 @@ func decodeWeComConfig(data []byte) (WeComConfig, error) {
 	return cfg, nil
 }
 
-// CallbackURL 企业微信 OAuth 回调地址，基于对外访问地址拼接。
-func (c WeComConfig) CallbackURL() string {
-	return c.ExternalURL + "/api/auth/wecom/callback"
+// callbackBase 回调地址前缀：配置了外部访问地址则优先，否则按用户当前访问地址推断。
+func (c WeComConfig) callbackBase(requestBase string) string {
+	if c.ExternalURL != "" {
+		return c.ExternalURL
+	}
+	return strings.TrimRight(requestBase, "/")
 }
 
 // AuthorizeURL 构造企业微信授权跳转：PC 浏览器扫码或企微内置浏览器网页授权。
-func (c WeComConfig) AuthorizeURL(state string) string {
+// requestBase 为留空外部访问地址时的推断前缀。
+func (c WeComConfig) AuthorizeURL(state, requestBase string) string {
 	q := url.Values{}
 	q.Set("appid", c.CorpID)
 	q.Set("agentid", strconv.Itoa(c.AgentID))
-	q.Set("redirect_uri", c.CallbackURL())
+	q.Set("redirect_uri", c.callbackBase(requestBase)+"/api/auth/wecom/callback")
 	q.Set("state", state)
 	if c.Mode == wecomModeInside {
 		q.Set("response_type", "code")
@@ -174,8 +177,12 @@ func verifyWeComCenterTicket(ctx context.Context, cfg WeComCenterConfig, ticket 
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		_, _ = io.Copy(io.Discard, resp.Body)
-		return nil, fmt.Errorf("wecom auth center verify failed with http %d", resp.StatusCode)
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 4<<10))
+		var failure struct {
+			Error string `json:"error"`
+		}
+		_ = json.Unmarshal(body, &failure)
+		return nil, fmt.Errorf("wecom auth center verify failed with http %d error=%s", resp.StatusCode, failure.Error)
 	}
 	var data struct {
 		Userid string `json:"userid"`
@@ -218,8 +225,17 @@ func newWeComRealClient(cfg WeComConfig) *wecomRealClient {
 	}
 }
 
-// GetUserInfo 用 code 换取用户身份。
+// GetUserInfo 用 code 换取用户身份；access_token 失效时清缓存重试一次。
 func (c *wecomRealClient) GetUserInfo(ctx context.Context, code string) (*WeComUserInfo, error) {
+	userInfo, err := c.getUserInfo(ctx, code)
+	if err != nil && isWecomTokenInvalidError(err) {
+		c.invalidateToken()
+		return c.getUserInfo(ctx, code)
+	}
+	return userInfo, err
+}
+
+func (c *wecomRealClient) getUserInfo(ctx context.Context, code string) (*WeComUserInfo, error) {
 	token, err := c.token(ctx)
 	if err != nil {
 		return nil, err
@@ -243,6 +259,22 @@ func (c *wecomRealClient) GetUserInfo(ctx context.Context, code string) (*WeComU
 		userInfo.Name, _ = c.fetchDisplayName(ctx, token, resp.Userid)
 	}
 	return userInfo, nil
+}
+
+// isWecomTokenInvalidError 识别 access_token 过期/失效错误码：40014 不合法、42001 已过期。
+func isWecomTokenInvalidError(err error) bool {
+	if err == nil {
+		return false
+	}
+	message := err.Error()
+	return strings.Contains(message, "errcode=40014") || strings.Contains(message, "errcode=42001")
+}
+
+func (c *wecomRealClient) invalidateToken() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.accessToken = ""
+	c.tokenExpiry = time.Time{}
 }
 
 // Ping 校验企业凭证：调用 gettoken，成功即认为配置可用。
@@ -397,12 +429,28 @@ func WeComUserMessage(err error) string {
 	switch {
 	case errors.Is(err, ErrAuthProviderDisabled):
 		return "企业微信认证未启用，请先在系统配置中开启"
+	case errors.Is(err, ErrWecomNotBound):
+		return "该企业微信账号尚未绑定系统用户，请先使用账号密码登录后在右上角绑定企业微信"
+	case errors.Is(err, ErrWecomAlreadyBound):
+		return "该企业微信账号已绑定其他用户"
 	case errors.Is(err, ErrInvalidState):
 		return "登录状态已过期或无效，请重新发起企业微信登录"
+	case strings.Contains(message, "errcode=40029"):
+		return "企业微信授权码无效或已使用，请重新扫码"
+	case strings.Contains(message, "errcode=60020"):
+		return "企业微信应用 IP 不在可信域名内，请检查应用配置"
 	case strings.Contains(message, "gettoken"):
 		return "企业微信应用凭证校验失败，请检查企业 ID、应用 AgentId 与 Secret 配置"
 	case strings.Contains(message, "request wecom auth center failed"):
 		return "统一认证中心连接失败，请检查认证中心地址与网络连通性"
+	case strings.Contains(message, "error=invalid_app"):
+		return "统一认证中心未登记该应用标识，请检查应用标识配置"
+	case strings.Contains(message, "error=invalid_sign"):
+		return "统一认证中心签名校验失败，请检查应用密钥配置"
+	case strings.Contains(message, "error=expired_ts"):
+		return "统一认证中心校验时间偏差过大，请检查系统时间后重试"
+	case strings.Contains(message, "error=invalid_ticket"):
+		return "统一认证中心票据无效或已使用，请重新发起登录"
 	case strings.Contains(message, "wecom auth center verify failed"):
 		return "统一认证中心票据校验失败，登录已过期，请重新发起登录"
 	case strings.Contains(message, "wecom auth center"):
@@ -411,8 +459,6 @@ func WeComUserMessage(err error) string {
 		return "企业微信接口连接失败，请检查网络连通性与对外访问地址配置"
 	case strings.Contains(message, "not be a corp member"):
 		return "当前企业微信账号不是该应用的可见成员，请联系管理员调整应用可见范围"
-	case strings.Contains(message, "external url"):
-		return "外部访问地址未配置，请完善企业微信认证配置"
 	case strings.Contains(message, "corp id and secret") || strings.Contains(message, "agent id"):
 		return "企业微信应用配置不完整，请完善企业 ID、AgentId 与 Secret"
 	case strings.Contains(message, "base url, app and app secret"):

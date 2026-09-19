@@ -121,15 +121,14 @@ const authProviderMeta: Record<
         required: true,
         type: 'password',
       },
+    ],
+    optionalFields: [
       {
         key: 'externalUrl',
         label: '外部访问地址',
-        placeholder: 'https://kvm.example.com',
-        required: true,
-        helper: '用户访问平台的对外地址，用于构造企业微信授权回调',
+        placeholder: '留空则按当前访问地址自动推断',
+        helper: '用户访问平台的对外地址，用于构造企业微信授权回调；需企微后台配置为应用可信域名',
       },
-    ],
-    optionalFields: [
       {
         key: 'mode',
         label: '登录方式',

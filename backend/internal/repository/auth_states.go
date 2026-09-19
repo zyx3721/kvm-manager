@@ -15,9 +15,9 @@ func (s *Store) CreateAuthState(ctx context.Context, item domain.AuthState) erro
 		return err
 	}
 	_, err := s.pool.Exec(ctx, `
-		INSERT INTO auth_login_states(state, provider, redirect, remote_ip, expires_at)
-		VALUES($1, $2, $3, $4, $5)
-	`, item.State, item.Provider, item.Redirect, item.RemoteIP, item.ExpiresAt)
+		INSERT INTO auth_login_states(state, provider, purpose, user_id, redirect, remote_ip, expires_at)
+		VALUES($1, $2, $3, $4, $5, $6, $7)
+	`, item.State, item.Provider, item.Purpose, item.UserID, item.Redirect, item.RemoteIP, item.ExpiresAt)
 	return err
 }
 
@@ -27,8 +27,8 @@ func (s *Store) TakeAuthState(ctx context.Context, state string) (domain.AuthSta
 	err := s.pool.QueryRow(ctx, `
 		DELETE FROM auth_login_states
 		WHERE state = $1
-		RETURNING state, provider, redirect, remote_ip, expires_at
-	`, state).Scan(&item.State, &item.Provider, &item.Redirect, &item.RemoteIP, &item.ExpiresAt)
+		RETURNING state, provider, purpose, user_id, redirect, remote_ip, expires_at
+	`, state).Scan(&item.State, &item.Provider, &item.Purpose, &item.UserID, &item.Redirect, &item.RemoteIP, &item.ExpiresAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return domain.AuthState{}, ErrNotFound
 	}

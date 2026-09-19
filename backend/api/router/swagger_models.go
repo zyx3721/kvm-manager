@@ -296,6 +296,16 @@ type statusResponse struct {
 	Status string `json:"status"`
 }
 
+type wecomBindURLResponse struct {
+	URL string `json:"url" example:"https://login.work.weixin.qq.com/wwlogin/sso/login?..."`
+}
+
+type wecomUnbindResponse struct {
+	Status string `json:"status" example:"ok"`
+	// Userid 被解绑的企业微信账号，未绑定时为 -
+	Userid string `json:"userid" example:"zhangsan"`
+}
+
 type authProviderTestResponse struct {
 	Status       string `json:"status" example:"ok"`
 	MatchedUsers int    `json:"matchedUsers" example:"12"`

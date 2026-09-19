@@ -69,6 +69,7 @@ type SystemBaseConfig struct {
 	AlertNotificationRetryBaseSeconds int       `json:"alertNotificationRetryBaseSeconds"`
 	AlertNotificationRetryMaxMinutes  int       `json:"alertNotificationRetryMaxMinutes"`
 	AlertNotificationBatchSize        int       `json:"alertNotificationBatchSize"`
+	WecomStateTTLMinutes              int       `json:"wecomStateTtlMinutes"`
 	CreatedAt                         time.Time `json:"created_at"`
 	UpdatedAt                         time.Time `json:"updated_at"`
 }
@@ -92,13 +93,23 @@ type PublicAuthProvider struct {
 	AuthorizePath string `json:"authorize_path,omitempty"`
 }
 
-// AuthState OAuth 登录流程的一次性 state 记录，回调时取出即删。
+// AuthState OAuth 流程的一次性 state 记录，回调时取出即删。
+// Purpose 区分 login/bind，bind 场景 UserID 记录发起绑定的用户。
 type AuthState struct {
 	State     string    `json:"state"`
 	Provider  string    `json:"provider"`
+	Purpose   string    `json:"purpose"`
+	UserID    string    `json:"user_id"`
 	Redirect  string    `json:"redirect"`
 	RemoteIP  string    `json:"remote_ip"`
 	ExpiresAt time.Time `json:"expires_at"`
+}
+
+// 用户企微绑定关系，Userid 为企业微信账号。
+type UserWecomBinding struct {
+	UserID  string    `json:"user_id"`
+	Userid  string    `json:"userid"`
+	BoundAt time.Time `json:"bound_at"`
 }
 
 type Session struct {
@@ -106,6 +117,8 @@ type Session struct {
 	ExpiresAt  time.Time `json:"expires_at"`
 	LastSeenAt time.Time `json:"last_seen_at"`
 	User       User      `json:"user"`
+	// WecomBound 登录用户是否已绑定企业微信账号，由认证入口按需填充。
+	WecomBound bool `json:"wecom_bound,omitempty"`
 }
 
 type Host struct {

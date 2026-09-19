@@ -32,6 +32,7 @@ var defaultSystemBaseConfig = map[string]any{
 	"alertNotificationRetryBaseSeconds": 30,
 	"alertNotificationRetryMaxMinutes":  15,
 	"alertNotificationBatchSize":        50,
+	"wecomStateTtlMinutes":              5,
 }
 
 func (s *Store) GetSystemBaseConfig(ctx context.Context) (domain.SystemBaseConfig, error) {
@@ -93,6 +94,7 @@ func decodeSystemBaseConfig(raw []byte, createdAt, updatedAt time.Time) (domain.
 		AlertNotificationRetryBaseSeconds int     `json:"alertNotificationRetryBaseSeconds"`
 		AlertNotificationRetryMaxMinutes  int     `json:"alertNotificationRetryMaxMinutes"`
 		AlertNotificationBatchSize        int     `json:"alertNotificationBatchSize"`
+		WecomStateTTLMinutes              int     `json:"wecomStateTtlMinutes"`
 	}
 	if err := json.Unmarshal(raw, &payload); err != nil {
 		return domain.SystemBaseConfig{}, err
@@ -116,6 +118,7 @@ func decodeSystemBaseConfig(raw []byte, createdAt, updatedAt time.Time) (domain.
 		AlertNotificationRetryBaseSeconds: fallbackInt(payload.AlertNotificationRetryBaseSeconds, 30),
 		AlertNotificationRetryMaxMinutes:  fallbackInt(payload.AlertNotificationRetryMaxMinutes, 15),
 		AlertNotificationBatchSize:        fallbackInt(payload.AlertNotificationBatchSize, 50),
+		WecomStateTTLMinutes:              fallbackInt(payload.WecomStateTTLMinutes, 5),
 		CreatedAt:                         createdAt,
 		UpdatedAt:                         updatedAt,
 	}

@@ -172,6 +172,7 @@ export type SystemBaseConfig = {
   alertNotificationRetryBaseSeconds: number;
   alertNotificationRetryMaxMinutes: number;
   alertNotificationBatchSize: number;
+  wecomStateTtlMinutes: number;
   created_at?: string;
   updated_at?: string;
 };

@@ -38,6 +38,12 @@ type Store interface {
 	GetAuthProvider(ctx context.Context, id string) (domain.AuthProvider, error)
 	CreateAuthState(ctx context.Context, item domain.AuthState) error
 	TakeAuthState(ctx context.Context, state string) (domain.AuthState, error)
+	FindUserByID(ctx context.Context, id string) (domain.User, error)
+	FindUserByWecomAccount(ctx context.Context, userid string) (domain.User, error)
+	BindWecomAccount(ctx context.Context, userID, userid string) error
+	UnbindWecomAccount(ctx context.Context, userID string) (string, error)
+	UserHasWecomBinding(ctx context.Context, userID string) (bool, error)
+	GetSystemBaseConfig(ctx context.Context) (domain.SystemBaseConfig, error)
 }
 
 const sessionTouchInterval = 5 * time.Minute
@@ -117,7 +123,11 @@ func (s *Service) issueSession(ctx context.Context, user domain.User) (domain.Se
 	if err := s.store.RecordUserLogin(ctx, user.ID); err != nil {
 		return domain.Session{}, err
 	}
-	return domain.Session{Token: token, ExpiresAt: expiresAt, LastSeenAt: now, User: user}, nil
+	bound, err := s.store.UserHasWecomBinding(ctx, user.ID)
+	if err != nil {
+		return domain.Session{}, err
+	}
+	return domain.Session{Token: token, ExpiresAt: expiresAt, LastSeenAt: now, User: user, WecomBound: bound}, nil
 }
 
 func TestLDAPProvider(ctx context.Context, provider domain.AuthProvider) (LDAPTestResult, error) {

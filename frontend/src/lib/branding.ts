@@ -21,6 +21,7 @@ export const defaultBaseConfig: SystemBaseConfig = {
   alertNotificationRetryBaseSeconds: 30,
   alertNotificationRetryMaxMinutes: 15,
   alertNotificationBatchSize: 50,
+  wecomStateTtlMinutes: 5,
 };
 
 let cachedBaseConfig: SystemBaseConfig = defaultBaseConfig;
@@ -121,6 +122,10 @@ export function normalizeBaseConfig(config: Partial<SystemBaseConfig>): SystemBa
     alertNotificationBatchSize: normalizeNumber(
       config.alertNotificationBatchSize,
       defaultBaseConfig.alertNotificationBatchSize
+    ),
+    wecomStateTtlMinutes: normalizeNumber(
+      config.wecomStateTtlMinutes,
+      defaultBaseConfig.wecomStateTtlMinutes
     ),
     created_at: config.created_at,
     updated_at: config.updated_at,
