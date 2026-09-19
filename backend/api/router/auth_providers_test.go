@@ -11,105 +11,111 @@ func mustAuthProvider(id, config string) *domain.AuthProvider {
 	return &domain.AuthProvider{ID: id, Type: id, Enabled: true, Config: []byte(config)}
 }
 
-func TestSanitizeWeComProviderConfigRequiresFieldsWhenEnabled(t *testing.T) {
-	// 外部访问地址可选：留空时运行时按当前访问地址推断回调前缀
+func TestSanitizeWecomProviderConfigRequiresDirectFieldsWhenEnabled(t *testing.T) {
+	_, err := sanitizeAuthProviderConfigWithPrevious("wecom", map[string]any{
+		"authMode": "direct",
+		"corpid":   "ww123",
+	}, nil, true)
+	if err == nil || !strings.Contains(err.Error(), "AgentID") {
+		t.Fatalf("agentid should be required, got %v", err)
+	}
 	config, err := sanitizeAuthProviderConfigWithPrevious("wecom", map[string]any{
-		"corpId":  "ww123",
-		"agentId": float64(1000002),
-		"secret":  "s",
+		"authMode": "direct",
+		"corpid":   "ww123",
+		"agentid":  float64(1000002),
+		"secret":   "s",
 	}, nil, true)
 	if err != nil {
-		t.Fatalf("config without external url should pass: %v", err)
+		t.Fatalf("valid direct config should pass: %v", err)
 	}
-	if _, exists := config["externalUrl"]; exists {
-		t.Fatalf("empty external url should be removed, got %v", config["externalUrl"])
-	}
-	config, err = sanitizeAuthProviderConfigWithPrevious("wecom", map[string]any{
-		"corpId":      "ww123",
-		"agentId":     float64(1000002),
-		"secret":      "s",
-		"externalUrl": "https://kvm.example.com/",
-	}, nil, true)
-	if err != nil {
-		t.Fatalf("valid config should pass: %v", err)
-	}
-	if config["mode"] != "qrcode" {
-		t.Fatalf("mode should default to qrcode, got %v", config["mode"])
-	}
-	if config["externalUrl"] != "https://kvm.example.com" {
-		t.Fatalf("external url trailing slash should be trimmed, got %v", config["externalUrl"])
+	if config["authMode"] != "direct" {
+		t.Fatalf("authMode mismatch: %v", config["authMode"])
 	}
 }
 
-func TestSanitizeWeComProviderConfigKeepsPreviousSecretWhenBlank(t *testing.T) {
+func TestSanitizeWecomProviderConfigRequiresSSOFieldsWhenEnabled(t *testing.T) {
+	_, err := sanitizeAuthProviderConfigWithPrevious("wecom", map[string]any{
+		"authMode": "sso",
+	}, nil, true)
+	if err == nil || !strings.Contains(err.Error(), "认证中心地址") {
+		t.Fatalf("sso base url should be required, got %v", err)
+	}
 	config, err := sanitizeAuthProviderConfigWithPrevious("wecom", map[string]any{
-		"corpId":      "ww123",
-		"agentId":     float64(1000002),
-		"externalUrl": "https://kvm.example.com",
-	}, map[string]any{"secret": "old-secret"}, true)
+		"authMode":     "sso",
+		"ssoBaseUrl":   "https://auth.example.com/",
+		"ssoAppID":     "kvm",
+		"ssoAppSecret": "s",
+	}, nil, true)
 	if err != nil {
-		t.Fatalf("blank secret should keep previous value: %v", err)
+		t.Fatalf("valid sso config should pass: %v", err)
+	}
+	if config["ssoBaseUrl"] != "https://auth.example.com" {
+		t.Fatalf("sso base url trailing slash should be trimmed, got %v", config["ssoBaseUrl"])
+	}
+	// sso 模式不要求直连凭据，切换模式互不丢失；应用密钥留空时续存旧值
+	config, err = sanitizeAuthProviderConfigWithPrevious("wecom", map[string]any{
+		"authMode":   "sso",
+		"ssoBaseUrl": "https://auth.example.com",
+		"ssoAppID":   "kvm",
+	}, map[string]any{"ssoAppSecret": "kept"}, true)
+	if err != nil {
+		t.Fatalf("sso config with previous secret should pass: %v", err)
+	}
+	if config["ssoAppSecret"] != "kept" {
+		t.Fatalf("sso app secret should be carried over, got %v", config["ssoAppSecret"])
+	}
+}
+
+func TestSanitizeWecomProviderConfigRejectsUnknownAuthMode(t *testing.T) {
+	if _, err := sanitizeAuthProviderConfigWithPrevious("wecom", map[string]any{
+		"authMode": "other",
+	}, nil, true); err == nil {
+		t.Fatal("unknown auth mode should be rejected")
+	}
+}
+
+func TestSanitizeWecomProviderConfigKeepsPreviousSecretsWhenBlank(t *testing.T) {
+	config, err := sanitizeAuthProviderConfigWithPrevious("wecom", map[string]any{
+		"authMode": "direct",
+		"corpid":   "ww123",
+		"agentid":  float64(1000002),
+	}, map[string]any{"secret": "old-secret", "ssoAppSecret": "old-sso-secret"}, true)
+	if err != nil {
+		t.Fatalf("blank secrets should keep previous values: %v", err)
 	}
 	if config["secret"] != "old-secret" {
 		t.Fatalf("secret should be carried over, got %v", config["secret"])
 	}
-}
-
-func TestSanitizeWeComProviderConfigAllowsMockWithoutAgentAndSecret(t *testing.T) {
-	config, err := sanitizeAuthProviderConfigWithPrevious("wecom", map[string]any{
-		"corpId":      "ww123",
-		"externalUrl": "https://kvm.example.com",
-		"mock":        true,
-	}, nil, true)
-	if err != nil {
-		t.Fatalf("mock config should not require agent id and secret: %v", err)
-	}
-	if config["mock"] != true {
-		t.Fatalf("mock flag should be preserved, got %v", config["mock"])
+	if config["ssoAppSecret"] != "old-sso-secret" {
+		t.Fatalf("sso app secret should be carried over, got %v", config["ssoAppSecret"])
 	}
 }
 
-func TestSanitizeWeComProviderConfigRejectsInvalidExternalURL(t *testing.T) {
+func TestSanitizeWecomProviderConfigRejectsInvalidRedirectPrefix(t *testing.T) {
 	if _, err := sanitizeAuthProviderConfigWithPrevious("wecom", map[string]any{
-		"corpId":      "ww123",
-		"agentId":     float64(1),
-		"secret":      "s",
-		"externalUrl": "ftp://kvm.example.com",
+		"authMode":       "direct",
+		"corpid":         "ww123",
+		"agentid":        float64(1),
+		"secret":         "s",
+		"redirectPrefix": "ftp://kvm.example.com",
 	}, nil, true); err == nil {
-		t.Fatal("non http(s) external url should be rejected")
+		t.Fatal("non http(s) redirect prefix should be rejected")
 	}
 }
 
-func TestSanitizeWeComCenterProviderConfigRequiresFieldsWhenEnabled(t *testing.T) {
-	_, err := sanitizeAuthProviderConfigWithPrevious("wecom_center", map[string]any{
-		"baseUrl": "https://auth.example.com",
-	}, nil, true)
-	if err == nil || !strings.Contains(err.Error(), "应用标识") {
-		t.Fatalf("app should be required, got %v", err)
-	}
-	config, err := sanitizeAuthProviderConfigWithPrevious("wecom_center", map[string]any{
-		"baseUrl":   "https://auth.example.com",
-		"app":       "kvm",
-		"appSecret": "s",
+func TestSanitizeWecomProviderConfigAllowsEmptyRedirectPrefix(t *testing.T) {
+	// 回调地址前缀可选：留空时运行时按当前访问地址推断
+	config, err := sanitizeAuthProviderConfigWithPrevious("wecom", map[string]any{
+		"authMode": "direct",
+		"corpid":   "ww123",
+		"agentid":  float64(1),
+		"secret":   "s",
 	}, nil, true)
 	if err != nil {
-		t.Fatalf("valid config should pass: %v", err)
+		t.Fatalf("empty redirect prefix should be allowed: %v", err)
 	}
-	if config["baseUrl"] != "https://auth.example.com" {
-		t.Fatalf("base url mismatch: %v", config["baseUrl"])
-	}
-}
-
-func TestSanitizeWeComCenterProviderConfigKeepsPreviousAppSecretWhenBlank(t *testing.T) {
-	config, err := sanitizeAuthProviderConfigWithPrevious("wecom_center", map[string]any{
-		"baseUrl": "https://auth.example.com",
-		"app":     "kvm",
-	}, map[string]any{"appSecret": "old-secret"}, true)
-	if err != nil {
-		t.Fatalf("blank app secret should keep previous value: %v", err)
-	}
-	if config["appSecret"] != "old-secret" {
-		t.Fatalf("app secret should be carried over, got %v", config["appSecret"])
+	if _, exists := config["redirectPrefix"]; exists {
+		t.Fatalf("empty redirect prefix should be removed, got %v", config["redirectPrefix"])
 	}
 }
 
@@ -119,23 +125,14 @@ func TestSanitizeAuthProviderConfigRejectsUnknownID(t *testing.T) {
 	}
 }
 
-func TestRedactWeComProviderConfigSecrets(t *testing.T) {
-	wecom := redactAuthProvider(*mustAuthProvider("wecom", `{"corpId":"ww123","secret":"plain"}`))
-	config := configMap(wecom.Config)
-	if stringValue(config["secret"]) != "" {
-		t.Fatalf("wecom secret should be redacted, got %v", config["secret"])
+func TestRedactWecomProviderConfigSecrets(t *testing.T) {
+	item := redactAuthProvider(*mustAuthProvider("wecom", `{"authMode":"sso","corpid":"ww123","secret":"plain","ssoAppSecret":"plain-sso"}`))
+	config := configMap(item.Config)
+	if stringValue(config["secret"]) != "" || stringValue(config["ssoAppSecret"]) != "" {
+		t.Fatalf("wecom secrets should be redacted, got %v", config)
 	}
-	if config["hasSecret"] != true {
-		t.Fatalf("wecom hasSecret marker missing: %v", config)
-	}
-
-	center := redactAuthProvider(*mustAuthProvider("wecom_center", `{"app":"kvm","appSecret":"plain"}`))
-	centerConfig := configMap(center.Config)
-	if stringValue(centerConfig["appSecret"]) != "" {
-		t.Fatalf("center appSecret should be redacted, got %v", centerConfig["appSecret"])
-	}
-	if centerConfig["hasAppSecret"] != true {
-		t.Fatalf("center hasAppSecret marker missing: %v", centerConfig)
+	if config["hasSecret"] != true || config["hasSsoAppSecret"] != true {
+		t.Fatalf("secret presence markers missing: %v", config)
 	}
 }
 

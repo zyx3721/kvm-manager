@@ -2,214 +2,23 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import {
   BellRingIcon,
-  Building2Icon,
-  CheckCircle2Icon,
   MegaphoneIcon,
   NetworkIcon,
-  QrCodeIcon,
   SlidersHorizontalIcon,
-  SaveIcon,
   SettingsIcon,
-  ToggleLeftIcon,
-  ToggleRightIcon,
-  Trash2Icon,
   UsersRoundIcon,
 } from 'lucide-react';
+import AuthSettingsPanel from './components/AuthSettingsPanel';
 import { BaseSettingsPanel } from './components/BaseSettingsPanel';
 import { NotificationSettingsPanel } from './components/NotificationSettingsPanel';
 import { UserSettingsPanel } from './components/UserSettingsPanel';
-import {
-  fetchAuthProviders,
-  testAuthProvider,
-  updateAuthProvider,
-  type AuthProvider,
-} from '../../lib/api';
 import { can } from '../../lib/permissions';
-import {
-  ConfigField,
-  EnableMediaToggle,
-  SectionTitle,
-  SettingsDetailHeader,
-  SettingsDetailPanel,
-  SettingsSplitLayout,
-  displayValue,
-  normalizeConfig,
-  removeEmptyConfigValues,
-  removeSecretPresenceMarkers,
-  secretConfigured,
-  type Field,
-} from './components/SettingsFormPrimitives';
 
 type SettingsTab = 'base' | 'users' | 'auth' | 'notifications';
-type AuthProviderId = 'ldap' | 'wecom' | 'wecom_center';
-
-const authProviderMeta: Record<
-  AuthProviderId,
-  {
-    name: string;
-    description: string;
-    icon: React.ElementType;
-    color: string;
-    requiredFields: Field[];
-    optionalFields: Field[];
-  }
-> = {
-  ldap: {
-    name: 'AD/LDAP',
-    description: '通过企业目录服务实现统一身份认证，支持 AD/LDAP 登录。',
-    icon: NetworkIcon,
-    color: '#38bdf8',
-    requiredFields: [
-      { key: 'host', label: '服务器地址', placeholder: 'ldap.example.com', required: true },
-      { key: 'port', label: '端口', placeholder: '389', required: true, inputMode: 'numeric' },
-      { key: 'baseDN', label: 'Base DN', placeholder: 'dc=example,dc=com', required: true },
-      {
-        key: 'userFilter',
-        label: '用户过滤器',
-        placeholder: '(sAMAccountName={username})',
-        required: true,
-      },
-      {
-        key: 'bindDN',
-        label: '绑定 DN',
-        placeholder: 'cn=readonly,dc=example,dc=com',
-        required: true,
-      },
-      {
-        key: 'bindPassword',
-        label: '绑定密码',
-        placeholder: '请输入绑定账号密码',
-        required: true,
-        type: 'password',
-      },
-    ],
-    optionalFields: [
-      { key: 'useTLS', label: '启用 LDAPS', placeholder: '', type: 'checkbox' },
-      { key: 'startTLS', label: '启用 STARTTLS', placeholder: '', type: 'checkbox' },
-      { key: 'insecureSkipVerify', label: '跳过证书校验', placeholder: '', type: 'checkbox' },
-      { key: 'timeoutSeconds', label: '超时时间', placeholder: '8', type: 'number' },
-      { key: 'groupFilter', label: '用户组过滤器', placeholder: 'cn=ops,dc=example,dc=com' },
-    ],
-  },
-  wecom: {
-    name: '企业微信·直连',
-    description:
-      '平台直接对接企业微信自建应用，通过扫码或企微内网页授权登录；需在企微后台为本平台域名配置可信域名。',
-    icon: QrCodeIcon,
-    color: '#07c160',
-    requiredFields: [
-      {
-        key: 'corpId',
-        label: '企业 ID',
-        placeholder: 'wwxxxxxxxxxxxxxxxx',
-        required: true,
-        helper: '企业微信后台「我的企业」页面的企业 ID',
-      },
-      {
-        key: 'agentId',
-        label: '应用 AgentId',
-        placeholder: '1000002',
-        required: true,
-        type: 'number',
-        inputMode: 'numeric',
-        helper: '自建应用详情页的 AgentId',
-      },
-      {
-        key: 'secret',
-        label: '应用 Secret',
-        placeholder: '请输入自建应用 Secret',
-        required: true,
-        type: 'password',
-      },
-    ],
-    optionalFields: [
-      {
-        key: 'externalUrl',
-        label: '外部访问地址',
-        placeholder: '留空则按当前访问地址自动推断',
-        helper: '用户访问平台的对外地址，用于构造企业微信授权回调；需企微后台配置为应用可信域名',
-      },
-      {
-        key: 'mode',
-        label: '登录方式',
-        placeholder: '选择登录方式',
-        type: 'select',
-        options: [
-          { value: 'qrcode', label: 'PC 浏览器扫码' },
-          { value: 'inside', label: '企微内置浏览器授权' },
-        ],
-        helper: 'qrcode 适用于 PC 浏览器扫码，inside 适用于企业微信客户端内打开',
-      },
-      {
-        key: 'fetchName',
-        label: '获取姓名',
-        placeholder: '',
-        type: 'checkbox',
-        helper: '登录时额外调用通讯录接口补全姓名，需授予应用通讯录读取权限',
-      },
-      {
-        key: 'mock',
-        label: '调试模式',
-        placeholder: '',
-        type: 'checkbox',
-        helper: '不访问企业微信接口，以模拟用户演练完整登录流程，仅限开发验证',
-      },
-    ],
-  },
-  wecom_center: {
-    name: '企业微信·统一认证中心',
-    description:
-      '对接统一认证中心，由认证中心完成企业微信扫码后通过签名票据换回身份；平台无需单独配置企业微信可信域名与 Secret。',
-    icon: Building2Icon,
-    color: '#6366f1',
-    requiredFields: [
-      {
-        key: 'baseUrl',
-        label: '认证中心地址',
-        placeholder: 'https://auth.example.com',
-        required: true,
-      },
-      {
-        key: 'app',
-        label: '应用标识',
-        placeholder: 'kvm',
-        required: true,
-        helper: '认证中心应用白名单中登记的业务系统标识',
-      },
-      {
-        key: 'appSecret',
-        label: '应用密钥',
-        placeholder: '请输入认证中心分配的 app_secret',
-        required: true,
-        type: 'password',
-        helper: '仅用于后端 verify 签名，不会下发到前端',
-      },
-    ],
-    optionalFields: [
-      {
-        key: 'verifyTsSkew',
-        label: '时间偏差容忍（秒）',
-        placeholder: '60',
-        type: 'number',
-        helper: 'verify 时间戳允许的偏差秒数，默认 60',
-      },
-    ],
-  },
-};
-
-const authProviderOrder: AuthProviderId[] = ['ldap', 'wecom', 'wecom_center'];
 
 export default function SettingsPage() {
   const [tab, setTab] = useState<SettingsTab>('base');
-  const [authProviders, setAuthProviders] = useState<Record<string, AuthProvider>>({});
-  const [selectedAuth, setSelectedAuth] = useState<AuthProviderId>('ldap');
-  const [authForm, setAuthForm] = useState<Record<string, unknown>>({});
-  const [authName, setAuthName] = useState('AD/LDAP');
-  const [authEnabled, setAuthEnabled] = useState(false);
-  const [busy, setBusy] = useState('');
   const [error, setError] = useState('');
-  const authMeta = authProviderMeta[selectedAuth];
-  const AuthIcon = authMeta.icon;
   const canReadBase = can('settings.base.read');
   const canManageBase = can('settings.base.manage');
   const canReadUsers = can('settings.users.read');
@@ -261,21 +70,14 @@ export default function SettingsPage() {
   const load = useCallback(async () => {
     setError('');
     try {
-      const requests: Promise<void>[] = [];
-      if (canReadAuth || canManageAuth) {
-        requests.push(
-          fetchAuthProviders().then(response => {
-            setAuthProviders(Object.fromEntries(response.items.map(item => [item.id, item])));
-          })
-        );
-      }
-      await Promise.all(requests);
+      // 认证配置由 AuthSettingsPanel 自行加载
+      await Promise.all([]);
     } catch (err) {
       const message = err instanceof Error ? err.message : '读取系统配置失败';
       toast.error(message);
       setError(isPermissionMessage(message) ? '' : message);
     }
-  }, [canManageAuth, canReadAuth]);
+  }, []);
 
   useEffect(() => {
     void load();
@@ -286,81 +88,6 @@ export default function SettingsPage() {
       setTab(visibleTabs[0].id);
     }
   }, [tab, visibleTabs]);
-  useEffect(() => {
-    const provider = authProviders[selectedAuth];
-    setAuthEnabled(provider?.enabled ?? false);
-    setAuthName(provider?.name ?? authProviderMeta[selectedAuth].name);
-    setAuthForm(normalizeConfig(provider?.config));
-  }, [authProviders, selectedAuth]);
-
-  const authCards = useMemo(
-    () =>
-      authProviderOrder.map(id => ({
-        id,
-        meta: authProviderMeta[id],
-        provider: authProviders[id],
-      })),
-    [authProviders]
-  );
-
-  const saveAuth = async () => {
-    const nextAuthName = authName.trim();
-    if (!nextAuthName) {
-      toast.error('显示名称不能为空');
-      return;
-    }
-    const { config, error: configError } = prepareAuthConfig(selectedAuth, authForm, authEnabled);
-    if (configError) {
-      toast.error(configError);
-      return;
-    }
-    setBusy('save-auth');
-    try {
-      const saved = await updateAuthProvider(selectedAuth, {
-        name: nextAuthName,
-        enabled: authEnabled,
-        config,
-      });
-      setAuthProviders(current => ({ ...current, [selectedAuth]: saved }));
-      toast.success('认证配置已保存');
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : '保存认证配置失败');
-    } finally {
-      setBusy('');
-    }
-  };
-
-  const clearAuthConfig = () => {
-    setAuthEnabled(false);
-    setAuthForm({});
-  };
-
-  const testAuth = async () => {
-    setBusy('test-auth');
-    try {
-      const result = await testAuthProvider(selectedAuth);
-      toast.success(result.message || `认证连接测试通过，成功匹配 ${result.matchedUsers} 个用户`);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : '认证连接测试失败');
-    } finally {
-      setBusy('');
-    }
-  };
-
-  const updateAuthConfigField = (field: Field, value: unknown) => {
-    setAuthForm(current => {
-      const next = { ...current, [field.key]: value };
-      if (field.key === 'useTLS' && value === true) {
-        next.startTLS = false;
-        next.port = 636;
-      }
-      if (field.key === 'startTLS' && value === true) {
-        next.useTLS = false;
-        next.port = 389;
-      }
-      return next;
-    });
-  };
   return (
     <SettingsPageFrame>
       <div className="flex items-center justify-between gap-4">
@@ -451,123 +178,7 @@ export default function SettingsPage() {
           description="启用外部认证后，登录界面会显示对应登录方式。"
           badge={<SettingsSectionBadge icon={NetworkIcon} label="身份认证" />}
         >
-          <SettingsSplitLayout
-            sidebarLabel="认证配置"
-            sidebar={authCards.map(({ id, meta: itemMeta, provider }) => (
-              <AuthProviderCard
-                key={id}
-                id={id}
-                meta={itemMeta}
-                active={selectedAuth === id}
-                enabled={provider?.enabled ?? false}
-                onSelect={() => setSelectedAuth(id)}
-              />
-            ))}
-          >
-            <SettingsDetailPanel
-              header={
-                <SettingsDetailHeader
-                  icon={AuthIcon}
-                  color={authMeta.color}
-                  title={authMeta.name}
-                  subtitle={authEnabled ? '已启用' : '未启用'}
-                  active={authEnabled}
-                />
-              }
-              actions={
-                canManageAuth ? (
-                  <>
-                    <button
-                      type="button"
-                      onClick={clearAuthConfig}
-                      disabled={busy !== ''}
-                      className="kvm-action-button kvm-danger-button flex items-center gap-2 rounded-lg border px-3 py-2 text-sm disabled:opacity-50"
-                      style={{
-                        borderColor: 'rgba(239,68,68,0.34)',
-                        color: '#f87171',
-                        background: 'rgba(239,68,68,0.08)',
-                      }}
-                    >
-                      <Trash2Icon size={14} />
-                      清空配置
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => void saveAuth()}
-                      disabled={busy !== ''}
-                      className="kvm-action-button flex items-center gap-2 rounded-lg border px-3 py-2 text-sm disabled:opacity-50"
-                      style={{
-                        borderColor: 'rgba(59,130,246,0.38)',
-                        color: 'var(--kvm-accent-text)',
-                        background: 'rgba(59,130,246,0.1)',
-                      }}
-                    >
-                      <SaveIcon size={14} />
-                      保存
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => void testAuth()}
-                      disabled={busy !== '' || !authEnabled}
-                      className="kvm-action-button flex items-center gap-2 rounded-lg border px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-50"
-                      style={{
-                        borderColor: 'rgba(16,185,129,0.35)',
-                        color: '#34d399',
-                        background: 'rgba(16,185,129,0.08)',
-                      }}
-                    >
-                      <CheckCircle2Icon size={14} />
-                      测试
-                    </button>
-                  </>
-                ) : null
-              }
-            >
-              <p className="mb-4 text-sm leading-6" style={{ color: 'var(--kvm-text-muted)' }}>
-                {authMeta.description}
-              </p>
-              <EnableMediaToggle
-                enabled={authEnabled}
-                disabled={!canManageAuth}
-                onChange={setAuthEnabled}
-                label="启用认证"
-                enabledText="登录页将显示该认证方式"
-                disabledText="关闭后不会显示在登录页"
-              />
-              <ConfigField
-                field={{ key: 'name', label: '显示名称', placeholder: 'AD/LDAP', required: true }}
-                value={authName}
-                disabled={!canManageAuth}
-                onChange={value => setAuthName(String(value ?? ''))}
-              />
-              <div className="mt-4 space-y-3">
-                <SectionTitle title="必填配置" />
-                {authMeta.requiredFields.map(field => (
-                  <ConfigField
-                    key={field.key}
-                    field={field}
-                    value={displayValue(field, authForm[field.key])}
-                    secretConfigured={secretConfigured(field, authForm)}
-                    disabled={!canManageAuth}
-                    onChange={value => updateAuthConfigField(field, value)}
-                  />
-                ))}
-              </div>
-              <div className="mt-5 space-y-3">
-                <SectionTitle title="可选配置" />
-                {authMeta.optionalFields.map(field => (
-                  <ConfigField
-                    key={field.key}
-                    field={field}
-                    value={displayValue(field, authForm[field.key])}
-                    secretConfigured={secretConfigured(field, authForm)}
-                    disabled={!canManageAuth}
-                    onChange={value => updateAuthConfigField(field, value)}
-                  />
-                ))}
-              </div>
-            </SettingsDetailPanel>
-          </SettingsSplitLayout>
+          <AuthSettingsPanel canManage={canManageAuth} />
         </SettingsConfigSection>
       )}
     </SettingsPageFrame>
@@ -656,110 +267,6 @@ function SettingsSectionBadge({ icon: Icon, label }: { icon: React.ElementType; 
       {label}
     </div>
   );
-}
-
-function AuthProviderCard({
-  id,
-  meta,
-  active,
-  enabled,
-  onSelect,
-}: {
-  id: AuthProviderId;
-  meta: (typeof authProviderMeta)[AuthProviderId];
-  active: boolean;
-  enabled: boolean;
-  onSelect: () => void;
-}) {
-  const CardIcon = meta.icon;
-  return (
-    <button
-      type="button"
-      onClick={onSelect}
-      className="kvm-action-button flex w-full items-start gap-3 rounded-lg p-3 text-left"
-      style={{
-        background: active ? 'rgba(59,130,246,0.12)' : 'transparent',
-        border: active ? '1px solid rgba(96,165,250,0.56)' : '1px solid transparent',
-        color: 'var(--kvm-text)',
-      }}
-    >
-      <div
-        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg"
-        style={{
-          color: meta.color,
-          background: 'rgba(255,255,255,0.05)',
-          border: '1px solid rgba(255,255,255,0.08)',
-        }}
-      >
-        <CardIcon size={19} />
-      </div>
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center justify-between gap-3">
-          <span className="truncate text-sm font-semibold">{meta.name}</span>
-          {enabled ? (
-            <ToggleRightIcon size={18} className="shrink-0" style={{ color: '#86efac' }} />
-          ) : (
-            <ToggleLeftIcon
-              size={18}
-              className="shrink-0"
-              style={{ color: 'var(--kvm-text-muted)' }}
-            />
-          )}
-        </div>
-        <p
-          className="mt-1 line-clamp-2 text-xs leading-5"
-          style={{ color: 'var(--kvm-text-muted)' }}
-        >
-          {meta.description}
-        </p>
-      </div>
-    </button>
-  );
-}
-
-function prepareAuthConfig(
-  id: AuthProviderId,
-  form: Record<string, unknown>,
-  enabled: boolean
-): { config: Record<string, unknown>; error: string } {
-  const next = { ...form };
-  if (!enabled)
-    return { config: removeEmptyConfigValues(removeSecretPresenceMarkers(next)), error: '' };
-  if (id === 'ldap') {
-    if (Boolean(next.useTLS) && Boolean(next.startTLS))
-      return { config: {}, error: 'LDAPS 与 StartTLS 不能同时启用' };
-    if (Boolean(next.useTLS)) next.port = 636;
-    else if (Boolean(next.startTLS)) next.port = 389;
-    else if (String(next.port ?? '').trim() === '') next.port = 389;
-    else {
-      const port = parsePort(next.port);
-      if (!port) return { config: {}, error: '端口需为 1 到 65535 之间的整数' };
-      next.port = port;
-    }
-  }
-  if (id === 'wecom') {
-    const externalUrl = String(next.externalUrl ?? '').trim();
-    if (externalUrl && !/^https?:\/\//.test(externalUrl))
-      return { config: {}, error: '外部访问地址必须以 http:// 或 https:// 开头' };
-    if (!next.mode) next.mode = 'qrcode';
-  }
-  const missingField = authProviderMeta[id].requiredFields.find(field => {
-    if (id === 'wecom' && Boolean(next.mock) && (field.key === 'secret' || field.key === 'agentId'))
-      return false;
-    if (field.type === 'number') return !Number(next[field.key]);
-    if (field.type === 'password' && secretConfigured(field, next)) return false;
-    return !String(next[field.key] ?? '').trim();
-  });
-  if (missingField) return { config: {}, error: `${missingField.label}不能为空` };
-  return { config: removeEmptyConfigValues(removeSecretPresenceMarkers(next)), error: '' };
-}
-
-function parsePort(value: unknown) {
-  const text = String(value ?? '').trim();
-  if (!/^\d+$/.test(text)) return 0;
-  const port = Number(text);
-  if (!Number.isInteger(port) || port < 1 || port > 65535) return 0;
-  return port;
 }
 
 function isPermissionMessage(message: string) {

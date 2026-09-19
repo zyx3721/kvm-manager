@@ -33,21 +33,22 @@ func wecomRequestBaseURL(req *http.Request) string {
 	return scheme + "://" + req.Host
 }
 
+// handleWecomAuthorize 获取企业微信扫码登录地址：直连返回企微授权页，统一认证中心返回认证中心登录页。
 func (r *router) handleWecomAuthorize(w http.ResponseWriter, req *http.Request) {
 	redirect := sanitizeLocalPath(req.URL.Query().Get("redirect"))
-	target, err := r.auth.WeComAuthorize(req.Context(), redirect, repository.ClientIP(req), wecomRequestBaseURL(req))
+	target, err := r.auth.WeComLoginURL(req.Context(), redirect, repository.ClientIP(req), wecomRequestBaseURL(req))
 	if err != nil {
 		r.logger.Error("wecom authorize failed", "error", err)
 		writeError(w, http.StatusServiceUnavailable, "wecom_authorize_failed", auth.WeComUserMessage(err))
 		return
 	}
-	http.Redirect(w, req, target, http.StatusFound)
+	writeJSON(w, http.StatusOK, map[string]any{"url": target})
 }
 
 func (r *router) handleWecomCallback(w http.ResponseWriter, req *http.Request) {
 	code := req.URL.Query().Get("code")
 	state := req.URL.Query().Get("state")
-	result, err := r.auth.WeComCallback(req.Context(), code, state, wecomRequestBaseURL(req))
+	result, err := r.auth.WeComCallback(req.Context(), code, state)
 	if err != nil {
 		r.logger.Warn("wecom login failed", "error", err)
 		_ = r.store.WriteAudit(req.Context(), "", "auth.wecom.failed", "auth_provider", "wecom", repository.ClientIP(req), map[string]any{
@@ -57,43 +58,30 @@ func (r *router) handleWecomCallback(w http.ResponseWriter, req *http.Request) {
 		r.redirectAuthResult(w, req, authFailureValues(err))
 		return
 	}
-	r.finishWecomResult(w, req, "wecom", result)
+	r.finishWecomResult(w, req, result)
 }
 
-func (r *router) handleWecomCenterAuthorize(w http.ResponseWriter, req *http.Request) {
-	redirect := sanitizeLocalPath(req.URL.Query().Get("redirect"))
-	target, err := r.auth.WeComCenterAuthorize(req.Context(), redirect)
-	if err != nil {
-		r.logger.Error("wecom center authorize failed", "error", err)
-		writeError(w, http.StatusServiceUnavailable, "wecom_center_authorize_failed", auth.WeComUserMessage(err))
-		return
-	}
-	http.Redirect(w, req, target, http.StatusFound)
-}
-
-func (r *router) handleWecomCenterCallback(w http.ResponseWriter, req *http.Request) {
+// handleWecomSSOCallback 统一认证中心票据回调：verify 换取身份后按 redirect 中的绑定票据分派登录或绑定。
+func (r *router) handleWecomSSOCallback(w http.ResponseWriter, req *http.Request) {
 	ticket := req.URL.Query().Get("ticket")
 	redirect := req.URL.Query().Get("redirect")
-	result, err := r.auth.WeComCenterCallback(req.Context(), ticket, redirect)
+	result, err := r.auth.WeComSSOCallback(req.Context(), ticket, redirect)
 	if err != nil {
-		r.logger.Warn("wecom center login failed", "error", err)
-		_ = r.store.WriteAudit(req.Context(), "", "auth.wecom.failed", "auth_provider", "wecom_center", repository.ClientIP(req), map[string]any{
+		r.logger.Warn("wecom sso login failed", "error", err)
+		_ = r.store.WriteAudit(req.Context(), "", "auth.wecom.failed", "auth_provider", "wecom", repository.ClientIP(req), map[string]any{
 			"reason": wecomFailureReason(err),
 			"userid": wecomFailureUser(err),
 		})
 		r.redirectAuthResult(w, req, authFailureValues(err))
 		return
 	}
-	r.finishWecomResult(w, req, "wecom_center", result)
+	r.finishWecomResult(w, req, result)
 }
 
-// handleWecomBindURL 绑定发起地址：直连启用时走直连扫码，否则走统一认证中心。
+// handleWecomBindURL 获取当前用户的企微绑定地址：按认证方式分派直连扫码或统一认证中心跳转。
 func (r *router) handleWecomBindURL(w http.ResponseWriter, req *http.Request) {
 	userID := currentSession(req).User.ID
-	target, err := r.auth.WeComBindAuthorize(req.Context(), userID, repository.ClientIP(req), wecomRequestBaseURL(req))
-	if errors.Is(err, auth.ErrAuthProviderDisabled) {
-		target, err = r.auth.WeComCenterBindAuthorize(req.Context(), userID)
-	}
+	target, err := r.auth.WeComBindURL(req.Context(), userID, repository.ClientIP(req), wecomRequestBaseURL(req))
 	if err != nil {
 		r.logger.Warn("wecom bind authorize failed", "error", err)
 		writeError(w, http.StatusServiceUnavailable, "wecom_bind_url_failed", auth.WeComUserMessage(err))
@@ -123,9 +111,9 @@ func (r *router) handleWecomUnbind(w http.ResponseWriter, req *http.Request) {
 }
 
 // finishWecomResult 回调成功收口：登录写登录审计并回传会话，绑定写绑定审计并通知前端弹窗。
-func (r *router) finishWecomResult(w http.ResponseWriter, req *http.Request, provider string, result auth.WecomResult) {
+func (r *router) finishWecomResult(w http.ResponseWriter, req *http.Request, result auth.WecomResult) {
 	if result.Kind == auth.AuthPurposeBind {
-		_ = r.store.WriteAudit(req.Context(), result.Session.User.ID, "auth.wecom.bind", "auth_provider", provider, repository.ClientIP(req), map[string]any{
+		_ = r.store.WriteAudit(req.Context(), result.Session.User.ID, "auth.wecom.bind", "auth_provider", "wecom", repository.ClientIP(req), map[string]any{
 			"username": result.Username,
 			"userid":   result.Userid,
 		})
@@ -135,7 +123,7 @@ func (r *router) finishWecomResult(w http.ResponseWriter, req *http.Request, pro
 	session := result.Session
 	_ = r.store.WriteAudit(req.Context(), session.User.ID, "auth.login", "user", session.User.ID, repository.ClientIP(req), map[string]any{
 		"username": session.User.Username,
-		"provider": provider,
+		"provider": "wecom",
 	})
 	r.redirectAuthResult(w, req, url.Values{
 		"token":       {session.Token},

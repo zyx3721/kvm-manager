@@ -2,18 +2,18 @@ import React, { type FormEvent, useEffect, useMemo, useRef, useState } from 'rea
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
-  Building2Icon,
   CheckIcon,
   ChevronDownIcon,
   EyeIcon,
   EyeOffIcon,
+  Loader2Icon,
   LockIcon,
   MoonIcon,
   QrCodeIcon,
   SunIcon,
   UserIcon,
 } from 'lucide-react';
-import { isAuthenticated, login as loginRequest } from '../../lib/auth';
+import { fetchWecomLoginUrl, isAuthenticated, login as loginRequest } from '../../lib/auth';
 import { KvmTooltip } from '../../components/kvm/StatusBadge';
 import { fetchPublicAuthProviders, type PublicAuthProvider } from '../../lib/api';
 import { useBaseConfig } from '../../lib/branding';
@@ -60,18 +60,15 @@ export default function Login() {
       .catch(() => setProviders([]));
   }, []);
 
-  // 企业微信类认证方式不走账号密码表单，渲染为独立跳转按钮
-  const oauthProviders = useMemo(
-    () => providers.filter(item => Boolean(item.authorize_path)),
-    [providers]
-  );
-  const passwordProviders = useMemo(
-    () => providers.filter(item => !item.authorize_path),
-    [providers]
-  );
+  // 登录方式下拉展示全部启用方式；企业微信选中后切换为扫码说明卡片
+  const isWecomProvider = provider === 'wecom';
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (isWecomProvider) {
+      await startWecomLogin();
+      return;
+    }
     const normalizedUsername = username.trim();
 
     if (!normalizedUsername || !password) {
@@ -90,6 +87,20 @@ export default function Login() {
       const message = err instanceof Error ? err.message : '登录失败，请稍后重试';
       setError(message);
     } finally {
+      setLoading(false);
+    }
+  }
+
+  async function startWecomLogin() {
+    setLoading(true);
+    setError('');
+    try {
+      const url = await fetchWecomLoginUrl(redirectPath);
+      window.location.assign(url);
+      // 跳转失败或被拦截时 4 秒兜底复位按钮
+      window.setTimeout(() => setLoading(false), 4000);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '获取企业微信登录地址失败');
       setLoading(false);
     }
   }
@@ -177,90 +188,119 @@ export default function Login() {
             </div>
 
             <form className="space-y-5" onSubmit={handleSubmit} noValidate>
-              {passwordProviders.length > 0 && (
+              {providers.length > 0 && (
                 <LoginProviderSelect
                   value={provider}
-                  providers={passwordProviders}
+                  providers={providers}
                   onChange={setProvider}
                 />
               )}
-              <div>
-                <label className="mb-2 block text-sm font-medium" htmlFor="username">
-                  用户名
-                </label>
-                <div className="relative">
-                  <UserIcon
-                    className="absolute left-4 top-1/2 -translate-y-1/2"
-                    size={17}
-                    style={{ color: 'var(--kvm-text-muted)' }}
-                    aria-hidden="true"
-                  />
-                  <input
-                    id="username"
-                    name="username"
-                    autoComplete="username"
-                    placeholder="请输入用户名"
-                    value={username}
-                    onChange={event => setUsername(event.target.value)}
-                    className="h-12 w-full rounded-2xl py-3 pl-12 pr-4 text-sm outline-none transition-all"
-                    style={{
-                      background: 'var(--kvm-control-bg)',
-                      border: '1px solid var(--kvm-border)',
-                      color: 'var(--kvm-text)',
-                    }}
-                    aria-invalid={Boolean(error)}
-                  />
+              {isWecomProvider && (
+                <div
+                  className="flex flex-col items-center gap-2 rounded-2xl px-4 py-5 text-center"
+                  style={{
+                    background: 'var(--kvm-control-bg)',
+                    border: '1px solid var(--kvm-border)',
+                    color: 'var(--kvm-text)',
+                  }}
+                >
+                  <span
+                    className="flex h-14 w-14 items-center justify-center rounded-full"
+                    style={{ background: 'rgba(59,130,246,0.14)' }}
+                  >
+                    <QrCodeIcon size={26} style={{ color: 'var(--kvm-accent-text)' }} />
+                  </span>
+                  <p className="text-sm font-medium" style={{ color: 'var(--kvm-text)' }}>
+                    企业微信扫码登录
+                  </p>
+                  <p className="text-xs leading-5" style={{ color: 'var(--kvm-text-muted)' }}>
+                    点击下方按钮跳转至企业微信授权页，
+                    <br />
+                    使用企业微信 App 扫码确认后自动登录
+                  </p>
                 </div>
-              </div>
+              )}
+              {!isWecomProvider && (
+                <>
+                  <div>
+                    <label className="mb-2 block text-sm font-medium" htmlFor="username">
+                      用户名
+                    </label>
+                    <div className="relative">
+                      <UserIcon
+                        className="absolute left-4 top-1/2 -translate-y-1/2"
+                        size={17}
+                        style={{ color: 'var(--kvm-text-muted)' }}
+                        aria-hidden="true"
+                      />
+                      <input
+                        id="username"
+                        name="username"
+                        autoComplete="username"
+                        placeholder="请输入用户名"
+                        value={username}
+                        onChange={event => setUsername(event.target.value)}
+                        className="h-12 w-full rounded-2xl py-3 pl-12 pr-4 text-sm outline-none transition-all"
+                        style={{
+                          background: 'var(--kvm-control-bg)',
+                          border: '1px solid var(--kvm-border)',
+                          color: 'var(--kvm-text)',
+                        }}
+                        aria-invalid={Boolean(error)}
+                      />
+                    </div>
+                  </div>
 
-              <div>
-                <div className="mb-2 flex items-center justify-between gap-3">
-                  <label className="block text-sm font-medium" htmlFor="password">
-                    密码
-                  </label>
-                  <Link
-                    to="/forgot-password"
-                    className="text-xs font-semibold transition-colors"
-                    style={{ color: 'var(--kvm-accent-text)' }}
-                  >
-                    忘记密码?
-                  </Link>
-                </div>
-                <div className="relative">
-                  <LockIcon
-                    className="absolute left-4 top-1/2 -translate-y-1/2"
-                    size={17}
-                    style={{ color: 'var(--kvm-text-muted)' }}
-                    aria-hidden="true"
-                  />
-                  <input
-                    id="password"
-                    name="password"
-                    type={showPassword ? 'text' : 'password'}
-                    autoComplete="current-password"
-                    placeholder="请输入密码"
-                    value={password}
-                    onChange={event => setPassword(event.target.value)}
-                    className="h-12 w-full rounded-2xl py-3 pl-12 pr-12 text-sm outline-none transition-all"
-                    style={{
-                      background: 'var(--kvm-control-bg)',
-                      border: '1px solid var(--kvm-border)',
-                      color: 'var(--kvm-text)',
-                    }}
-                    aria-invalid={Boolean(error)}
-                    aria-describedby="login-error"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(value => !value)}
-                    className="absolute right-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-xl transition-colors"
-                    style={{ color: 'var(--kvm-text-muted)' }}
-                    aria-label={showPassword ? '隐藏密码' : '显示密码'}
-                  >
-                    {showPassword ? <EyeOffIcon size={17} /> : <EyeIcon size={17} />}
-                  </button>
-                </div>
-              </div>
+                  <div>
+                    <div className="mb-2 flex items-center justify-between gap-3">
+                      <label className="block text-sm font-medium" htmlFor="password">
+                        密码
+                      </label>
+                      <Link
+                        to="/forgot-password"
+                        className="text-xs font-semibold transition-colors"
+                        style={{ color: 'var(--kvm-accent-text)' }}
+                      >
+                        忘记密码?
+                      </Link>
+                    </div>
+                    <div className="relative">
+                      <LockIcon
+                        className="absolute left-4 top-1/2 -translate-y-1/2"
+                        size={17}
+                        style={{ color: 'var(--kvm-text-muted)' }}
+                        aria-hidden="true"
+                      />
+                      <input
+                        id="password"
+                        name="password"
+                        type={showPassword ? 'text' : 'password'}
+                        autoComplete="current-password"
+                        placeholder="请输入密码"
+                        value={password}
+                        onChange={event => setPassword(event.target.value)}
+                        className="h-12 w-full rounded-2xl py-3 pl-12 pr-12 text-sm outline-none transition-all"
+                        style={{
+                          background: 'var(--kvm-control-bg)',
+                          border: '1px solid var(--kvm-border)',
+                          color: 'var(--kvm-text)',
+                        }}
+                        aria-invalid={Boolean(error)}
+                        aria-describedby="login-error"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(value => !value)}
+                        className="absolute right-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-xl transition-colors"
+                        style={{ color: 'var(--kvm-text-muted)' }}
+                        aria-label={showPassword ? '隐藏密码' : '显示密码'}
+                      >
+                        {showPassword ? <EyeOffIcon size={17} /> : <EyeIcon size={17} />}
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
 
               <div aria-live="polite" className="min-h-6">
                 {error && (
@@ -289,53 +329,9 @@ export default function Login() {
                   boxShadow: '0 18px 48px rgba(37,99,235,0.35)',
                 }}
               >
-                {loading && (
-                  <span
-                    className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white"
-                    aria-hidden="true"
-                  />
-                )}
-                {loading ? '登录中...' : '登录'}
+                {loading && <Loader2Icon size={17} className="animate-spin" aria-hidden="true" />}
+                {loading ? '处理中...' : isWecomProvider ? '企业微信扫码登录' : '登录'}
               </button>
-              {oauthProviders.length > 0 && (
-                <div className="space-y-3">
-                  <div
-                    className="flex items-center gap-3 text-xs"
-                    style={{ color: 'var(--kvm-text-muted)' }}
-                  >
-                    <span className="h-px flex-1" style={{ background: 'var(--kvm-border)' }} />
-                    或使用以下方式登录
-                    <span className="h-px flex-1" style={{ background: 'var(--kvm-border)' }} />
-                  </div>
-                  {oauthProviders.map(item => {
-                    const OAuthIcon = item.id === 'wecom' ? QrCodeIcon : Building2Icon;
-                    return (
-                      <button
-                        key={item.id}
-                        type="button"
-                        onClick={() => {
-                          window.location.href = `${item.authorize_path}?redirect=${encodeURIComponent(redirectPath)}`;
-                        }}
-                        className="kvm-action-button flex h-12 w-full items-center justify-center gap-2 rounded-2xl text-sm font-medium transition-all"
-                        style={{
-                          background: 'var(--kvm-control-bg)',
-                          border: '1px solid var(--kvm-border)',
-                          color: 'var(--kvm-text)',
-                        }}
-                        aria-label={`使用${item.name}登录`}
-                      >
-                        <OAuthIcon
-                          size={17}
-                          style={{
-                            color: item.id === 'wecom' ? '#07c160' : 'var(--kvm-accent-text)',
-                          }}
-                        />
-                        {item.name}登录
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
             </form>
           </div>
         </section>

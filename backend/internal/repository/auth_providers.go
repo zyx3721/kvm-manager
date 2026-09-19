@@ -14,7 +14,7 @@ func (s *Store) ListAuthProviders(ctx context.Context) ([]domain.AuthProvider, e
 	rows, err := s.pool.Query(ctx, `
 		SELECT id, type, name, enabled, config, created_at, updated_at
 		FROM auth_providers
-		ORDER BY CASE id WHEN 'ldap' THEN 1 ELSE 9 END, id
+		ORDER BY CASE id WHEN 'ldap' THEN 1 WHEN 'wecom' THEN 2 ELSE 9 END, id
 	`)
 	if err != nil {
 		return nil, err
@@ -31,18 +31,12 @@ func (s *Store) ListAuthProviders(ctx context.Context) ([]domain.AuthProvider, e
 	return items, rows.Err()
 }
 
-// authProviderAuthorizePaths OAuth 类登录方式的发起地址，登录页据此构造跳转。
-var authProviderAuthorizePaths = map[string]string{
-	"wecom":        "/api/auth/wecom/authorize",
-	"wecom_center": "/api/auth/wecom-center/authorize",
-}
-
 func (s *Store) ListEnabledPublicAuthProviders(ctx context.Context) ([]domain.PublicAuthProvider, error) {
 	rows, err := s.pool.Query(ctx, `
 		SELECT id, type, name, enabled
 		FROM auth_providers
 		WHERE enabled=true
-		ORDER BY CASE id WHEN 'ldap' THEN 1 ELSE 9 END, id
+		ORDER BY CASE id WHEN 'ldap' THEN 1 WHEN 'wecom' THEN 2 ELSE 9 END, id
 	`)
 	if err != nil {
 		return nil, err
@@ -54,7 +48,6 @@ func (s *Store) ListEnabledPublicAuthProviders(ctx context.Context) ([]domain.Pu
 		if err := rows.Scan(&item.ID, &item.Type, &item.Name, &item.Enabled); err != nil {
 			return nil, err
 		}
-		item.AuthorizePath = authProviderAuthorizePaths[item.ID]
 		items = append(items, item)
 	}
 	return items, rows.Err()

@@ -12,17 +12,16 @@ import (
 // OAuth state 有效期兜底值；实际有效期按基础配置「企业微信扫码有效期」读取。
 const AuthStateTTL = 5 * time.Minute
 
-const (
-	authProviderWecom       = "wecom"
-	authProviderWecomCenter = "wecom_center"
+const authProviderWecom = "wecom"
 
-	// state 用途：登录与绑定严格区分，防止跨用途混用。
+// state 用途：登录与绑定严格区分，防止跨用途混用。
+const (
 	AuthPurposeLogin = "login"
 	AuthPurposeBind  = "bind"
-
-	// 前端回调页路径，登录与绑定的结果都 302 到这里。
-	WecomFrontendCallbackPath = "/auth/callback"
 )
+
+// 前端回调页路径，登录与绑定的结果都 302 到这里。
+const WecomFrontendCallbackPath = "/auth/callback"
 
 // WecomResult OAuth 回调处理结果：登录返回会话，绑定返回企微账号与绑定用户。
 type WecomResult struct {
@@ -33,70 +32,51 @@ type WecomResult struct {
 	Username string
 }
 
-// WeComAuthorize 发起企业微信直连登录：生成一次性 state 并返回授权跳转地址。
-// requestBase 为用户当前访问地址，外部访问地址未配置时用于推断回调。
-// mock 模式下直接返回本平台回调地址，模拟扫码成功，便于本地演练完整流程。
-func (s *Service) WeComAuthorize(ctx context.Context, redirect, remoteIP, requestBase string) (string, error) {
-	_, cfg, err := s.enabledWeComProvider(ctx)
+// WeComLoginURL 获取企业微信扫码登录地址：直连返回企微授权页，统一认证中心返回认证中心登录页。
+func (s *Service) WeComLoginURL(ctx context.Context, redirect, remoteIP, requestBase string) (string, error) {
+	_, cfg, err := s.enabledWecomProvider(ctx)
 	if err != nil {
 		return "", err
 	}
-	state, err := s.newWecomState(ctx, authProviderWecom, AuthPurposeLogin, "", redirect, remoteIP)
+	if cfg.AuthMode == WecomModeSSO {
+		return cfg.WecomSSOLoginURL(redirect), nil
+	}
+	state, err := s.newWecomState(ctx, AuthPurposeLogin, "", redirect, remoteIP)
 	if err != nil {
 		return "", err
-	}
-	if cfg.Mock {
-		code, err := mockWeComCode()
-		if err != nil {
-			return "", err
-		}
-		return "/api/auth/wecom/callback?code=" + url.QueryEscape(code) + "&state=" + url.QueryEscape(state), nil
 	}
 	return cfg.AuthorizeURL(state, requestBase), nil
 }
 
-// WeComBindAuthorize 直连绑定发起：state 携带 purpose=bind 与当前用户，扫码成功后绑定该用户。
-func (s *Service) WeComBindAuthorize(ctx context.Context, userID, remoteIP, requestBase string) (string, error) {
-	_, cfg, err := s.enabledWeComProvider(ctx)
+// WeComBindURL 获取当前用户的企微绑定地址：直连签发 bind state 扫码，
+// 统一认证中心签发一次性绑定票据嵌入 redirect，回调时凭票据定位发起绑定的用户。
+func (s *Service) WeComBindURL(ctx context.Context, userID, remoteIP, requestBase string) (string, error) {
+	_, cfg, err := s.enabledWecomProvider(ctx)
 	if err != nil {
 		return "", err
 	}
-	state, err := s.newWecomState(ctx, authProviderWecom, AuthPurposeBind, userID, "", remoteIP)
-	if err != nil {
-		return "", err
-	}
-	if cfg.Mock {
-		code, err := mockWeComCode()
+	if cfg.AuthMode == WecomModeSSO {
+		bindTicket, err := s.newWecomState(ctx, AuthPurposeBind, userID, "", "")
 		if err != nil {
 			return "", err
 		}
-		return "/api/auth/wecom/callback?code=" + url.QueryEscape(code) + "&state=" + url.QueryEscape(state), nil
+		redirect := WecomFrontendCallbackPath + "?bind=" + url.QueryEscape(bindTicket)
+		return cfg.WecomSSOLoginURL(redirect), nil
+	}
+	state, err := s.newWecomState(ctx, AuthPurposeBind, userID, "", remoteIP)
+	if err != nil {
+		return "", err
 	}
 	return cfg.AuthorizeURL(state, requestBase), nil
-}
-
-// WeComCenterBindAuthorize 统一认证中心绑定发起：签发一次性绑定票据并嵌入认证中心 redirect，
-// 认证中心回调时原样带回，后端凭票据定位发起绑定的用户。
-func (s *Service) WeComCenterBindAuthorize(ctx context.Context, userID string) (string, error) {
-	_, cfg, err := s.enabledWeComCenterProvider(ctx)
-	if err != nil {
-		return "", err
-	}
-	bindTicket, err := s.newWecomState(ctx, authProviderWecomCenter, AuthPurposeBind, userID, "", "")
-	if err != nil {
-		return "", err
-	}
-	redirect := WecomFrontendCallbackPath + "?bind=" + url.QueryEscape(bindTicket)
-	return cfg.LoginURL(redirect), nil
 }
 
 // WeComCallback 企业微信直连回调：消费 state 后按用途分派登录或绑定。
-func (s *Service) WeComCallback(ctx context.Context, code, state, requestBase string) (WecomResult, error) {
+func (s *Service) WeComCallback(ctx context.Context, code, state string) (WecomResult, error) {
 	rec, err := s.takeAuthState(ctx, state, authProviderWecom)
 	if err != nil {
 		return WecomResult{}, err
 	}
-	_, cfg, err := s.enabledWeComProvider(ctx)
+	_, cfg, err := s.enabledWecomProvider(ctx)
 	if err != nil {
 		return WecomResult{}, err
 	}
@@ -107,18 +87,9 @@ func (s *Service) WeComCallback(ctx context.Context, code, state, requestBase st
 	return s.completeWecomFlow(ctx, rec, userInfo.Userid)
 }
 
-// WeComCenterAuthorize 发起统一认证中心登录：跳转认证中心扫码，票据回调由后端处理。
-func (s *Service) WeComCenterAuthorize(ctx context.Context, redirect string) (string, error) {
-	_, cfg, err := s.enabledWeComCenterProvider(ctx)
-	if err != nil {
-		return "", err
-	}
-	return cfg.LoginURL(redirect), nil
-}
-
-// WeComCenterCallback 统一认证中心回调：redirect 携带绑定票据时走绑定，否则登录。
-func (s *Service) WeComCenterCallback(ctx context.Context, ticket, redirect string) (WecomResult, error) {
-	_, cfg, err := s.enabledWeComCenterProvider(ctx)
+// WeComSSOCallback 统一认证中心回调：redirect 携带绑定票据时走绑定，否则登录。
+func (s *Service) WeComSSOCallback(ctx context.Context, ticket, redirect string) (WecomResult, error) {
+	_, cfg, err := s.enabledWecomProvider(ctx)
 	if err != nil {
 		return WecomResult{}, err
 	}
@@ -127,13 +98,13 @@ func (s *Service) WeComCenterCallback(ctx context.Context, ticket, redirect stri
 		return WecomResult{}, err
 	}
 	if bindTicket := wecomBindTicketFromRedirect(redirect); bindTicket != "" {
-		rec, err := s.takeAuthState(ctx, bindTicket, authProviderWecomCenter)
+		rec, err := s.takeAuthState(ctx, bindTicket, authProviderWecom)
 		if err != nil {
 			return WecomResult{}, err
 		}
 		return s.completeWecomFlow(ctx, rec, userInfo.Userid)
 	}
-	rec := domain.AuthState{Provider: authProviderWecomCenter, Purpose: AuthPurposeLogin, Redirect: redirect}
+	rec := domain.AuthState{Provider: authProviderWecom, Purpose: AuthPurposeLogin, Redirect: redirect}
 	return s.completeWecomFlow(ctx, rec, userInfo.Userid)
 }
 
@@ -202,39 +173,27 @@ func wecomBindTicketFromRedirect(redirect string) string {
 	return strings.TrimSpace(parsed.Query().Get("bind"))
 }
 
-func (s *Service) enabledWeComProvider(ctx context.Context) (domain.AuthProvider, WeComConfig, error) {
+func (s *Service) enabledWecomProvider(ctx context.Context) (domain.AuthProvider, WecomProviderConfig, error) {
 	provider, err := s.enabledAuthProvider(ctx, authProviderWecom)
 	if err != nil {
-		return domain.AuthProvider{}, WeComConfig{}, err
+		return domain.AuthProvider{}, WecomProviderConfig{}, err
 	}
-	cfg, err := decodeWeComConfig(provider.Config)
+	cfg, err := decodeWecomProviderConfig(provider.Config)
 	if err != nil {
-		return domain.AuthProvider{}, WeComConfig{}, err
-	}
-	return provider, cfg, nil
-}
-
-func (s *Service) enabledWeComCenterProvider(ctx context.Context) (domain.AuthProvider, WeComCenterConfig, error) {
-	provider, err := s.enabledAuthProvider(ctx, authProviderWecomCenter)
-	if err != nil {
-		return domain.AuthProvider{}, WeComCenterConfig{}, err
-	}
-	cfg, err := decodeWeComCenterConfig(provider.Config)
-	if err != nil {
-		return domain.AuthProvider{}, WeComCenterConfig{}, err
+		return domain.AuthProvider{}, WecomProviderConfig{}, err
 	}
 	return provider, cfg, nil
 }
 
 // newWecomState 签发一次性 state，有效期按基础配置「企业微信扫码有效期」读取（1-60 分钟）。
-func (s *Service) newWecomState(ctx context.Context, provider, purpose, userID, redirect, remoteIP string) (string, error) {
+func (s *Service) newWecomState(ctx context.Context, purpose, userID, redirect, remoteIP string) (string, error) {
 	state, err := generateToken(16)
 	if err != nil {
 		return "", err
 	}
 	if err := s.store.CreateAuthState(ctx, domain.AuthState{
 		State:     state,
-		Provider:  provider,
+		Provider:  authProviderWecom,
 		Purpose:   purpose,
 		UserID:    userID,
 		Redirect:  redirect,
@@ -263,7 +222,7 @@ func (s *Service) enabledAuthProvider(ctx context.Context, id string) (domain.Au
 	return provider, nil
 }
 
-// takeAuthState 取出即删并校验归属与有效期，防止重放与跨提供方复用。
+// takeAuthState 取出即删并校验归属与有效期，防止重放。
 func (s *Service) takeAuthState(ctx context.Context, state, provider string) (domain.AuthState, error) {
 	if strings.TrimSpace(state) == "" {
 		return domain.AuthState{}, ErrInvalidState

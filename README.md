@@ -152,7 +152,7 @@ kvm-manager/
 │       │   ├── host-interfaces/    # 宿主机接口页面、创建弹窗、地址配置与校验工具
 │       │   ├── operations/         # 任务、告警与操作记录页面 OperationsPage
 │       │   ├── settings/           # 用户、认证与通知配置页面 SettingsPage
-│       │   │   └── components/     # 用户配置、通知模板、角色权限、权限补齐规则与群组维护组件
+│       │   │   └── components/     # 认证配置、用户配置、通知模板、角色权限、权限补齐规则与群组维护组件
 │       │   ├── storage-pools/      # 存储池页面 StoragePoolsPage
 │       │   │   ├── components/     # 存储池徽标、创建弹窗、详情弹窗、ISO 上传弹窗、卷克隆弹窗、错误提示与样式工具
 │       │   │   └── utils/          # 存储池上传任务与容量用量展示工具
@@ -1410,7 +1410,7 @@ server {
 
 # 九、API 文档
 
-以下接口除 `POST /api/auth/login` 登录、`GET /api/auth/providers` 登录方式列表、企业微信认证跳转与回调接口（`/api/auth/wecom/*`、`/api/auth/wecom-center/*`）、找回密码相关公开接口、`GET /api/public/base-config` 公开基础配置和 `GET /api/health` 健康检查外，均需要在请求头中携带 `Authorization: Bearer <token>`。
+以下接口除 `POST /api/auth/login` 登录、`GET /api/auth/providers` 登录方式列表、企业微信认证相关接口（`/api/auth/wecom/*`）、找回密码相关公开接口、`GET /api/public/base-config` 公开基础配置和 `GET /api/health` 健康检查外，均需要在请求头中携带 `Authorization: Bearer <token>`。
 
 ## 9.1 Agent 管理
 
@@ -1481,11 +1481,10 @@ server {
   - 返回 10 分钟内有效的短期校验 Token
   - 返回已启用找回密码用途的邮件媒介
 - `GET /api/auth/providers` - 获取登录页可用的外部认证方式，本地账号登录始终可用；企业微信类认证方式额外返回 `authorize_path` 发起地址
-- `GET /api/auth/wecom/authorize` - 发起企业微信直连登录，生成一次性 state 并 302 跳转企业微信扫码/网页授权页；`redirect` 参数仅允许站内路径；配置调试模式时直接跳回本平台回调模拟扫码成功；state 有效期为基础配置中的企业微信扫码有效期
-- `GET /api/auth/wecom/callback` - 企业微信授权回调：登录 state 按绑定关系签发会话，绑定 state 把扫码账号绑定到发起用户；结果通过 URL fragment 跳转前端 `/auth/callback` 页面
-- `GET /api/auth/wecom-center/authorize` - 发起统一认证中心登录，302 跳转认证中心登录页
-- `GET /api/auth/wecom-center/callback` - 统一认证中心票据回调：后端使用应用密钥发起 HMAC-SHA256 签名 verify 换取身份，redirect 携带绑定票据时执行绑定，否则签发会话
-- `GET /api/auth/wecom/bind-url` - 获取当前用户的企业微信绑定跳转地址，直连启用时返回直连扫码地址，否则返回统一认证中心地址；需要登录
+- `GET /api/auth/wecom/authorize` - 获取企业微信扫码登录地址：直连模式签发一次性 state（有效期为基础配置中的企业微信扫码有效期，默认 5 分钟）后返回企微授权页地址，统一认证中心模式返回认证中心登录页地址；`redirect` 参数仅允许站内路径；回调地址优先取配置中的回调地址前缀，留空时按当前访问地址自动推断
+- `GET /api/auth/wecom/callback` - 企业微信直连授权回调：登录 state 按绑定关系签发会话，绑定 state 把扫码账号绑定到发起用户；结果通过 URL fragment 跳转前端 `/auth/callback` 页面
+- `GET /api/auth/wecom/sso/callback` - 统一认证中心票据回调：后端使用应用密钥发起 HMAC-SHA256 签名 verify 换取身份，redirect 携带绑定票据时执行绑定，否则签发会话
+- `GET /api/auth/wecom/bind-url` - 获取当前用户的企业微信绑定跳转地址，按认证方式分派直连扫码或统一认证中心跳转；需要登录
 - `DELETE /api/auth/wecom/bind` - 解除当前用户的企业微信绑定并写审计，未绑定时同样返回成功；需要登录
 
 ## 9.4 实时资源与刷新
@@ -1649,9 +1648,9 @@ server {
 - `GET /api/health` - 健康检查，包含数据库状态
 
 - `GET /api/public/base-config` - 获取公开基础配置，供登录页、启动页、侧边栏品牌区和浏览器标题展示站点名称与图标
-- `GET /api/settings/auth-providers` - 获取认证配置列表；需要认证配置查看或管理权限；`bindPassword`、企业微信 `secret` 与统一认证中心 `appSecret` 不返回明文，已配置时分别返回 `hasBindPassword`、`hasSecret`、`hasAppSecret` 标记
-- `PUT /api/settings/auth-providers/{id}` - 更新指定认证配置，当前 `id` 支持 `ldap`（AD/LDAP）、`wecom`（企业微信直连）和 `wecom_center`（企业微信统一认证中心）；关闭认证时允许保存空配置以清空已保存配置；外部认证用户必须先在用户配置中创建并启用；密码类字段（`bindPassword`、`secret`、`appSecret`）留空时保留已保存值，填写新值时替换
-- `POST /api/settings/auth-providers/{id}/test` - 使用已保存认证配置测试连接：LDAP 返回匹配用户数量，企业微信直连校验企业凭证可换取 access_token，统一认证中心调用健康检查；企业微信类认证通过 `message` 字段返回测试结果提示
+- `GET /api/settings/auth-providers` - 获取认证配置列表；需要认证配置查看或管理权限；`bindPassword`、企业微信 `secret` 与 `ssoAppSecret` 不返回明文，已配置时分别返回 `hasBindPassword`、`hasSecret`、`hasSsoAppSecret` 标记
+- `PUT /api/settings/auth-providers/{id}` - 更新指定认证配置，当前 `id` 支持 `ldap`（AD/LDAP）和 `wecom`（企业微信，`authMode` 切换直连与统一认证中心）；关闭认证时允许保存空配置以清空已保存配置；外部认证用户必须先绑定后登录；密码类字段（`bindPassword`、`secret`、`ssoAppSecret`）留空时保留已保存值，填写新值时替换
+- `POST /api/settings/auth-providers/{id}/test` - 使用已保存认证配置测试连接：LDAP 返回匹配用户数量，企业微信直连校验企业凭证可换取 access_token，统一认证中心模式调用认证中心健康检查；企业微信认证通过 `message` 字段返回测试结果提示
 - `GET /api/settings/base-config` - 获取基础配置，包含网站名称、认证页品牌名称、控制台品牌名称、控制台品牌副标题、图标、安全时效、资源阈值、Agent 判定参数和告警通知策略；需要基础配置查看或管理权限
 - `PUT /api/settings/base-config` - 更新基础配置，图标支持站内路径或图片 Data URL；可调整找回密码安全时效、前端 CPU/内存/磁盘百分比条颜色阈值、后端资源告警阈值、资源告警连续次数、Agent 离线判定次数和告警通知超时/重试/批量策略；需要基础配置管理权限
 - `GET /api/settings/notifications` - 获取通知媒介列表
@@ -1725,7 +1724,7 @@ server {
 
 系统配置与权限规则：
 
-- 系统配置权限已拆分为基础配置、用户配置、认证配置和通知配置的查看/管理权限；绑定与解绑企业微信为用户自身操作，仅需登录，不依赖额外权限点。
+- 系统配置权限已拆分为基础配置、用户配置、认证配置和通知配置的查看/管理权限；查看认证配置覆盖本地账号、AD/LDAP 与企业微信认证配置，管理认证配置覆盖维护并测试 AD/LDAP 与企业微信认证；绑定与解绑企业微信为用户自身操作，仅需登录，不依赖额外权限点。
 - 快照权限已拆分为查看、创建、编辑、恢复和删除权限。
 - 虚拟机模板列表复用 `vms.read`。
 - 模板标记 / 取消模板复用 `vms.update`。
@@ -1804,8 +1803,8 @@ server {
 | 认证方式 |                           必填配置                           |                           可选配置                           |
 | :------: | :----------------------------------------------------------: | :----------------------------------------------------------: |
 | AD/LDAP  | `host`、`port`、`baseDN`、`userFilter`、`bindDN`、`bindPassword` | `useTLS`、`startTLS`、`insecureSkipVerify`、`timeoutSeconds`、`groupFilter` |
-| 企业微信·直连 | `corpId`、`agentId`、`secret` | `externalUrl`、`mode`（qrcode/inside）、`fetchName`、`mock` |
-| 企业微信·统一认证中心 | `baseUrl`、`app`、`appSecret` | `verifyTsSkew` |
+| 企业微信（直连模式） | `corpid`、`agentid`、`secret` | `redirectPrefix` |
+| 企业微信（统一认证中心模式） | `ssoBaseUrl`、`ssoAppID`、`ssoAppSecret` | 同左，两种模式凭据分别保存，`authMode` 切换互不丢失 |
 
 认证配置保存与连接：
 
@@ -1815,11 +1814,10 @@ server {
 - 若使用自签名证书或证书链未导入系统信任库，可按需开启 `insecureSkipVerify` 跳过证书校验。
 - 认证连接测试会执行 LDAP 连接、绑定账号和用户搜索，成功时返回匹配用户数量。
 - 若填写了 `groupFilter`，测试时会按该配置统计匹配用户数，登录时也会要求用户匹配该组条件。
-- 企业微信直连的 `externalUrl` 为用户访问平台的对外地址，用于构造企业微信授权回调，留空时按用户当前访问地址（含反向代理协议头）自动推断；填写时必须以 `http://` 或 `https://` 开头，尾部斜杠会自动去除。
-- 企业微信直连的 `mode` 支持 `qrcode`（PC 浏览器扫码，默认）和 `inside`（企业微信内置浏览器网页授权）。
-- 企业微信直连开启 `mock` 调试模式时不校验 `agentId` 与 `secret`，登录流程使用模拟用户，仅限开发验证。
-- 企业微信直连启用前需在企微后台为 `externalUrl` 域名配置应用可信域名并放置域名归属校验文件；`fetchName` 需要授予应用通讯录读取权限。
-- 统一认证中心的 `appSecret` 由认证中心管理员分配，仅用于后端 verify 请求的 HMAC-SHA256 签名，不会下发到前端；`verifyTsSkew` 为 verify 时间戳允许偏差秒数，默认 60。
+- 企业微信认证在认证配置中以单一「企业微信」方式呈现，通过「认证方式」在直连企业微信与统一认证中心之间切换，两套凭据分别保存、切换互不丢失。
+- 直连模式的 `redirectPrefix` 为用户访问平台的对外地址，用于构造企业微信授权回调，留空时按用户当前访问地址（含反向代理协议头）自动推断；填写时必须以 `http://` 或 `https://` 开头，尾部斜杠会自动去除。
+- 直连模式启用前需在企微后台为回调域名配置应用可信域名，并在「企业可信 IP」中加入本服务出口 IP。
+- 统一认证中心模式的 `ssoAppSecret` 由认证中心管理员分配，仅用于后端 verify 请求的 HMAC-SHA256 签名，不会下发到前端。
 
 LDAP 过滤器规则：
 
@@ -1838,8 +1836,8 @@ AD/LDAP 登录规则：
 
 企业微信登录与绑定规则：
 
-- 企业微信认证支持两种方式：`wecom` 直连企业微信自建应用，`wecom_center` 通过统一认证中心接入；二者可分别配置、独立启停。
-- 登录页对启用的企业微信认证方式显示独立登录按钮，点击后由后端发起 OAuth 跳转，不走账号密码表单。
+- 企业微信认证以单一「企业微信」方式呈现，`authMode` 支持直连企业微信自建应用与经由统一认证中心（wecom-auth-center）两种接入方式，在认证配置中切换。
+- 登录页在登录方式下拉中选择企业微信后，账号密码表单切换为企业微信扫码说明卡片，点击「企业微信扫码登录」按钮跳转授权页完成登录，不走账号密码表单。
 - 企业微信账号与平台用户通过绑定关系关联（一人一条绑定，一个企微账号只能绑定一个用户）：必须先使用账号密码登录后在右上角完成绑定，未绑定的企微账号扫码会被拒绝，不自动建户、不按用户名兜底。
 - 用户菜单提供「绑定企业微信/解绑企业微信」入口：绑定在弹窗中完成扫码，成功后自动通知主窗口并关闭；解绑随时可操作并写审计。
 - 绑定状态随登录接口和 `GET /api/auth/me` 的 `wecom_bound` 字段返回，本地/AD/LDAP/企业微信登录路径均携带真实绑定状态。

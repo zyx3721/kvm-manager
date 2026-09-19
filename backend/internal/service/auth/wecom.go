@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"crypto/hmac"
-	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -24,11 +23,14 @@ import (
 const (
 	wecomAPIBase          = "https://qyapi.weixin.qq.com"
 	wecomQRLoginBase      = "https://login.work.weixin.qq.com"
-	wecomOAuthBase        = "https://open.weixin.qq.com"
 	wecomAuthCenterHealth = "/healthz"
 	wecomAuthCenterVerify = "/api/verify"
-	wecomModeQRCode       = "qrcode"
-	wecomModeInside       = "inside"
+)
+
+// 企业微信认证方式：direct 直连自建应用，sso 经由统一认证中心。
+const (
+	WecomModeDirect = "direct"
+	WecomModeSSO    = "sso"
 )
 
 var ErrAuthProviderDisabled = errors.New("auth provider is disabled or missing")
@@ -41,105 +43,83 @@ type WeComUserInfo struct {
 	Name   string
 }
 
-// WeComClient 企业微信身份接口抽象，真实实现与 mock 实现均满足该接口。
+// WeComClient 企业微信身份接口抽象，真实实现与测试实现均满足该接口。
 type WeComClient interface {
 	GetUserInfo(ctx context.Context, code string) (*WeComUserInfo, error)
 	Ping(ctx context.Context) error
 }
 
-// WeComConfig 企业微信直连配置。
-type WeComConfig struct {
-	CorpID      string `json:"corpId"`
-	AgentID     int    `json:"agentId"`
-	Secret      string `json:"secret"`
-	Mode        string `json:"mode"`
-	ExternalURL string `json:"externalUrl"`
-	FetchName   bool   `json:"fetchName"`
-	Mock        bool   `json:"mock"`
+// WecomProviderConfig 企业微信认证配置：authMode 切换直连与统一认证中心，
+// 两种模式的凭据分别保存，切换模式互不丢失。
+type WecomProviderConfig struct {
+	AuthMode       string `json:"authMode"`
+	CorpID         string `json:"corpid"`
+	AgentID        int    `json:"agentid"`
+	Secret         string `json:"secret"`
+	RedirectPrefix string `json:"redirectPrefix"`
+	SSOBaseURL     string `json:"ssoBaseUrl"`
+	SSOAppID       string `json:"ssoAppID"`
+	SSOAppSecret   string `json:"ssoAppSecret"`
 }
 
-func decodeWeComConfig(data []byte) (WeComConfig, error) {
-	var cfg WeComConfig
+func decodeWecomProviderConfig(data []byte) (WecomProviderConfig, error) {
+	var cfg WecomProviderConfig
 	if len(data) > 0 {
 		if err := json.Unmarshal(data, &cfg); err != nil {
-			return WeComConfig{}, err
+			return WecomProviderConfig{}, err
 		}
+	}
+	if cfg.AuthMode != WecomModeSSO {
+		cfg.AuthMode = WecomModeDirect
 	}
 	cfg.CorpID = strings.TrimSpace(cfg.CorpID)
 	cfg.Secret = strings.TrimSpace(cfg.Secret)
-	cfg.ExternalURL = strings.TrimRight(strings.TrimSpace(cfg.ExternalURL), "/")
-	if cfg.Mode != wecomModeInside {
-		cfg.Mode = wecomModeQRCode
+	cfg.RedirectPrefix = strings.TrimRight(strings.TrimSpace(cfg.RedirectPrefix), "/")
+	cfg.SSOBaseURL = strings.TrimRight(strings.TrimSpace(cfg.SSOBaseURL), "/")
+	cfg.SSOAppID = strings.TrimSpace(cfg.SSOAppID)
+	cfg.SSOAppSecret = strings.TrimSpace(cfg.SSOAppSecret)
+	if cfg.AuthMode == WecomModeSSO {
+		if cfg.SSOBaseURL == "" || cfg.SSOAppID == "" || cfg.SSOAppSecret == "" {
+			return WecomProviderConfig{}, fmt.Errorf("wecom sso base url, app id and app secret are required")
+		}
+		return cfg, nil
 	}
-	if !cfg.Mock {
-		if cfg.CorpID == "" || cfg.Secret == "" {
-			return WeComConfig{}, fmt.Errorf("wecom corp id and secret are required")
-		}
-		if cfg.AgentID <= 0 {
-			return WeComConfig{}, fmt.Errorf("wecom agent id is required")
-		}
+	if cfg.CorpID == "" || cfg.Secret == "" {
+		return WecomProviderConfig{}, fmt.Errorf("wecom corpid and secret are required")
+	}
+	if cfg.AgentID <= 0 {
+		return WecomProviderConfig{}, fmt.Errorf("wecom agentid is required")
 	}
 	return cfg, nil
 }
 
-// callbackBase 回调地址前缀：配置了外部访问地址则优先，否则按用户当前访问地址推断。
-func (c WeComConfig) callbackBase(requestBase string) string {
-	if c.ExternalURL != "" {
-		return c.ExternalURL
+// redirectBase 回调地址前缀：配置了回调地址前缀则优先，否则按用户当前访问地址推断。
+func (c WecomProviderConfig) redirectBase(requestBase string) string {
+	if c.RedirectPrefix != "" {
+		return c.RedirectPrefix
 	}
 	return strings.TrimRight(requestBase, "/")
 }
 
-// AuthorizeURL 构造企业微信授权跳转：PC 浏览器扫码或企微内置浏览器网页授权。
-// requestBase 为留空外部访问地址时的推断前缀。
-func (c WeComConfig) AuthorizeURL(state, requestBase string) string {
+// AuthorizeURL 直连模式构造企业微信授权跳转（PC 浏览器扫码）。
+func (c WecomProviderConfig) AuthorizeURL(state, requestBase string) string {
 	q := url.Values{}
+	q.Set("login_type", "CorpApp")
 	q.Set("appid", c.CorpID)
 	q.Set("agentid", strconv.Itoa(c.AgentID))
-	q.Set("redirect_uri", c.callbackBase(requestBase)+"/api/auth/wecom/callback")
+	q.Set("redirect_uri", c.redirectBase(requestBase)+"/api/auth/wecom/callback")
 	q.Set("state", state)
-	if c.Mode == wecomModeInside {
-		q.Set("response_type", "code")
-		q.Set("scope", "snsapi_base")
-		return wecomOAuthBase + "/connect/oauth2/authorize?" + q.Encode() + "#wechat_redirect"
-	}
-	q.Set("login_type", "CorpApp")
 	return wecomQRLoginBase + "/wwlogin/sso/login?" + q.Encode()
 }
 
-// WeComCenterConfig 统一认证中心接入配置。
-type WeComCenterConfig struct {
-	BaseURL      string `json:"baseUrl"`
-	App          string `json:"app"`
-	AppSecret    string `json:"appSecret"`
-	VerifyTSSkew int    `json:"verifyTsSkew"`
-}
-
-func decodeWeComCenterConfig(data []byte) (WeComCenterConfig, error) {
-	var cfg WeComCenterConfig
-	if len(data) > 0 {
-		if err := json.Unmarshal(data, &cfg); err != nil {
-			return WeComCenterConfig{}, err
-		}
-	}
-	cfg.BaseURL = strings.TrimRight(strings.TrimSpace(cfg.BaseURL), "/")
-	cfg.App = strings.TrimSpace(cfg.App)
-	cfg.AppSecret = strings.TrimSpace(cfg.AppSecret)
-	if cfg.BaseURL == "" || cfg.App == "" || cfg.AppSecret == "" {
-		return WeComCenterConfig{}, fmt.Errorf("wecom auth center base url, app and app secret are required")
-	}
-	if cfg.VerifyTSSkew <= 0 {
-		cfg.VerifyTSSkew = 60
-	}
-	return cfg, nil
-}
-
-// LoginURL 构造统一认证中心登录跳转，redirect 为本平台站内路径。
-func (c WeComCenterConfig) LoginURL(redirect string) string {
+// WecomSSOLoginURL 统一认证中心模式返回认证中心登录页地址，本系统不签发 state。
+func (c WecomProviderConfig) WecomSSOLoginURL(redirect string) string {
 	q := url.Values{}
-	q.Set("app", c.App)
-	q.Set("redirect", redirect)
-	return c.BaseURL + "/login?" + q.Encode()
+	q.Set("app", c.SSOAppID)
+	if redirect != "" {
+		q.Set("redirect", redirect)
+	}
+	return c.SSOBaseURL + "/login?" + q.Encode()
 }
 
 // signWeComCenterTicket 与认证中心 /api/verify 约定一致：
@@ -151,21 +131,21 @@ func signWeComCenterTicket(appSecret, app, ticket string, ts int64) string {
 }
 
 // verifyWeComCenterTicket 后端发起 verify 换取身份，app_secret 不出服务端。
-func verifyWeComCenterTicket(ctx context.Context, cfg WeComCenterConfig, ticket string) (*WeComUserInfo, error) {
+func verifyWeComCenterTicket(ctx context.Context, cfg WecomProviderConfig, ticket string) (*WeComUserInfo, error) {
 	if strings.TrimSpace(ticket) == "" {
 		return nil, ErrInvalidState
 	}
 	ts := time.Now().Unix()
 	payload, err := json.Marshal(map[string]any{
-		"app":    cfg.App,
+		"app":    cfg.SSOAppID,
 		"ticket": ticket,
 		"ts":     ts,
-		"sign":   signWeComCenterTicket(cfg.AppSecret, cfg.App, ticket, ts),
+		"sign":   signWeComCenterTicket(cfg.SSOAppSecret, cfg.SSOAppID, ticket, ts),
 	})
 	if err != nil {
 		return nil, err
 	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, cfg.BaseURL+wecomAuthCenterVerify, bytes.NewReader(payload))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, cfg.SSOBaseURL+wecomAuthCenterVerify, bytes.NewReader(payload))
 	if err != nil {
 		return nil, err
 	}
@@ -199,11 +179,10 @@ func verifyWeComCenterTicket(ctx context.Context, cfg WeComCenterConfig, ticket 
 
 // wecomRealClient 企业微信真实实现：gettoken 缓存 + getuserinfo（可选 user/get 补全姓名）。
 type wecomRealClient struct {
-	corpID    string
-	agentID   int
-	secret    string
-	fetchName bool
-	base      string
+	corpID  string
+	agentID int
+	secret  string
+	base    string
 
 	httpc *http.Client
 
@@ -213,15 +192,14 @@ type wecomRealClient struct {
 	now         func() time.Time
 }
 
-func newWeComRealClient(cfg WeComConfig) *wecomRealClient {
+func newWeComRealClient(cfg WecomProviderConfig) *wecomRealClient {
 	return &wecomRealClient{
-		corpID:    cfg.CorpID,
-		agentID:   cfg.AgentID,
-		secret:    cfg.Secret,
-		fetchName: cfg.FetchName,
-		base:      wecomAPIBase,
-		httpc:     &http.Client{Timeout: 10 * time.Second},
-		now:       time.Now,
+		corpID:  cfg.CorpID,
+		agentID: cfg.AgentID,
+		secret:  cfg.Secret,
+		base:    wecomAPIBase,
+		httpc:   &http.Client{Timeout: 10 * time.Second},
+		now:     time.Now,
 	}
 }
 
@@ -254,27 +232,7 @@ func (c *wecomRealClient) getUserInfo(ctx context.Context, code string) (*WeComU
 	if resp.Userid == "" {
 		return nil, errors.New("wecom getuserinfo returned empty userid (user may not be a corp member)")
 	}
-	userInfo := &WeComUserInfo{Userid: resp.Userid}
-	if c.fetchName {
-		userInfo.Name, _ = c.fetchDisplayName(ctx, token, resp.Userid)
-	}
-	return userInfo, nil
-}
-
-// isWecomTokenInvalidError 识别 access_token 过期/失效错误码：40014 不合法、42001 已过期。
-func isWecomTokenInvalidError(err error) bool {
-	if err == nil {
-		return false
-	}
-	message := err.Error()
-	return strings.Contains(message, "errcode=40014") || strings.Contains(message, "errcode=42001")
-}
-
-func (c *wecomRealClient) invalidateToken() {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	c.accessToken = ""
-	c.tokenExpiry = time.Time{}
+	return &WeComUserInfo{Userid: resp.Userid}, nil
 }
 
 // Ping 校验企业凭证：调用 gettoken，成功即认为配置可用。
@@ -311,22 +269,6 @@ func (c *wecomRealClient) token(ctx context.Context) (string, error) {
 	return c.accessToken, nil
 }
 
-// fetchName 通过通讯录接口补全姓名，姓名属于展示信息，取不到不阻断登录。
-func (c *wecomRealClient) fetchDisplayName(ctx context.Context, token, userid string) (string, error) {
-	var resp struct {
-		Errcode int    `json:"errcode"`
-		Errmsg  string `json:"errmsg"`
-		Name    string `json:"name"`
-	}
-	if err := c.getJSON(ctx, fmt.Sprintf("%s/cgi-bin/user/get?access_token=%s&userid=%s", c.base, url.QueryEscape(token), url.QueryEscape(userid)), &resp); err != nil {
-		return "", err
-	}
-	if resp.Errcode != 0 {
-		return "", fmt.Errorf("wecom user/get errcode=%d errmsg=%s", resp.Errcode, resp.Errmsg)
-	}
-	return resp.Name, nil
-}
-
 func (c *wecomRealClient) getJSON(ctx context.Context, u string, out any) error {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
 	if err != nil {
@@ -347,77 +289,72 @@ func (c *wecomRealClient) getJSON(ctx context.Context, u string, out any) error 
 	return nil
 }
 
-// wecomMockClient 本地演练用：任意 code 返回固定模拟用户，Ping 恒通过。
-type wecomMockClient struct{}
-
-func (wecomMockClient) GetUserInfo(context.Context, string) (*WeComUserInfo, error) {
-	return &WeComUserInfo{Userid: "mockuser", Name: "mock user"}, nil
+// isWecomTokenInvalidError 识别 access_token 过期/失效错误码：40014 不合法、42001 已过期。
+func isWecomTokenInvalidError(err error) bool {
+	if err == nil {
+		return false
+	}
+	message := err.Error()
+	return strings.Contains(message, "errcode=40014") || strings.Contains(message, "errcode=42001")
 }
 
-func (wecomMockClient) Ping(context.Context) error { return nil }
+func (c *wecomRealClient) invalidateToken() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.accessToken = ""
+	c.tokenExpiry = time.Time{}
+}
 
 var (
-	wecomClientMu   sync.Mutex
-	wecomClientKey  string
-	wecomClientHold WeComClient
+	wecomClientMu      sync.Mutex
+	wecomClientKey     string
+	wecomClientHold    WeComClient
+	wecomClientFactory func(WecomProviderConfig) WeComClient
 )
 
-// getWeComClient 按配置指纹缓存真实客户端，避免每次扫码都重新获取 access_token。
-// 配置变更（如更换 Secret）后指纹变化会自动重建。
-func getWeComClient(cfg WeComConfig) WeComClient {
-	if cfg.Mock {
-		return wecomMockClient{}
-	}
-	key := strings.Join([]string{cfg.CorpID, strconv.Itoa(cfg.AgentID), cfg.Secret, strconv.FormatBool(cfg.FetchName)}, "|")
+// getWeComClient 按凭据指纹缓存客户端，避免每次扫码都重新获取 access_token；
+// 凭据变更（如更换 Secret）后指纹变化会自动重建。
+func getWeComClient(cfg WecomProviderConfig) WeComClient {
+	key := strings.Join([]string{cfg.CorpID, strconv.Itoa(cfg.AgentID), cfg.Secret}, "|")
 	wecomClientMu.Lock()
 	defer wecomClientMu.Unlock()
 	if wecomClientHold != nil && wecomClientKey == key {
 		return wecomClientHold
 	}
-	client := newWeComRealClient(cfg)
+	factory := wecomClientFactory
+	if factory == nil {
+		factory = func(c WecomProviderConfig) WeComClient { return newWeComRealClient(c) }
+	}
+	client := factory(cfg)
 	wecomClientHold = client
 	wecomClientKey = key
 	return client
 }
 
-func mockWeComCode() (string, error) {
-	buf := make([]byte, 8)
-	if _, err := rand.Read(buf); err != nil {
-		return "", err
-	}
-	return "mock-" + hex.EncodeToString(buf), nil
-}
-
-// TestWeComProvider 企业微信直连连接测试：校验企业凭证可换取 access_token。
+// TestWeComProvider 企业微信连接测试：直连校验企业凭证可换取 access_token，统一认证中心调用健康检查。
 func TestWeComProvider(ctx context.Context, provider domain.AuthProvider) error {
-	cfg, err := decodeWeComConfig(provider.Config)
+	cfg, err := decodeWecomProviderConfig(provider.Config)
 	if err != nil {
 		return err
+	}
+	if cfg.AuthMode == WecomModeSSO {
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, cfg.SSOBaseURL+wecomAuthCenterHealth, nil)
+		if err != nil {
+			return err
+		}
+		httpc := &http.Client{Timeout: 10 * time.Second}
+		resp, err := httpc.Do(req)
+		if err != nil {
+			return fmt.Errorf("request wecom auth center failed: %w", err)
+		}
+		defer resp.Body.Close()
+		_, _ = io.Copy(io.Discard, resp.Body)
+		if resp.StatusCode != http.StatusOK {
+			return fmt.Errorf("wecom auth center health check failed with http %d", resp.StatusCode)
+		}
+		return nil
 	}
 	return getWeComClient(cfg).Ping(ctx)
-}
-
-// TestWeComCenterProvider 统一认证中心连接测试：认证中心健康检查通过即可。
-func TestWeComCenterProvider(ctx context.Context, provider domain.AuthProvider) error {
-	cfg, err := decodeWeComCenterConfig(provider.Config)
-	if err != nil {
-		return err
-	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, cfg.BaseURL+wecomAuthCenterHealth, nil)
-	if err != nil {
-		return err
-	}
-	httpc := &http.Client{Timeout: 10 * time.Second}
-	resp, err := httpc.Do(req)
-	if err != nil {
-		return fmt.Errorf("request wecom auth center failed: %w", err)
-	}
-	defer resp.Body.Close()
-	_, _ = io.Copy(io.Discard, resp.Body)
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("wecom auth center health check failed with http %d", resp.StatusCode)
-	}
-	return nil
 }
 
 // WeComUserMessage 将企业微信认证错误翻译为用户可见的中文提示。
@@ -430,7 +367,7 @@ func WeComUserMessage(err error) string {
 	case errors.Is(err, ErrAuthProviderDisabled):
 		return "企业微信认证未启用，请先在系统配置中开启"
 	case errors.Is(err, ErrWecomNotBound):
-		return "该企业微信账号尚未绑定系统用户，请先使用账号密码登录后在右上角绑定企业微信"
+		return "该企业微信账号尚未绑定系统用户，请先使用账号密码登录后在右上角绑定企微账号"
 	case errors.Is(err, ErrWecomAlreadyBound):
 		return "该企业微信账号已绑定其他用户"
 	case errors.Is(err, ErrInvalidState):
@@ -440,7 +377,7 @@ func WeComUserMessage(err error) string {
 	case strings.Contains(message, "errcode=60020"):
 		return "企业微信应用 IP 不在可信域名内，请检查应用配置"
 	case strings.Contains(message, "gettoken"):
-		return "企业微信应用凭证校验失败，请检查企业 ID、应用 AgentId 与 Secret 配置"
+		return "企业微信应用凭证校验失败，请检查企业 ID（corpid）、应用 AgentID 与应用 Secret 配置"
 	case strings.Contains(message, "request wecom auth center failed"):
 		return "统一认证中心连接失败，请检查认证中心地址与网络连通性"
 	case strings.Contains(message, "error=invalid_app"):
@@ -448,7 +385,7 @@ func WeComUserMessage(err error) string {
 	case strings.Contains(message, "error=invalid_sign"):
 		return "统一认证中心签名校验失败，请检查应用密钥配置"
 	case strings.Contains(message, "error=expired_ts"):
-		return "统一认证中心校验时间偏差过大，请检查系统时间后重试"
+		return "统一认证中心校验时间偏差过大，请校准系统时间后重试"
 	case strings.Contains(message, "error=invalid_ticket"):
 		return "统一认证中心票据无效或已使用，请重新发起登录"
 	case strings.Contains(message, "wecom auth center verify failed"):
@@ -456,12 +393,12 @@ func WeComUserMessage(err error) string {
 	case strings.Contains(message, "wecom auth center"):
 		return "统一认证中心返回数据异常，请稍后重试"
 	case strings.Contains(message, "request wecom api failed") || strings.Contains(message, "wecom api http"):
-		return "企业微信接口连接失败，请检查网络连通性与对外访问地址配置"
+		return "企业微信接口连接失败，请检查网络连通性与回调地址前缀配置"
 	case strings.Contains(message, "not be a corp member"):
 		return "当前企业微信账号不是该应用的可见成员，请联系管理员调整应用可见范围"
-	case strings.Contains(message, "corp id and secret") || strings.Contains(message, "agent id"):
-		return "企业微信应用配置不完整，请完善企业 ID、AgentId 与 Secret"
-	case strings.Contains(message, "base url, app and app secret"):
+	case strings.Contains(message, "corpid and secret") || strings.Contains(message, "agentid"):
+		return "企业微信应用配置不完整，请完善企业 ID（corpid）、应用 AgentID 与应用 Secret"
+	case strings.Contains(message, "sso base url, app id and app secret"):
 		return "统一认证中心配置不完整，请完善认证中心地址、应用标识与应用密钥"
 	}
 	return "企业微信认证失败：" + err.Error()

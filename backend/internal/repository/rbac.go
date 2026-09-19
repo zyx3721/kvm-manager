@@ -42,8 +42,8 @@ var BuiltinPermissions = []domain.Permission{
 	{Key: "settings.base.manage", Name: "管理基础配置", Description: "维护系统品牌和基础参数规划", Category: "系统配置"},
 	{Key: "settings.users.read", Name: "查看用户配置", Description: "查看用户、用户群组和角色", Category: "系统配置"},
 	{Key: "settings.users.manage", Name: "管理用户配置", Description: "维护用户、用户群组和角色", Category: "系统配置"},
-	{Key: "settings.auth.read", Name: "查看认证配置", Description: "查看 AD/LDAP 等外部认证", Category: "系统配置"},
-	{Key: "settings.auth.manage", Name: "管理认证配置", Description: "维护 AD/LDAP 等外部认证", Category: "系统配置"},
+	{Key: "settings.auth.read", Name: "查看认证配置", Description: "查看本地账号、AD/LDAP 与企业微信认证配置", Category: "系统配置"},
+	{Key: "settings.auth.manage", Name: "管理认证配置", Description: "维护并测试 AD/LDAP 与企业微信认证配置", Category: "系统配置"},
 	{Key: "settings.notifications.read", Name: "查看通知配置", Description: "查看外部通知媒介", Category: "系统配置"},
 	{Key: "settings.notifications.manage", Name: "管理通知配置", Description: "维护外部通知媒介", Category: "系统配置"},
 }

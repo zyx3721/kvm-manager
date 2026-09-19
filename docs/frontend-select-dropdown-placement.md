@@ -55,7 +55,6 @@
 | 快照页 | Agent 宿主机筛选 | `frontend/src/features/snapshots/SnapshotsPage.tsx:155` |
 | 快照页 | 虚拟机筛选 | `frontend/src/features/snapshots/SnapshotsPage.tsx:160` |
 | 通知媒介配置 | 邮件内容类型、飞书/飞书应用消息类型、飞书应用接收 ID 类型、飞书卡片标题颜色、企业微信/企业微信应用消息类型、钉钉/钉钉应用消息类型；选项悬浮提示固定显示在右侧 | `frontend/src/features/settings/components/NotificationSettingsPanel.tsx` |
-| 认证配置 | 企业微信直连登录方式（qrcode/inside），由 `ConfigField` 的 `select` 字段类型统一渲染 `SelectMenu` | `frontend/src/features/settings/components/SettingsFormPrimitives.tsx` |
 | 存储池详情 | 添加镜像格式 | `frontend/src/features/storage-pools/components/StoragePoolDetailDialog.tsx:501` |
 | 存储池详情 | 容量单位 | `frontend/src/features/storage-pools/components/StoragePoolDetailDialog.tsx:514` |
 | VM 工具栏 | 宿主机筛选 | `frontend/src/features/vms/components/VMToolbar.tsx:84` |

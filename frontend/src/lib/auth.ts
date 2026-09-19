@@ -29,6 +29,9 @@ type ApiErrorResponse = {
 /** 绑定弹窗向主窗口通知结果的 postMessage 类型标识 */
 export const WECOM_BIND_MESSAGE = 'kvm:wecom-bind';
 
+/** 企业微信认证配置保存后派发的变更事件，布局据此刷新绑定入口显隐 */
+export const WECOM_PROVIDERS_CHANGED_EVENT = 'kvm:wecom-providers-changed';
+
 export function getAuthToken() {
   return window.localStorage.getItem(TOKEN_KEY);
 }
@@ -97,6 +100,18 @@ export function updateStoredUser(patch: Partial<AuthUser>): AuthUser | null {
   const next = { ...user, ...patch };
   window.localStorage.setItem(USER_KEY, JSON.stringify(next));
   return next;
+}
+
+/** 获取企业微信扫码登录地址（公开接口：直连返回企微授权页，统一认证中心返回认证中心地址） */
+export async function fetchWecomLoginUrl(redirect = '/') {
+  const response = await fetch(
+    `/api/auth/wecom/authorize?redirect=${encodeURIComponent(redirect)}`
+  );
+  if (!response.ok) {
+    throw new Error(await readApiError(response));
+  }
+  const data = (await response.json()) as { url: string };
+  return data.url;
 }
 
 /** 获取当前用户的企业微信绑定跳转地址（直连或统一认证中心按启用情况自动分派） */

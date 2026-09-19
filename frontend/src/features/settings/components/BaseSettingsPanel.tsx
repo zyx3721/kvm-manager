@@ -42,7 +42,7 @@ const configCards: Array<{
   {
     id: 'security',
     title: '安全时效',
-    description: '找回密码验证码、发送冷却、限流窗口与企微扫码有效期',
+    description: '找回密码验证码、发送冷却、限流窗口与企业微信扫码有效期',
     icon: KeyRoundIcon,
     color: '#22c55e',
   },

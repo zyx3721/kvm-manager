@@ -9,7 +9,6 @@ import {
   CpuIcon,
   KeyRoundIcon,
   Link2Icon,
-  Link2OffIcon,
   Loader2Icon,
   LogOutIcon,
   MoonIcon,
@@ -29,6 +28,7 @@ import {
   userHasAnyPermission,
   userHasPermission,
   WECOM_BIND_MESSAGE,
+  WECOM_PROVIDERS_CHANGED_EVENT,
 } from '../../lib/auth';
 import {
   fetchNotifications,
@@ -160,11 +160,16 @@ export default function KvmLayout() {
     }
   };
 
-  // 企业微信认证启用时显示绑定/解绑入口；监听绑定弹窗结果并同步本地会话
+  // 企业微信认证启用时显示绑定/解绑入口；监听配置保存事件与绑定弹窗结果
   useEffect(() => {
-    void fetchPublicAuthProviders()
-      .then(response => setWecomEnabled(response.items.some(item => Boolean(item.authorize_path))))
-      .catch(() => setWecomEnabled(false));
+    const refreshWecomEnabled = () => {
+      void fetchPublicAuthProviders()
+        .then(response => setWecomEnabled(response.items.some(item => item.type === 'wecom')))
+        .catch(() => undefined);
+    };
+    refreshWecomEnabled();
+    window.addEventListener(WECOM_PROVIDERS_CHANGED_EVENT, refreshWecomEnabled);
+    return () => window.removeEventListener(WECOM_PROVIDERS_CHANGED_EVENT, refreshWecomEnabled);
   }, []);
 
   useEffect(() => {
@@ -625,6 +630,23 @@ export default function KvmLayout() {
                     boxShadow: 'var(--kvm-menu-shadow)',
                   }}
                 >
+                  {wecomEnabled && (
+                    <button
+                      type="button"
+                      className="kvm-action-button flex h-10 w-full items-center gap-2 rounded-lg px-3 text-left text-sm disabled:cursor-not-allowed disabled:opacity-60"
+                      role="menuitem"
+                      disabled={wecomBusy}
+                      onClick={() => void (wecomBound ? handleWecomUnbind() : startWecomBind())}
+                      style={{ color: 'var(--kvm-text)', background: 'transparent' }}
+                    >
+                      {wecomBusy ? (
+                        <Loader2Icon size={16} className="animate-spin" />
+                      ) : (
+                        <Link2Icon size={16} />
+                      )}
+                      {wecomBound ? '解绑企微' : '绑定企微'}
+                    </button>
+                  )}
                   <button
                     type="button"
                     className="kvm-action-button flex h-10 w-full items-center gap-2 rounded-lg px-3 text-left text-sm"
@@ -638,25 +660,6 @@ export default function KvmLayout() {
                     <KeyRoundIcon size={16} />
                     修改密码
                   </button>
-                  {wecomEnabled && (
-                    <button
-                      type="button"
-                      className="kvm-action-button flex h-10 w-full items-center gap-2 rounded-lg px-3 text-left text-sm disabled:cursor-not-allowed disabled:opacity-60"
-                      role="menuitem"
-                      disabled={wecomBusy}
-                      onClick={() => void (wecomBound ? handleWecomUnbind() : startWecomBind())}
-                      style={{ color: 'var(--kvm-text)', background: 'transparent' }}
-                    >
-                      {wecomBusy ? (
-                        <Loader2Icon size={16} className="animate-spin" />
-                      ) : wecomBound ? (
-                        <Link2OffIcon size={16} />
-                      ) : (
-                        <Link2Icon size={16} />
-                      )}
-                      {wecomBound ? '解绑企业微信' : '绑定企业微信'}
-                    </button>
-                  )}
                   <button
                     type="button"
                     className="kvm-action-button kvm-danger-button flex h-10 w-full items-center gap-2 rounded-lg px-3 text-left text-sm"

@@ -1444,12 +1444,12 @@ func swaggerUpdateAuthProvider() {}
 func swaggerTestAuthProvider() {}
 
 // swaggerWecomAuthorize godoc
-// @Summary 发起企业微信直连登录
-// @Description 生成一次性 state（有效期为基础配置中的企业微信扫码有效期，默认 5 分钟）并 302 跳转到企业微信扫码或网页授权页面；配置为调试模式时直接跳回本平台回调地址模拟扫码成功。回调地址优先取认证配置中的外部访问地址，未配置时按当前访问地址自动推断。登录页通过 GET /api/auth/providers 返回的 authorize_path 发起，无需认证。
+// @Summary 获取企业微信扫码登录地址
+// @Description 返回企业微信登录跳转地址：直连模式签发一次性 state（有效期为基础配置中的企业微信扫码有效期，默认 5 分钟）后返回企微授权页地址，统一认证中心模式返回认证中心登录页地址。回调地址优先取认证配置中的回调地址前缀，未配置时按当前访问地址自动推断。无需认证。
 // @Tags auth
 // @Produce json
 // @Param redirect query string false "登录成功后前往的站内路径，仅允许以 / 开头，默认 /"
-// @Success 302 {string} string "跳转到企业微信授权页或本平台回调"
+// @Success 200 {object} wecomBindURLResponse
 // @Failure 503 {object} errorResponse
 // @Router /api/auth/wecom/authorize [get]
 func swaggerWecomAuthorize() {}
@@ -1466,19 +1466,8 @@ func swaggerWecomAuthorize() {}
 // @Router /api/auth/wecom/callback [get]
 func swaggerWecomCallback() {}
 
-// swaggerWecomCenterAuthorize godoc
-// @Summary 发起统一认证中心登录
-// @Description 302 跳转到统一认证中心登录页，认证中心完成企业微信扫码后回调本平台。登录页通过 GET /api/auth/providers 返回的 authorize_path 发起，无需认证。
-// @Tags auth
-// @Produce json
-// @Param redirect query string false "登录成功后前往的站内路径，仅允许以 / 开头，默认 /"
-// @Success 302 {string} string "跳转到统一认证中心登录页"
-// @Failure 503 {object} errorResponse
-// @Router /api/auth/wecom-center/authorize [get]
-func swaggerWecomCenterAuthorize() {}
-
-// swaggerWecomCenterCallback godoc
-// @Summary 统一认证中心回调
+// swaggerWecomSSOCallback godoc
+// @Summary 统一认证中心票据回调
 // @Description 接收统一认证中心回调票据，后端使用应用密钥发起 HMAC-SHA256 签名的 verify 换取企微账号；redirect 携带绑定票据时执行绑定，否则按绑定关系签发会话。结果通过 URL fragment 302 回前端 /auth/callback 页面，失败时携带 error 与 message。
 // @Tags auth
 // @Produce json
@@ -1486,12 +1475,12 @@ func swaggerWecomCenterAuthorize() {}
 // @Param redirect query string false "登录成功后前往的站内路径"
 // @Success 302 {string} string "跳转到前端回调页"
 // @Failure 503 {object} errorResponse
-// @Router /api/auth/wecom-center/callback [get]
-func swaggerWecomCenterCallback() {}
+// @Router /api/auth/wecom/sso/callback [get]
+func swaggerWecomSSOCallback() {}
 
 // swaggerWecomBindURL godoc
 // @Summary 获取企业微信绑定地址
-// @Description 为当前登录用户生成企微绑定跳转地址：直连认证启用时返回直连扫码地址（state 用途为 bind），否则返回统一认证中心地址（redirect 内嵌一次性绑定票据）。前端弹窗打开该地址完成扫码后自动通知主窗口。
+// @Description 为当前登录用户生成企微绑定跳转地址：直连模式返回直连扫码地址（state 用途为 bind），统一认证中心模式返回认证中心地址（redirect 内嵌一次性绑定票据）。前端弹窗打开该地址完成扫码后自动通知主窗口。
 // @Tags auth
 // @Produce json
 // @Security BearerAuth

@@ -14,15 +14,13 @@ import (
 )
 
 var authProviderIDs = map[string]struct{}{
-	"ldap":         {},
-	"wecom":        {},
-	"wecom_center": {},
+	"ldap":  {},
+	"wecom": {},
 }
 
 // authProviderTestMessages 各认证方式测试通过时的用户可见提示，空则回退通用文案。
 var authProviderTestMessages = map[string]string{
-	"wecom":        "企业微信应用凭证验证通过",
-	"wecom_center": "统一认证中心连接正常",
+	"wecom": "企业微信认证配置验证通过",
 }
 
 type authProviderRequest struct {
@@ -125,8 +123,6 @@ func runAuthProviderTest(ctx context.Context, id string, provider domain.AuthPro
 	switch id {
 	case "wecom":
 		return auth.LDAPTestResult{}, auth.TestWeComProvider(ctx, provider)
-	case "wecom_center":
-		return auth.LDAPTestResult{}, auth.TestWeComCenterProvider(ctx, provider)
 	default:
 		return auth.TestLDAPProvider(ctx, provider)
 	}
@@ -134,7 +130,7 @@ func runAuthProviderTest(ctx context.Context, id string, provider domain.AuthPro
 
 func authProviderUserMessage(id string, err error) string {
 	switch id {
-	case "wecom", "wecom_center":
+	case "wecom":
 		return auth.WeComUserMessage(err)
 	default:
 		return auth.LDAPUserMessage(err)
@@ -173,9 +169,7 @@ func sanitizeAuthProviderConfigWithPrevious(id string, config map[string]any, pr
 	}
 	switch id {
 	case "wecom":
-		return sanitizeWeComProviderConfig(config, previous, enabled)
-	case "wecom_center":
-		return sanitizeWeComCenterProviderConfig(config, previous, enabled)
+		return sanitizeWecomProviderConfig(config, previous, enabled)
 	case "ldap":
 		return sanitizeLDAPProviderConfig(config, previous, enabled)
 	default:
@@ -226,8 +220,10 @@ func sanitizeLDAPProviderConfig(config map[string]any, previous map[string]any, 
 	return removeEmptyConfigValues(config), nil
 }
 
-func sanitizeWeComProviderConfig(config map[string]any, previous map[string]any, enabled bool) (map[string]any, error) {
-	discardSecretPresenceMarkers(config, []string{"secret"})
+// sanitizeWecomProviderConfig 企业微信统一配置：authMode 切换直连与统一认证中心，
+// 两把密钥（应用 Secret / 应用密钥）留空时各自续存互不丢失，启用时仅校验当前模式凭据。
+func sanitizeWecomProviderConfig(config map[string]any, previous map[string]any, enabled bool) (map[string]any, error) {
+	discardSecretPresenceMarkers(config, []string{"secret", "ssoAppSecret"})
 	if !enabled {
 		return removeEmptyConfigValues(config), nil
 	}
@@ -236,57 +232,50 @@ func sanitizeWeComProviderConfig(config map[string]any, previous map[string]any,
 			config["secret"] = value
 		}
 	}
-	if stringValue(config["corpId"]) == "" {
-		return nil, fmt.Errorf("企业 ID 不能为空")
+	if stringValue(config["ssoAppSecret"]) == "" {
+		if value := stringValue(previous["ssoAppSecret"]); value != "" {
+			config["ssoAppSecret"] = value
+		}
 	}
-	// 外部访问地址可选：留空时运行时按用户当前访问地址推断回调前缀
-	if stringValue(config["externalUrl"]) != "" {
-		externalURL, err := normalizeBaseURL(stringValue(config["externalUrl"]), "外部访问地址")
+	authMode := stringValue(config["authMode"])
+	if authMode == "" {
+		config["authMode"] = "direct"
+	} else if authMode != "direct" && authMode != "sso" {
+		return nil, fmt.Errorf("认证方式仅支持 direct 或 sso")
+	}
+	if stringValue(config["authMode"]) == "sso" {
+		if stringValue(config["ssoBaseUrl"]) == "" {
+			return nil, fmt.Errorf("认证中心地址不能为空")
+		}
+		ssoBaseURL, err := normalizeBaseURL(stringValue(config["ssoBaseUrl"]), "认证中心地址")
 		if err != nil {
 			return nil, err
 		}
-		config["externalUrl"] = externalURL
-	}
-	if mode := stringValue(config["mode"]); mode == "" {
-		config["mode"] = "qrcode"
-	} else if mode != "qrcode" && mode != "inside" {
-		return nil, fmt.Errorf("登录方式仅支持 qrcode 或 inside")
-	}
-	if boolValue(config["mock"]) {
+		config["ssoBaseUrl"] = ssoBaseURL
+		if stringValue(config["ssoAppID"]) == "" {
+			return nil, fmt.Errorf("应用标识不能为空")
+		}
+		if stringValue(config["ssoAppSecret"]) == "" {
+			return nil, fmt.Errorf("应用密钥不能为空")
+		}
 		return removeEmptyConfigValues(config), nil
 	}
-	if numberValue(config["agentId"]) <= 0 {
-		return nil, fmt.Errorf("应用 AgentId 不能为空")
+	if stringValue(config["corpid"]) == "" {
+		return nil, fmt.Errorf("企业 ID（corpid）不能为空")
+	}
+	if numberValue(config["agentid"]) <= 0 {
+		return nil, fmt.Errorf("应用 AgentID 不能为空")
 	}
 	if stringValue(config["secret"]) == "" {
 		return nil, fmt.Errorf("应用 Secret 不能为空")
 	}
-	return removeEmptyConfigValues(config), nil
-}
-
-func sanitizeWeComCenterProviderConfig(config map[string]any, previous map[string]any, enabled bool) (map[string]any, error) {
-	discardSecretPresenceMarkers(config, []string{"appSecret"})
-	if !enabled {
-		return removeEmptyConfigValues(config), nil
-	}
-	if stringValue(config["appSecret"]) == "" {
-		if value := stringValue(previous["appSecret"]); value != "" {
-			config["appSecret"] = value
+	// 回调地址前缀可选：留空时运行时按用户当前访问地址推断
+	if stringValue(config["redirectPrefix"]) != "" {
+		prefix, err := normalizeBaseURL(stringValue(config["redirectPrefix"]), "回调地址前缀")
+		if err != nil {
+			return nil, err
 		}
-	}
-	if stringValue(config["baseUrl"]) == "" {
-		return nil, fmt.Errorf("认证中心地址不能为空")
-	}
-	baseURL, err := normalizeBaseURL(stringValue(config["baseUrl"]), "认证中心地址")
-	if err != nil {
-		return nil, err
-	}
-	config["baseUrl"] = baseURL
-	if stringValue(config["app"]) == "" {
-		return nil, fmt.Errorf("应用标识不能为空")
-	}
-	if stringValue(config["appSecret"]) == "" {
-		return nil, fmt.Errorf("应用密钥不能为空")
+		config["redirectPrefix"] = prefix
 	}
 	return removeEmptyConfigValues(config), nil
 }
@@ -311,9 +300,7 @@ func redactAuthProviders(items []domain.AuthProvider) []domain.AuthProvider {
 func redactAuthProvider(item domain.AuthProvider) domain.AuthProvider {
 	switch item.Type {
 	case "wecom":
-		item.Config = redactConfigSecrets(item.Config, []string{"secret"})
-	case "wecom_center":
-		item.Config = redactConfigSecrets(item.Config, []string{"appSecret"})
+		item.Config = redactConfigSecrets(item.Config, []string{"secret", "ssoAppSecret"})
 	default:
 		item.Config = redactConfigSecrets(item.Config, []string{"bindPassword"})
 	}

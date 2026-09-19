@@ -89,8 +89,6 @@ type PublicAuthProvider struct {
 	Type    string `json:"type"`
 	Name    string `json:"name"`
 	Enabled bool   `json:"enabled"`
-	// AuthorizePath 企业微信类 OAuth 登录方式的发起地址，密码型认证方式为空。
-	AuthorizePath string `json:"authorize_path,omitempty"`
 }
 
 // AuthState OAuth 流程的一次性 state 记录，回调时取出即删。
