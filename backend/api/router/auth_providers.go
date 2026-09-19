@@ -263,6 +263,8 @@ func sanitizeWecomProviderConfig(config map[string]any, previous map[string]any,
 	if stringValue(config["corpid"]) == "" {
 		return nil, fmt.Errorf("企业 ID（corpid）不能为空")
 	}
+	// AgentID 归一化为数字存储，兼容历史字符串数字形态
+	config["agentid"] = int(numberValue(config["agentid"]))
 	if numberValue(config["agentid"]) <= 0 {
 		return nil, fmt.Errorf("应用 AgentID 不能为空")
 	}

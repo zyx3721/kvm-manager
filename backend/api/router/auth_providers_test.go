@@ -66,6 +66,22 @@ func TestSanitizeWecomProviderConfigRequiresSSOFieldsWhenEnabled(t *testing.T) {
 	}
 }
 
+func TestSanitizeWecomProviderConfigNormalizesStringAgentid(t *testing.T) {
+	// 历史数据兼容：字符串数字的 AgentID 保存后归一化为数字
+	config, err := sanitizeAuthProviderConfigWithPrevious("wecom", map[string]any{
+		"authMode": "direct",
+		"corpid":   "ww123",
+		"agentid":  "1000002",
+		"secret":   "s",
+	}, nil, true)
+	if err != nil {
+		t.Fatalf("string agentid should be accepted: %v", err)
+	}
+	if config["agentid"] != 1000002 {
+		t.Fatalf("agentid should be normalized to number, got %v (%T)", config["agentid"], config["agentid"])
+	}
+}
+
 func TestSanitizeWecomProviderConfigRejectsUnknownAuthMode(t *testing.T) {
 	if _, err := sanitizeAuthProviderConfigWithPrevious("wecom", map[string]any{
 		"authMode": "other",

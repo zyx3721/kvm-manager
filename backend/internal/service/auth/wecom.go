@@ -63,21 +63,30 @@ type WecomProviderConfig struct {
 }
 
 func decodeWecomProviderConfig(data []byte) (WecomProviderConfig, error) {
-	var cfg WecomProviderConfig
+	// 用 map 手工解析：历史数据中 agentid 可能以字符串数字存储，直接解到 int 会失败
+	var raw map[string]any
 	if len(data) > 0 {
-		if err := json.Unmarshal(data, &cfg); err != nil {
+		if err := json.Unmarshal(data, &raw); err != nil {
 			return WecomProviderConfig{}, err
 		}
+	}
+	text := func(key string) string {
+		value, _ := raw[key].(string)
+		return strings.TrimSpace(value)
+	}
+	cfg := WecomProviderConfig{
+		AuthMode:       text("authMode"),
+		CorpID:         text("corpid"),
+		AgentID:        wecomIntValue(raw["agentid"]),
+		Secret:         text("secret"),
+		RedirectPrefix: strings.TrimRight(text("redirectPrefix"), "/"),
+		SSOBaseURL:     strings.TrimRight(text("ssoBaseUrl"), "/"),
+		SSOAppID:       text("ssoAppID"),
+		SSOAppSecret:   text("ssoAppSecret"),
 	}
 	if cfg.AuthMode != WecomModeSSO {
 		cfg.AuthMode = WecomModeDirect
 	}
-	cfg.CorpID = strings.TrimSpace(cfg.CorpID)
-	cfg.Secret = strings.TrimSpace(cfg.Secret)
-	cfg.RedirectPrefix = strings.TrimRight(strings.TrimSpace(cfg.RedirectPrefix), "/")
-	cfg.SSOBaseURL = strings.TrimRight(strings.TrimSpace(cfg.SSOBaseURL), "/")
-	cfg.SSOAppID = strings.TrimSpace(cfg.SSOAppID)
-	cfg.SSOAppSecret = strings.TrimSpace(cfg.SSOAppSecret)
 	if cfg.AuthMode == WecomModeSSO {
 		if cfg.SSOBaseURL == "" || cfg.SSOAppID == "" || cfg.SSOAppSecret == "" {
 			return WecomProviderConfig{}, fmt.Errorf("wecom sso base url, app id and app secret are required")
@@ -91,6 +100,24 @@ func decodeWecomProviderConfig(data []byte) (WecomProviderConfig, error) {
 		return WecomProviderConfig{}, fmt.Errorf("wecom agentid is required")
 	}
 	return cfg, nil
+}
+
+// wecomIntValue 兼容数字与字符串数字的历史数据形态。
+func wecomIntValue(value any) int {
+	switch typed := value.(type) {
+	case float64:
+		return int(typed)
+	case int:
+		return typed
+	case json.Number:
+		number, _ := typed.Float64()
+		return int(number)
+	case string:
+		number, _ := strconv.Atoi(strings.TrimSpace(typed))
+		return number
+	default:
+		return 0
+	}
 }
 
 // redirectBase 回调地址前缀：配置了回调地址前缀则优先，否则按用户当前访问地址推断。

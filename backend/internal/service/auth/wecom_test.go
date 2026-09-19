@@ -53,6 +53,18 @@ func TestDecodeWecomProviderConfigDefaultsToDirect(t *testing.T) {
 	}
 }
 
+func TestDecodeWecomProviderConfigAcceptsStringAgentid(t *testing.T) {
+	// 历史数据中 agentid 可能以字符串数字落库，decode 必须兼容
+	config := []byte(`{"authMode":"direct","corpid":"ww123","agentid":"1000002","secret":"s"}`)
+	cfg, err := decodeWecomProviderConfig(config)
+	if err != nil {
+		t.Fatalf("string agentid should be accepted: %v", err)
+	}
+	if cfg.AgentID != 1000002 {
+		t.Fatalf("agentid should be parsed to int, got %d", cfg.AgentID)
+	}
+}
+
 func TestDecodeWecomProviderConfigRequiresModeCredentials(t *testing.T) {
 	direct := []byte(`{"authMode":"direct"}`)
 	if _, err := decodeWecomProviderConfig(direct); err == nil {
