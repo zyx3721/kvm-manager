@@ -246,7 +246,6 @@ export function ConfigField({
         ? 'number'
         : 'text';
   const textValue = String(value ?? '');
-  const passwordCanReveal = field.type === 'password' && textValue !== '';
   const placeholder =
     field.type === 'password' && secretConfigured ? '已配置，留空表示不修改' : field.placeholder;
   return (
@@ -287,8 +286,7 @@ export function ConfigField({
             >
               <button
                 type="button"
-                disabled={disabled || !passwordCanReveal}
-                className="kvm-action-button absolute right-2 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md disabled:cursor-not-allowed disabled:opacity-50"
+                className="kvm-action-button absolute right-2 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md"
                 style={{ color: 'var(--kvm-text-muted)', background: 'transparent' }}
                 onClick={event => {
                   event.preventDefault();
