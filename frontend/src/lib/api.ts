@@ -149,6 +149,8 @@ export type PublicAuthProvider = {
   type: string;
   name: string;
   enabled: boolean;
+  /** OAuth 类登录方式的发起地址（企业微信直连/统一认证中心），密码型认证方式为空 */
+  authorize_path?: string;
 };
 
 export type SystemBaseConfig = {
@@ -1573,7 +1575,7 @@ export function updateAuthProvider(
 }
 
 export function testAuthProvider(id: string) {
-  return apiRequest<{ status: string; matchedUsers: number }>(
+  return apiRequest<{ status: string; matchedUsers: number; message?: string }>(
     `/api/settings/auth-providers/${encodeURIComponent(id)}/test`,
     { method: 'POST' }
   );

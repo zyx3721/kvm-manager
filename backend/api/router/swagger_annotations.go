@@ -12,7 +12,7 @@ func swaggerHealth() {}
 
 // swaggerLogin godoc
 // @Summary 登录
-// @Description 使用本地账号或已启用的外部认证方式登录，返回会话 Token 和用户信息。默认空库管理员为 admin / 123456。
+// @Description 使用本地账号或已启用的外部认证方式（如 AD/LDAP）登录，返回会话 Token 和用户信息。企业微信直连与统一认证中心不走密码登录，需使用对应的 OAuth 发起接口。默认空库管理员为 admin / 123456。
 // @Tags auth
 // @Accept json
 // @Produce json
@@ -1412,12 +1412,12 @@ func swaggerListAuthProviders() {}
 
 // swaggerUpdateAuthProvider godoc
 // @Summary 更新认证配置
-// @Description 首期支持 AD/LDAP。显示名称不能为空；启用后登录页会显示对应认证方式，且必须提供服务器地址、端口、Base DN、用户过滤器、绑定 DN 和绑定密码。LDAP bindPassword 留空时保留已保存值，填写新值时替换。LDAPS 通常使用 636 端口，StartTLS 通常使用 389 端口，二者不能同时启用。关闭认证时允许保存空配置，用于清空已保存配置。外部认证用户必须先在用户配置中创建并启用后才可登录。
+// @Description 支持 AD/LDAP、企业微信直连（wecom）和企业微信统一认证中心（wecom_center）。显示名称不能为空；启用后登录页会显示对应认证方式。LDAP 启用时必须提供服务器地址、端口、Base DN、用户过滤器、绑定 DN 和绑定密码，bindPassword 留空时保留已保存值；LDAPS 通常使用 636 端口，StartTLS 通常使用 389 端口，二者不能同时启用。企业微信直连启用时必须提供企业 ID、应用 AgentId、应用 Secret 和外部访问地址，secret 留空时保留已保存值，登录方式仅支持 qrcode（PC 扫码）和 inside（企微内置浏览器），开启调试模式（mock）时不校验 AgentId 与 Secret 并使用模拟用户。统一认证中心启用时必须提供认证中心地址、应用标识和应用密钥，appSecret 留空时保留已保存值。关闭认证时允许保存空配置，用于清空已保存配置。外部认证用户必须先在用户配置中创建并启用后才可登录。
 // @Tags settings
 // @Accept json
 // @Produce json
 // @Security BearerAuth
-// @Param id path string true "认证配置 ID：ldap"
+// @Param id path string true "认证配置 ID：ldap、wecom（企业微信直连）、wecom_center（企业微信统一认证中心）"
 // @Param request body authProviderRequestDoc true "认证配置"
 // @Success 200 {object} domain.AuthProvider
 // @Failure 400 {object} errorResponse
@@ -1427,6 +1427,8 @@ func swaggerListAuthProviders() {}
 // @Router /api/settings/auth-providers/{id} [put]
 func swaggerUpdateAuthProvider() {}
 
+// swaggerTestAuthProvider godoc
+// @Summary 测试认证配置
 // swaggerTestAuthProvider godoc
 // @Summary 测试认证配置
 // @Description 使用已保存认证配置测试 LDAP 连接、绑定账号和用户搜索，成功时返回匹配用户数量。若配置了用户组过滤器，则按该配置统计匹配用户数，登录时也会要求用户匹配该组条件；用户组过滤器可直接填写用户组 DN，后端会按 memberOf 自动转换。
@@ -1440,6 +1442,52 @@ func swaggerUpdateAuthProvider() {}
 // @Failure 503 {object} errorResponse
 // @Router /api/settings/auth-providers/{id}/test [post]
 func swaggerTestAuthProvider() {}
+
+// swaggerWecomAuthorize godoc
+// @Summary 发起企业微信直连登录
+// @Description 生成一次性 state 并 302 跳转到企业微信扫码或网页授权页面；配置为调试模式时直接跳回本平台回调地址模拟扫码成功。登录页通过 GET /api/auth/providers 返回的 authorize_path 发起，无需认证。
+// @Tags auth
+// @Produce json
+// @Param redirect query string false "登录成功后前往的站内路径，仅允许以 / 开头，默认 /"
+// @Success 302 {string} string "跳转到企业微信授权页或本平台回调"
+// @Failure 503 {object} errorResponse
+// @Router /api/auth/wecom/authorize [get]
+func swaggerWecomAuthorize() {}
+
+// swaggerWecomCallback godoc
+// @Summary 企业微信直连回调
+// @Description 企业微信扫码授权后的回调地址，校验 state、code 换取用户身份并映射本地账号后，通过 URL fragment 携带会话 Token 302 跳转到前端 /auth/callback 页面。失败时 fragment 中携带 error 与 message。
+// @Tags auth
+// @Produce json
+// @Param code query string true "企业微信授权码"
+// @Param state query string true "发起登录时生成的一次性 state"
+// @Success 302 {string} string "跳转到前端回调页"
+// @Failure 503 {object} errorResponse
+// @Router /api/auth/wecom/callback [get]
+func swaggerWecomCallback() {}
+
+// swaggerWecomCenterAuthorize godoc
+// @Summary 发起统一认证中心登录
+// @Description 302 跳转到统一认证中心登录页，认证中心完成企业微信扫码后回调本平台。登录页通过 GET /api/auth/providers 返回的 authorize_path 发起，无需认证。
+// @Tags auth
+// @Produce json
+// @Param redirect query string false "登录成功后前往的站内路径，仅允许以 / 开头，默认 /"
+// @Success 302 {string} string "跳转到统一认证中心登录页"
+// @Failure 503 {object} errorResponse
+// @Router /api/auth/wecom-center/authorize [get]
+func swaggerWecomCenterAuthorize() {}
+
+// swaggerWecomCenterCallback godoc
+// @Summary 统一认证中心回调
+// @Description 接收统一认证中心回调票据，后端使用应用密钥发起 HMAC-SHA256 签名的 verify 换取用户身份，映射本地账号后通过 URL fragment 携带会话 Token 302 跳转到前端 /auth/callback 页面。失败时 fragment 中携带 error 与 message。
+// @Tags auth
+// @Produce json
+// @Param ticket query string true "认证中心签发的一次性票据"
+// @Param redirect query string false "登录成功后前往的站内路径"
+// @Success 302 {string} string "跳转到前端回调页"
+// @Failure 503 {object} errorResponse
+// @Router /api/auth/wecom-center/callback [get]
+func swaggerWecomCenterCallback() {}
 
 // swaggerGetSystemBaseConfig godoc
 // @Summary 获取基础配置

@@ -2,9 +2,11 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import {
   BellRingIcon,
+  Building2Icon,
   CheckCircle2Icon,
   MegaphoneIcon,
   NetworkIcon,
+  QrCodeIcon,
   SlidersHorizontalIcon,
   SaveIcon,
   SettingsIcon,
@@ -39,7 +41,7 @@ import {
 } from './components/SettingsFormPrimitives';
 
 type SettingsTab = 'base' | 'users' | 'auth' | 'notifications';
-type AuthProviderId = 'ldap';
+type AuthProviderId = 'ldap' | 'wecom' | 'wecom_center';
 
 const authProviderMeta: Record<
   AuthProviderId,
@@ -89,9 +91,114 @@ const authProviderMeta: Record<
       { key: 'groupFilter', label: '用户组过滤器', placeholder: 'cn=ops,dc=example,dc=com' },
     ],
   },
+  wecom: {
+    name: '企业微信·直连',
+    description:
+      '平台直接对接企业微信自建应用，通过扫码或企微内网页授权登录；需在企微后台为本平台域名配置可信域名。',
+    icon: QrCodeIcon,
+    color: '#07c160',
+    requiredFields: [
+      {
+        key: 'corpId',
+        label: '企业 ID',
+        placeholder: 'wwxxxxxxxxxxxxxxxx',
+        required: true,
+        helper: '企业微信后台「我的企业」页面的企业 ID',
+      },
+      {
+        key: 'agentId',
+        label: '应用 AgentId',
+        placeholder: '1000002',
+        required: true,
+        type: 'number',
+        inputMode: 'numeric',
+        helper: '自建应用详情页的 AgentId',
+      },
+      {
+        key: 'secret',
+        label: '应用 Secret',
+        placeholder: '请输入自建应用 Secret',
+        required: true,
+        type: 'password',
+      },
+      {
+        key: 'externalUrl',
+        label: '外部访问地址',
+        placeholder: 'https://kvm.example.com',
+        required: true,
+        helper: '用户访问平台的对外地址，用于构造企业微信授权回调',
+      },
+    ],
+    optionalFields: [
+      {
+        key: 'mode',
+        label: '登录方式',
+        placeholder: '选择登录方式',
+        type: 'select',
+        options: [
+          { value: 'qrcode', label: 'PC 浏览器扫码' },
+          { value: 'inside', label: '企微内置浏览器授权' },
+        ],
+        helper: 'qrcode 适用于 PC 浏览器扫码，inside 适用于企业微信客户端内打开',
+      },
+      {
+        key: 'fetchName',
+        label: '获取姓名',
+        placeholder: '',
+        type: 'checkbox',
+        helper: '登录时额外调用通讯录接口补全姓名，需授予应用通讯录读取权限',
+      },
+      {
+        key: 'mock',
+        label: '调试模式',
+        placeholder: '',
+        type: 'checkbox',
+        helper: '不访问企业微信接口，以模拟用户演练完整登录流程，仅限开发验证',
+      },
+    ],
+  },
+  wecom_center: {
+    name: '企业微信·统一认证中心',
+    description:
+      '对接统一认证中心，由认证中心完成企业微信扫码后通过签名票据换回身份；平台无需单独配置企业微信可信域名与 Secret。',
+    icon: Building2Icon,
+    color: '#6366f1',
+    requiredFields: [
+      {
+        key: 'baseUrl',
+        label: '认证中心地址',
+        placeholder: 'https://auth.example.com',
+        required: true,
+      },
+      {
+        key: 'app',
+        label: '应用标识',
+        placeholder: 'kvm',
+        required: true,
+        helper: '认证中心应用白名单中登记的业务系统标识',
+      },
+      {
+        key: 'appSecret',
+        label: '应用密钥',
+        placeholder: '请输入认证中心分配的 app_secret',
+        required: true,
+        type: 'password',
+        helper: '仅用于后端 verify 签名，不会下发到前端',
+      },
+    ],
+    optionalFields: [
+      {
+        key: 'verifyTsSkew',
+        label: '时间偏差容忍（秒）',
+        placeholder: '60',
+        type: 'number',
+        helper: 'verify 时间戳允许的偏差秒数，默认 60',
+      },
+    ],
+  },
 };
 
-const authProviderOrder: AuthProviderId[] = ['ldap'];
+const authProviderOrder: AuthProviderId[] = ['ldap', 'wecom', 'wecom_center'];
 
 export default function SettingsPage() {
   const [tab, setTab] = useState<SettingsTab>('base');
@@ -233,7 +340,7 @@ export default function SettingsPage() {
     setBusy('test-auth');
     try {
       const result = await testAuthProvider(selectedAuth);
-      toast.success(`认证连接测试通过，成功匹配 ${result.matchedUsers} 个用户`);
+      toast.success(result.message || `认证连接测试通过，成功匹配 ${result.matchedUsers} 个用户`);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : '认证连接测试失败');
     } finally {
@@ -630,13 +737,21 @@ function prepareAuthConfig(
       if (!port) return { config: {}, error: '端口需为 1 到 65535 之间的整数' };
       next.port = port;
     }
-    const missingField = authProviderMeta[id].requiredFields.find(field => {
-      if (field.type === 'number') return !Number(next[field.key]);
-      if (field.type === 'password' && secretConfigured(field, next)) return false;
-      return !String(next[field.key] ?? '').trim();
-    });
-    if (missingField) return { config: {}, error: `${missingField.label}不能为空` };
   }
+  if (id === 'wecom') {
+    const externalUrl = String(next.externalUrl ?? '').trim();
+    if (externalUrl && !/^https?:\/\//.test(externalUrl))
+      return { config: {}, error: '外部访问地址必须以 http:// 或 https:// 开头' };
+    if (!next.mode) next.mode = 'qrcode';
+  }
+  const missingField = authProviderMeta[id].requiredFields.find(field => {
+    if (id === 'wecom' && Boolean(next.mock) && (field.key === 'secret' || field.key === 'agentId'))
+      return false;
+    if (field.type === 'number') return !Number(next[field.key]);
+    if (field.type === 'password' && secretConfigured(field, next)) return false;
+    return !String(next[field.key] ?? '').trim();
+  });
+  if (missingField) return { config: {}, error: `${missingField.label}不能为空` };
   return { config: removeEmptyConfigValues(removeSecretPresenceMarkers(next)), error: '' };
 }
 

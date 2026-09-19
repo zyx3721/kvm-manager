@@ -11,6 +11,7 @@ import { Toaster, toast } from 'sonner';
 import BootScreen from '../components/boot/BootScreen';
 import KvmLayout from '../components/layout/KvmLayout';
 import ForgotPasswordPage from '../features/auth/ForgotPasswordPage';
+import AuthCallbackPage from '../features/auth/AuthCallbackPage';
 import Login from '../features/auth/LoginPage';
 import Dashboard from '../features/dashboard/DashboardPage';
 import HostInterfaces from '../features/host-interfaces/HostInterfacesPage';
@@ -109,6 +110,8 @@ function SessionIdleGuard() {
   const navigate = useNavigate();
 
   useEffect(() => {
+    // 企业微信登录回调页会自行用回跳的 Token 建立会话，若旧会话已空闲过期也不应被弹回登录页
+    if (window.location.pathname === '/auth/callback') return;
     if (!isAuthenticated()) return;
 
     const expireIdleSession = () => {
@@ -164,6 +167,7 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
+      <Route path="/auth/callback" element={<AuthCallbackPage />} />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
       <Route element={<RequireAuth />}>
         <Route path="/" element={<Dashboard />} />

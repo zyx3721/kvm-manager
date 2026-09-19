@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { EyeIcon, EyeOffIcon } from 'lucide-react';
 import { KvmTooltip } from '../../../components/kvm/StatusBadge';
+import { SelectMenu } from '../../../components/kvm/SelectMenu';
 import type { AuthProvider, NotificationChannel } from '../../../lib/api';
 
 export type Field = {
@@ -10,7 +11,8 @@ export type Field = {
   required?: boolean;
   helper?: string;
   inputMode?: React.HTMLAttributes<HTMLInputElement>['inputMode'];
-  type?: 'text' | 'password' | 'number' | 'checkbox' | 'textarea';
+  type?: 'text' | 'password' | 'number' | 'checkbox' | 'textarea' | 'select';
+  options?: { value: string; label: string }[];
 };
 
 const settingsNavColumnWidth = '430px';
@@ -178,6 +180,32 @@ export function ConfigField({
   disabled?: boolean;
 }) {
   const [passwordVisible, setPasswordVisible] = useState(false);
+  if (field.type === 'select')
+    return (
+      <label className="block space-y-1.5 text-xs" style={{ color: 'var(--kvm-text-muted)' }}>
+        <span className="flex items-center gap-1">
+          {field.label}
+          {field.required && <span style={{ color: '#f87171' }}>*</span>}
+        </span>
+        <SelectMenu
+          value={String(value ?? field.options?.[0]?.value ?? '')}
+          options={(field.options ?? []).map(option => ({
+            value: option.value,
+            label: option.label,
+          }))}
+          placeholder={field.placeholder || field.label}
+          disabled={disabled}
+          buttonClassName="!font-normal"
+          optionClassName="!font-normal"
+          onChange={selected => onChange(selected)}
+        />
+        {field.helper && (
+          <span className="block text-[11px] leading-4" style={{ color: 'var(--kvm-text-muted)' }}>
+            {field.helper}
+          </span>
+        )}
+      </label>
+    );
   if (field.type === 'checkbox')
     return (
       <label

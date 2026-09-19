@@ -2,12 +2,14 @@ import React, { type FormEvent, useEffect, useMemo, useRef, useState } from 'rea
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
+  Building2Icon,
   CheckIcon,
   ChevronDownIcon,
   EyeIcon,
   EyeOffIcon,
   LockIcon,
   MoonIcon,
+  QrCodeIcon,
   SunIcon,
   UserIcon,
 } from 'lucide-react';
@@ -57,6 +59,16 @@ export default function Login() {
       .then(response => setProviders(response.items))
       .catch(() => setProviders([]));
   }, []);
+
+  // 企业微信类认证方式不走账号密码表单，渲染为独立跳转按钮
+  const oauthProviders = useMemo(
+    () => providers.filter(item => Boolean(item.authorize_path)),
+    [providers]
+  );
+  const passwordProviders = useMemo(
+    () => providers.filter(item => !item.authorize_path),
+    [providers]
+  );
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -165,10 +177,10 @@ export default function Login() {
             </div>
 
             <form className="space-y-5" onSubmit={handleSubmit} noValidate>
-              {providers.length > 0 && (
+              {passwordProviders.length > 0 && (
                 <LoginProviderSelect
                   value={provider}
-                  providers={providers}
+                  providers={passwordProviders}
                   onChange={setProvider}
                 />
               )}
@@ -285,6 +297,45 @@ export default function Login() {
                 )}
                 {loading ? '登录中...' : '登录'}
               </button>
+              {oauthProviders.length > 0 && (
+                <div className="space-y-3">
+                  <div
+                    className="flex items-center gap-3 text-xs"
+                    style={{ color: 'var(--kvm-text-muted)' }}
+                  >
+                    <span className="h-px flex-1" style={{ background: 'var(--kvm-border)' }} />
+                    或使用以下方式登录
+                    <span className="h-px flex-1" style={{ background: 'var(--kvm-border)' }} />
+                  </div>
+                  {oauthProviders.map(item => {
+                    const OAuthIcon = item.id === 'wecom' ? QrCodeIcon : Building2Icon;
+                    return (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onClick={() => {
+                          window.location.href = `${item.authorize_path}?redirect=${encodeURIComponent(redirectPath)}`;
+                        }}
+                        className="kvm-action-button flex h-12 w-full items-center justify-center gap-2 rounded-2xl text-sm font-medium transition-all"
+                        style={{
+                          background: 'var(--kvm-control-bg)',
+                          border: '1px solid var(--kvm-border)',
+                          color: 'var(--kvm-text)',
+                        }}
+                        aria-label={`使用${item.name}登录`}
+                      >
+                        <OAuthIcon
+                          size={17}
+                          style={{
+                            color: item.id === 'wecom' ? '#07c160' : 'var(--kvm-accent-text)',
+                          }}
+                        />
+                        {item.name}登录
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </form>
           </div>
         </section>

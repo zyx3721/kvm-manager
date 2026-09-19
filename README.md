@@ -48,7 +48,7 @@ KVM Manager 是一个面向多宿主机 KVM/libvirt 环境的虚拟化资源管�
 - **快照管理**：从 Agent 实时获取虚拟机快照列表，支持创建、恢复、删除快照，并在平台侧维护备注和标签。
 - **实时刷新**：后端按环境变量定时触发全局运行态轻量刷新任务，前端通过 SSE 事件更新页面，手动刷新接口仍可触发 full 全量任务。
 - **离线告警**：连续同步失败达到阈值后标记 Agent 离线并生成活跃告警，同步恢复后自动恢复。
-- **系统配置**：提供告警通知媒介与认证配置，支持 Webhook、邮件、飞书/企业微信/钉钉机器人、飞书/企业微信/钉钉应用通知和 AD/LDAP。
+- **系统配置**：提供告警通知媒介与认证配置，支持 Webhook、邮件、飞书/企业微信/钉钉机器人、飞书/企业微信/钉钉应用通知、AD/LDAP，以及企业微信认证（直连与统一认证中心两种方式）。
 - **任务与审计**：记录后台刷新任务、虚拟机操作任务、关键审计日志和平台告警，并提供统一运维页面查看。
 
 ## 1.4 实时数据边界
@@ -144,7 +144,7 @@ kvm-manager/
 │       │   ├── kvm/                # KVM 状态徽标、趋势图、统一下拉、指标轴、弹窗 Portal 与宿主机趋势弹窗
 │       │   └── layout/             # 主布局、导航、主题切换、密码弹窗与实时刷新入口
 │       ├── features/               # 页面功能模块，按业务域组织页面、组件、类型与业务域工具
-│       │   ├── auth/               # 登录与忘记密码页面 LoginPage、ForgotPasswordPage
+│       │   ├── auth/               # 登录、忘记密码与企业微信回调页面 LoginPage、ForgotPasswordPage、AuthCallbackPage
 │       │   ├── dashboard/          # 仪表盘页面 DashboardPage
 │       │   ├── hosts/              # 宿主机页面 HostsPage 与宿主机工具函数
 │       │   │   ├── components/     # Agent 测试结果、宿主机图标按钮、资源行组件
@@ -248,7 +248,7 @@ docker exec -it pg-prod psql -U postgres
 CREATE DATABASE kvm;
 ```
 
-后端启动时会自动执行 `backend/pkg/database/migrations/001_init.sql` 初始化数据库结构。迁移记录保存在 `schema_migrations` 表中，重复启动会跳过已应用版本，不会重复初始化已有数据。当前数据库保存用户、会话、角色权限、Agent、任务、审计日志、告警、通知渠道、系统配置、指标样本和快照/模板标注等项目自身数据，不创建宿主机、虚拟机、快照资源表。
+后端启动时会自动按文件名顺序执行 `backend/pkg/database/migrations/` 下的迁移脚本（`001_init.sql` 初始化库表，`002_wecom_auth.sql` 新增企业微信认证提供方与 OAuth 登录 state 表）。迁移记录保存在 `schema_migrations` 表中，重复启动会跳过已应用版本，不会重复初始化已有数据。当前数据库保存用户、会话、角色权限、Agent、任务、审计日志、告警、通知渠道、系统配置、认证配置、OAuth 登录 state、指标样本和快照/模板标注等项目自身数据，不创建宿主机、虚拟机、快照资源表。
 
 ## 2.4 后端配置与启动
 
@@ -1409,7 +1409,7 @@ server {
 
 # 九、API 文档
 
-以下接口除 `POST /api/auth/login` 登录、`GET /api/auth/providers` 登录方式列表、找回密码相关公开接口、`GET /api/public/base-config` 公开基础配置和 `GET /api/health` 健康检查外，均需要在请求头中携带 `Authorization: Bearer <token>`。
+以下接口除 `POST /api/auth/login` 登录、`GET /api/auth/providers` 登录方式列表、企业微信认证跳转与回调接口（`/api/auth/wecom/*`、`/api/auth/wecom-center/*`）、找回密码相关公开接口、`GET /api/public/base-config` 公开基础配置和 `GET /api/health` 健康检查外，均需要在请求头中携带 `Authorization: Bearer <token>`。
 
 ## 9.1 Agent 管理
 
@@ -1479,7 +1479,11 @@ server {
 - `POST /api/auth/password-reset/verify` - 校验找回密码用户名和图形验证码
   - 返回 10 分钟内有效的短期校验 Token
   - 返回已启用找回密码用途的邮件媒介
-- `GET /api/auth/providers` - 获取登录页可用的外部认证方式，本地账号登录始终可用
+- `GET /api/auth/providers` - 获取登录页可用的外部认证方式，本地账号登录始终可用；企业微信类认证方式额外返回 `authorize_path` 发起地址
+- `GET /api/auth/wecom/authorize` - 发起企业微信直连登录，生成一次性 state 并 302 跳转企业微信扫码/网页授权页；`redirect` 参数仅允许站内路径；配置调试模式时直接跳回本平台回调模拟扫码成功
+- `GET /api/auth/wecom/callback` - 企业微信授权回调，校验 state、code 换取身份并映射本地账号后，通过 URL fragment 携带 Token 跳转前端 `/auth/callback` 页面
+- `GET /api/auth/wecom-center/authorize` - 发起统一认证中心登录，302 跳转认证中心登录页
+- `GET /api/auth/wecom-center/callback` - 统一认证中心票据回调，后端使用应用密钥发起 HMAC-SHA256 签名 verify 换取身份后签发会话
 
 ## 9.4 实时资源与刷新
 
@@ -1642,9 +1646,9 @@ server {
 - `GET /api/health` - 健康检查，包含数据库状态
 
 - `GET /api/public/base-config` - 获取公开基础配置，供登录页、启动页、侧边栏品牌区和浏览器标题展示站点名称与图标
-- `GET /api/settings/auth-providers` - 获取认证配置列表；需要认证配置查看或管理权限；`bindPassword` 不返回明文，已配置时返回 `hasBindPassword=true`
-- `PUT /api/settings/auth-providers/{id}` - 更新指定认证配置，当前 `id` 支持 `ldap`；关闭认证时允许保存空配置以清空已保存配置；外部认证用户必须先在用户配置中创建并启用；`bindPassword` 留空时保留已保存密码，填写新值时替换
-- `POST /api/settings/auth-providers/{id}/test` - 使用已保存认证配置测试连接，并返回匹配用户数量
+- `GET /api/settings/auth-providers` - 获取认证配置列表；需要认证配置查看或管理权限；`bindPassword`、企业微信 `secret` 与统一认证中心 `appSecret` 不返回明文，已配置时分别返回 `hasBindPassword`、`hasSecret`、`hasAppSecret` 标记
+- `PUT /api/settings/auth-providers/{id}` - 更新指定认证配置，当前 `id` 支持 `ldap`（AD/LDAP）、`wecom`（企业微信直连）和 `wecom_center`（企业微信统一认证中心）；关闭认证时允许保存空配置以清空已保存配置；外部认证用户必须先在用户配置中创建并启用；密码类字段（`bindPassword`、`secret`、`appSecret`）留空时保留已保存值，填写新值时替换
+- `POST /api/settings/auth-providers/{id}/test` - 使用已保存认证配置测试连接：LDAP 返回匹配用户数量，企业微信直连校验企业凭证可换取 access_token，统一认证中心调用健康检查；企业微信类认证通过 `message` 字段返回测试结果提示
 - `GET /api/settings/base-config` - 获取基础配置，包含网站名称、认证页品牌名称、控制台品牌名称、控制台品牌副标题、图标、安全时效、资源阈值、Agent 判定参数和告警通知策略；需要基础配置查看或管理权限
 - `PUT /api/settings/base-config` - 更新基础配置，图标支持站内路径或图片 Data URL；可调整找回密码安全时效、前端 CPU/内存/磁盘百分比条颜色阈值、后端资源告警阈值、资源告警连续次数、Agent 离线判定次数和告警通知超时/重试/批量策略；需要基础配置管理权限
 - `GET /api/settings/notifications` - 获取通知媒介列表
@@ -1797,6 +1801,8 @@ server {
 | 认证方式 |                           必填配置                           |                           可选配置                           |
 | :------: | :----------------------------------------------------------: | :----------------------------------------------------------: |
 | AD/LDAP  | `host`、`port`、`baseDN`、`userFilter`、`bindDN`、`bindPassword` | `useTLS`、`startTLS`、`insecureSkipVerify`、`timeoutSeconds`、`groupFilter` |
+| 企业微信·直连 | `corpId`、`agentId`、`secret`、`externalUrl` | `mode`（qrcode/inside）、`fetchName`、`mock` |
+| 企业微信·统一认证中心 | `baseUrl`、`app`、`appSecret` | `verifyTsSkew` |
 
 认证配置保存与连接：
 
@@ -1806,6 +1812,11 @@ server {
 - 若使用自签名证书或证书链未导入系统信任库，可按需开启 `insecureSkipVerify` 跳过证书校验。
 - 认证连接测试会执行 LDAP 连接、绑定账号和用户搜索，成功时返回匹配用户数量。
 - 若填写了 `groupFilter`，测试时会按该配置统计匹配用户数，登录时也会要求用户匹配该组条件。
+- 企业微信直连的 `externalUrl` 为用户访问平台的对外地址，用于构造企业微信授权回调，必须以 `http://` 或 `https://` 开头，尾部斜杠会自动去除。
+- 企业微信直连的 `mode` 支持 `qrcode`（PC 浏览器扫码，默认）和 `inside`（企业微信内置浏览器网页授权）。
+- 企业微信直连开启 `mock` 调试模式时不校验 `agentId` 与 `secret`，登录流程使用模拟用户，仅限开发验证。
+- 企业微信直连启用前需在企微后台为 `externalUrl` 域名配置应用可信域名并放置域名归属校验文件；`fetchName` 需要授予应用通讯录读取权限。
+- 统一认证中心的 `appSecret` 由认证中心管理员分配，仅用于后端 verify 请求的 HMAC-SHA256 签名，不会下发到前端；`verifyTsSkew` 为 verify 时间戳允许偏差秒数，默认 60。
 
 LDAP 过滤器规则：
 
@@ -1821,6 +1832,16 @@ AD/LDAP 登录规则：
 - 选择 AD/LDAP 登录时使用 LDAP 校验本次输入的密码，不会把 LDAP 密码写入数据库。
 - 启用 AD/LDAP 后，登录页会显示对应登录方式并通过外部目录完成认证。
 - 忘记密码仅支持本地账号，AD/LDAP 用户需在目录服务侧重置密码。
+
+企业微信登录规则：
+
+- 企业微信认证支持两种方式：`wecom` 直连企业微信自建应用，`wecom_center` 通过统一认证中心接入；二者可分别配置、独立启停。
+- 登录页对启用的企业微信认证方式显示独立登录按钮，点击后由后端发起 OAuth 跳转，不走账号密码表单。
+- 企业微信登录不会自动创建平台用户，企微账号（userid）必须与用户配置中的用户名一致，且用户未禁用时才允许登录。
+- 直连模式通过一次性 state（5 分钟有效、取出即删）防重放，code 换取身份时使用带缓存的 access_token（到期前 5 分钟刷新）。
+- 统一认证中心模式的 verify 请求由后端发起并携带 HMAC-SHA256 签名，`appSecret` 不进前端；票据一次性，校验失败需重新扫码。
+- 登录成功后通过 URL fragment 将会话 Token 回传前端 `/auth/callback` 页面，Token 不进服务端日志与 Referer；失败时回传中文错误提示。
+- 企业微信登录失败会写入审计日志（`auth.wecom.failed`），包含失败原因；用户未开通时附带企微账号便于管理员排查。
 
 告警发送规则：
 

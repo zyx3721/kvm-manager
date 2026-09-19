@@ -62,6 +62,10 @@ func NewRouter(cfg config.Config, store *repository.Store, runtime *realtime.Ser
 	mux.HandleFunc("GET /api/auth/providers", r.handlePublicAuthProviders)
 	mux.HandleFunc("GET /api/public/base-config", r.handlePublicSystemBaseConfig)
 	mux.HandleFunc("POST /api/auth/login", r.handleLogin)
+	mux.HandleFunc("GET /api/auth/wecom/authorize", r.handleWecomAuthorize)
+	mux.HandleFunc("GET /api/auth/wecom/callback", r.handleWecomCallback)
+	mux.HandleFunc("GET /api/auth/wecom-center/authorize", r.handleWecomCenterAuthorize)
+	mux.HandleFunc("GET /api/auth/wecom-center/callback", r.handleWecomCenterCallback)
 	mux.HandleFunc("GET /api/auth/password-reset/captcha", r.handlePasswordResetCaptcha)
 	mux.HandleFunc("POST /api/auth/password-reset/verify", r.handlePasswordResetVerify)
 	mux.HandleFunc("POST /api/auth/password-reset/send-code", r.handlePasswordResetSendCode)
@@ -188,7 +192,7 @@ func (r *router) handleLogin(w http.ResponseWriter, req *http.Request) {
 		writeError(w, http.StatusInternalServerError, "login_failed", "登录失败，请稍后重试")
 		return
 	}
-	_ = r.store.WriteAudit(req.Context(), session.User.ID, "auth.login", "user", session.User.ID, repository.ClientIP(req), map[string]any{"username": session.User.Username})
+	_ = r.store.WriteAudit(req.Context(), session.User.ID, "auth.login", "user", session.User.ID, repository.ClientIP(req), map[string]any{"username": session.User.Username, "provider": provider})
 	writeJSON(w, http.StatusOK, session)
 }
 

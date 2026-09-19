@@ -517,6 +517,8 @@ func normalizeUserSource(source string) string {
 	switch strings.ToLower(strings.TrimSpace(source)) {
 	case "ldap":
 		return "ldap"
+	case "wecom":
+		return "wecom"
 	default:
 		return "local"
 	}

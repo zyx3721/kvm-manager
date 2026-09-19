@@ -105,8 +105,9 @@
 
 | 操作 | 任务 | 审计 | 告警 | 说明 |
 | :-: | :-: | :-: | :-: | :-: |
-| 登录 | 否 | 是 | 否 | 写入 `auth.login` |
+| 登录 | 否 | 是 | 否 | 写入 `auth.login`；metadata 携带 `username` 与 `provider`（本地/AD/LDAP 登录为 provider id，企业微信直连为 `wecom`，统一认证中心为 `wecom_center`） |
 | 登出 | 否 | 是 | 否 | 写入 `auth.logout` |
+| 企业微信登录失败 | 否 | 是 | 否 | 写入 `auth.wecom.failed`，metadata 携带 `reason`（`state_invalid`/`provider_disabled`/`user_not_provisioned`/`wecom_api_failed`）；用户未开通时附带 `userid`（企微账号），不含 token、code 或其他敏感信息 |
 | 修改当前用户密码 | 否 | 是 | 否 | 写入 `auth.password.change` |
 | 找回密码发送验证码 | 否 | 是 | 否 | 写入 `auth.password.reset.request` |
 | 找回密码确认重置 | 否 | 是 | 否 | 写入 `auth.password.reset.confirm` |

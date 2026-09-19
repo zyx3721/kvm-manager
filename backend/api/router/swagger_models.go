@@ -299,6 +299,8 @@ type statusResponse struct {
 type authProviderTestResponse struct {
 	Status       string `json:"status" example:"ok"`
 	MatchedUsers int    `json:"matchedUsers" example:"12"`
+	// Message 认证方式对应的测试结果提示，企业微信类认证返回该字段。
+	Message string `json:"message,omitempty" example:"企业微信应用凭证验证通过"`
 }
 
 type messageResponse struct {

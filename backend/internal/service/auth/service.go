@@ -24,6 +24,7 @@ import (
 var ErrInvalidCredentials = errors.New("invalid username or password")
 var ErrInvalidSession = errors.New("invalid or expired session")
 var ErrUserNotProvisioned = errors.New("external user is not provisioned")
+var ErrInvalidState = errors.New("invalid or expired oauth state")
 
 type Store interface {
 	FindUserByUsername(ctx context.Context, username string) (domain.User, string, error)
@@ -35,6 +36,8 @@ type Store interface {
 	DeleteSession(ctx context.Context, token string) error
 	DeleteExpiredSessions(ctx context.Context) error
 	GetAuthProvider(ctx context.Context, id string) (domain.AuthProvider, error)
+	CreateAuthState(ctx context.Context, item domain.AuthState) error
+	TakeAuthState(ctx context.Context, state string) (domain.AuthState, error)
 }
 
 const sessionTouchInterval = 5 * time.Minute
@@ -74,19 +77,7 @@ func (s *Service) Login(ctx context.Context, username, password string) (domain.
 	if err := VerifyPassword(passwordHash, password); err != nil {
 		return domain.Session{}, ErrInvalidCredentials
 	}
-	token, err := generateToken(32)
-	if err != nil {
-		return domain.Session{}, err
-	}
-	now := s.now()
-	expiresAt := now.Add(s.sessionTTL)
-	if err := s.store.CreateSession(ctx, token, user.ID, expiresAt); err != nil {
-		return domain.Session{}, err
-	}
-	if err := s.store.RecordUserLogin(ctx, user.ID); err != nil {
-		return domain.Session{}, err
-	}
-	return domain.Session{Token: token, ExpiresAt: expiresAt, LastSeenAt: now, User: user}, nil
+	return s.issueSession(ctx, user)
 }
 
 func (s *Service) LoginWithProvider(ctx context.Context, providerID, username, password string) (domain.Session, error) {
@@ -109,19 +100,24 @@ func (s *Service) LoginWithProvider(ctx context.Context, providerID, username, p
 	if err != nil || stored.Disabled {
 		return domain.Session{}, ErrUserNotProvisioned
 	}
+	return s.issueSession(ctx, stored)
+}
+
+// issueSession 为已确认身份的用户签发会话，本地、外部认证与 OAuth 登录共用。
+func (s *Service) issueSession(ctx context.Context, user domain.User) (domain.Session, error) {
 	token, err := generateToken(32)
 	if err != nil {
 		return domain.Session{}, err
 	}
 	now := s.now()
 	expiresAt := now.Add(s.sessionTTL)
-	if err := s.store.CreateSession(ctx, token, stored.ID, expiresAt); err != nil {
+	if err := s.store.CreateSession(ctx, token, user.ID, expiresAt); err != nil {
 		return domain.Session{}, err
 	}
-	if err := s.store.RecordUserLogin(ctx, stored.ID); err != nil {
+	if err := s.store.RecordUserLogin(ctx, user.ID); err != nil {
 		return domain.Session{}, err
 	}
-	return domain.Session{Token: token, ExpiresAt: expiresAt, LastSeenAt: now, User: stored}, nil
+	return domain.Session{Token: token, ExpiresAt: expiresAt, LastSeenAt: now, User: user}, nil
 }
 
 func TestLDAPProvider(ctx context.Context, provider domain.AuthProvider) (LDAPTestResult, error) {

@@ -1,6 +1,7 @@
 package router
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -13,7 +14,15 @@ import (
 )
 
 var authProviderIDs = map[string]struct{}{
-	"ldap": {},
+	"ldap":         {},
+	"wecom":        {},
+	"wecom_center": {},
+}
+
+// authProviderTestMessages 各认证方式测试通过时的用户可见提示，空则回退通用文案。
+var authProviderTestMessages = map[string]string{
+	"wecom":        "企业微信应用凭证验证通过",
+	"wecom_center": "统一认证中心连接正常",
 }
 
 type authProviderRequest struct {
@@ -79,7 +88,7 @@ func (r *router) handleUpdateAuthProvider(w http.ResponseWriter, req *http.Reque
 		writeError(w, http.StatusBadRequest, "invalid_auth_provider_config", err.Error())
 		return
 	}
-	item, err := r.store.UpsertAuthProvider(req.Context(), id, "ldap", name, body.Enabled, config)
+	item, err := r.store.UpsertAuthProvider(req.Context(), id, id, name, body.Enabled, config)
 	if err != nil {
 		r.logger.Error("save auth provider failed", "error", err, "provider", id)
 		writeError(w, http.StatusInternalServerError, "save_auth_provider_failed", "保存认证配置失败")
@@ -103,13 +112,33 @@ func (r *router) handleTestAuthProvider(w http.ResponseWriter, req *http.Request
 		writeError(w, http.StatusInternalServerError, "get_auth_provider_failed", "读取认证配置失败")
 		return
 	}
-	result, err := auth.TestLDAPProvider(req.Context(), provider)
+	result, err := runAuthProviderTest(req.Context(), id, provider)
 	if err != nil {
-		writeError(w, http.StatusServiceUnavailable, "auth_provider_test_failed", auth.LDAPUserMessage(err))
+		writeError(w, http.StatusServiceUnavailable, "auth_provider_test_failed", authProviderUserMessage(id, err))
 		return
 	}
 	_ = r.store.WriteAudit(req.Context(), currentSession(req).User.ID, "settings.auth_provider.test", "auth_provider", id, repository.ClientIP(req), map[string]any{})
-	writeJSON(w, http.StatusOK, map[string]any{"status": "ok", "matchedUsers": result.MatchedUsers})
+	writeJSON(w, http.StatusOK, map[string]any{"status": "ok", "matchedUsers": result.MatchedUsers, "message": authProviderTestMessages[id]})
+}
+
+func runAuthProviderTest(ctx context.Context, id string, provider domain.AuthProvider) (auth.LDAPTestResult, error) {
+	switch id {
+	case "wecom":
+		return auth.LDAPTestResult{}, auth.TestWeComProvider(ctx, provider)
+	case "wecom_center":
+		return auth.LDAPTestResult{}, auth.TestWeComCenterProvider(ctx, provider)
+	default:
+		return auth.TestLDAPProvider(ctx, provider)
+	}
+}
+
+func authProviderUserMessage(id string, err error) string {
+	switch id {
+	case "wecom", "wecom_center":
+		return auth.WeComUserMessage(err)
+	default:
+		return auth.LDAPUserMessage(err)
+	}
 }
 
 func isAuthProviderID(id string) bool {
@@ -134,9 +163,6 @@ func sanitizeAuthProviderConfig(id string, config map[string]any, enabled bool) 
 }
 
 func sanitizeAuthProviderConfigWithPrevious(id string, config map[string]any, previous map[string]any, enabled bool) (map[string]any, error) {
-	if id != "ldap" {
-		return nil, fmt.Errorf("不支持的认证配置")
-	}
 	if config == nil {
 		config = map[string]any{}
 	}
@@ -145,6 +171,19 @@ func sanitizeAuthProviderConfigWithPrevious(id string, config map[string]any, pr
 			config[key] = strings.TrimSpace(text)
 		}
 	}
+	switch id {
+	case "wecom":
+		return sanitizeWeComProviderConfig(config, previous, enabled)
+	case "wecom_center":
+		return sanitizeWeComCenterProviderConfig(config, previous, enabled)
+	case "ldap":
+		return sanitizeLDAPProviderConfig(config, previous, enabled)
+	default:
+		return nil, fmt.Errorf("不支持的认证配置")
+	}
+}
+
+func sanitizeLDAPProviderConfig(config map[string]any, previous map[string]any, enabled bool) (map[string]any, error) {
 	delete(config, "defaultRole")
 	delete(config, "adminGroupDN")
 	delete(config, "usernameAttribute")
@@ -187,6 +226,80 @@ func sanitizeAuthProviderConfigWithPrevious(id string, config map[string]any, pr
 	return removeEmptyConfigValues(config), nil
 }
 
+func sanitizeWeComProviderConfig(config map[string]any, previous map[string]any, enabled bool) (map[string]any, error) {
+	discardSecretPresenceMarkers(config, []string{"secret"})
+	if !enabled {
+		return removeEmptyConfigValues(config), nil
+	}
+	if stringValue(config["secret"]) == "" {
+		if value := stringValue(previous["secret"]); value != "" {
+			config["secret"] = value
+		}
+	}
+	if stringValue(config["corpId"]) == "" {
+		return nil, fmt.Errorf("企业 ID 不能为空")
+	}
+	if stringValue(config["externalUrl"]) == "" {
+		return nil, fmt.Errorf("外部访问地址不能为空")
+	}
+	externalURL, err := normalizeBaseURL(stringValue(config["externalUrl"]), "外部访问地址")
+	if err != nil {
+		return nil, err
+	}
+	config["externalUrl"] = externalURL
+	if mode := stringValue(config["mode"]); mode == "" {
+		config["mode"] = "qrcode"
+	} else if mode != "qrcode" && mode != "inside" {
+		return nil, fmt.Errorf("登录方式仅支持 qrcode 或 inside")
+	}
+	if boolValue(config["mock"]) {
+		return removeEmptyConfigValues(config), nil
+	}
+	if numberValue(config["agentId"]) <= 0 {
+		return nil, fmt.Errorf("应用 AgentId 不能为空")
+	}
+	if stringValue(config["secret"]) == "" {
+		return nil, fmt.Errorf("应用 Secret 不能为空")
+	}
+	return removeEmptyConfigValues(config), nil
+}
+
+func sanitizeWeComCenterProviderConfig(config map[string]any, previous map[string]any, enabled bool) (map[string]any, error) {
+	discardSecretPresenceMarkers(config, []string{"appSecret"})
+	if !enabled {
+		return removeEmptyConfigValues(config), nil
+	}
+	if stringValue(config["appSecret"]) == "" {
+		if value := stringValue(previous["appSecret"]); value != "" {
+			config["appSecret"] = value
+		}
+	}
+	if stringValue(config["baseUrl"]) == "" {
+		return nil, fmt.Errorf("认证中心地址不能为空")
+	}
+	baseURL, err := normalizeBaseURL(stringValue(config["baseUrl"]), "认证中心地址")
+	if err != nil {
+		return nil, err
+	}
+	config["baseUrl"] = baseURL
+	if stringValue(config["app"]) == "" {
+		return nil, fmt.Errorf("应用标识不能为空")
+	}
+	if stringValue(config["appSecret"]) == "" {
+		return nil, fmt.Errorf("应用密钥不能为空")
+	}
+	return removeEmptyConfigValues(config), nil
+}
+
+// normalizeBaseURL 归一化外部地址：裁剪尾部斜杠并校验协议前缀，与企微/认证中心拼接规则保持一致。
+func normalizeBaseURL(value, label string) (string, error) {
+	value = strings.TrimRight(strings.TrimSpace(value), "/")
+	if !strings.HasPrefix(value, "http://") && !strings.HasPrefix(value, "https://") {
+		return "", fmt.Errorf("%s必须以 http:// 或 https:// 开头", label)
+	}
+	return value, nil
+}
+
 func redactAuthProviders(items []domain.AuthProvider) []domain.AuthProvider {
 	redacted := make([]domain.AuthProvider, len(items))
 	for index, item := range items {
@@ -196,7 +309,14 @@ func redactAuthProviders(items []domain.AuthProvider) []domain.AuthProvider {
 }
 
 func redactAuthProvider(item domain.AuthProvider) domain.AuthProvider {
-	item.Config = redactConfigSecrets(item.Config, []string{"bindPassword"})
+	switch item.Type {
+	case "wecom":
+		item.Config = redactConfigSecrets(item.Config, []string{"secret"})
+	case "wecom_center":
+		item.Config = redactConfigSecrets(item.Config, []string{"appSecret"})
+	default:
+		item.Config = redactConfigSecrets(item.Config, []string{"bindPassword"})
+	}
 	return item
 }
 
