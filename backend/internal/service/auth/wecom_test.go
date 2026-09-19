@@ -367,6 +367,35 @@ func TestWeComBindConflict(t *testing.T) {
 	if !errors.Is(err, ErrWecomAlreadyBound) {
 		t.Fatalf("conflicting bind should reject with ErrWecomAlreadyBound, got %v", err)
 	}
+	// 绑定冲突失败时应携带发起绑定者，供审计记录操作用户
+	var loginErr WecomLoginError
+	if !errors.As(err, &loginErr) || loginErr.BindUserID != "u-1" || loginErr.Userid != "zhangsan-wecom-id" {
+		t.Fatalf("bind conflict error should carry initiator identity, got %v", err)
+	}
+}
+
+func TestWeComLoginRejectsDisabledBoundUserWithIdentity(t *testing.T) {
+	useFakeWecomClient(t, "zhangsan-wecom-id")
+	store := &fakeStore{
+		provider: enabledWecomProvider(t, directWecomConfig()),
+		user:     domain.User{ID: "u-1", Username: "zhangsan", Disabled: true},
+		bindings: map[string]string{"zhangsan-wecom-id": "u-1"},
+	}
+	service := wecomTestService(t, store)
+	target, err := service.WeComLoginURL(context.Background(), "/", "", "")
+	if err != nil {
+		t.Fatalf("login url failed: %v", err)
+	}
+	parsed, _ := url.Parse(target)
+	_, err = service.WeComCallback(context.Background(), "good-code", parsed.Query().Get("state"))
+	if !errors.Is(err, ErrUserNotProvisioned) {
+		t.Fatalf("disabled user should reject with ErrUserNotProvisioned, got %v", err)
+	}
+	// 账号被禁用时系统用户身份已知，供审计记录
+	var loginErr WecomLoginError
+	if !errors.As(err, &loginErr) || loginErr.BindUserID != "u-1" || loginErr.Username != "zhangsan" {
+		t.Fatalf("disabled login error should carry known user identity, got %v", err)
+	}
 }
 
 func TestWeComUnbind(t *testing.T) {

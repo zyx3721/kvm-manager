@@ -2,6 +2,7 @@ package auth
 
 import (
 	"context"
+	"errors"
 	"net/url"
 	"strings"
 	"time"
@@ -25,11 +26,12 @@ const WecomFrontendCallbackPath = "/auth/callback"
 
 // WecomResult OAuth 回调处理结果：登录返回会话，绑定返回企微账号与绑定用户。
 type WecomResult struct {
-	Kind     string
-	Session  domain.Session
-	Redirect string
-	Userid   string
-	Username string
+	Kind       string
+	Session    domain.Session
+	Redirect   string
+	Userid     string
+	Username   string
+	BindUserID string
 }
 
 // WeComLoginURL 获取企业微信扫码登录地址：直连返回企微授权页，统一认证中心返回认证中心登录页。
@@ -122,26 +124,34 @@ func (s *Service) WecomBoundFor(ctx context.Context, userID string) (bool, error
 func (s *Service) completeWecomFlow(ctx context.Context, rec domain.AuthState, userid string) (WecomResult, error) {
 	if rec.Purpose == AuthPurposeBind {
 		if err := s.store.BindWecomAccount(ctx, rec.UserID, userid); err != nil {
-			return WecomResult{}, err
+			// 绑定冲突时携带发起绑定者，供审计记录操作用户
+			return WecomResult{}, WecomLoginError{Userid: userid, BindUserID: rec.UserID, Err: err}
 		}
-		// 回调请求无会话头，绑定审计所需的用户名在此一并带出
+		// 回调请求无会话头，绑定审计所需的用户身份在此一并带出
 		username := ""
 		if bound, err := s.store.FindUserByID(ctx, rec.UserID); err == nil {
 			username = bound.Username
 		}
-		return WecomResult{Kind: AuthPurposeBind, Userid: userid, Username: username}, nil
+		return WecomResult{Kind: AuthPurposeBind, Userid: userid, Username: username, BindUserID: rec.UserID}, nil
 	}
 	session, err := s.loginByWecomAccount(ctx, userid)
 	if err != nil {
+		var loginErr WecomLoginError
+		if errors.As(err, &loginErr) {
+			return WecomResult{}, loginErr
+		}
 		return WecomResult{}, WecomLoginError{Userid: userid, Err: err}
 	}
 	return WecomResult{Kind: AuthPurposeLogin, Session: session, Redirect: rec.Redirect}, nil
 }
 
-// WecomLoginError 企业微信登录失败时携带企微账号，供审计记录定位未绑定用户。
+// WecomLoginError 企业微信登录失败时携带已知身份，供审计记录定位用户。
+// Userid 为企微账号；BindUserID/Username 为已确定的系统用户（绑定冲突、账号被禁用场景），未知时为空。
 type WecomLoginError struct {
-	Userid string
-	Err    error
+	Userid     string
+	BindUserID string
+	Username   string
+	Err        error
 }
 
 func (e WecomLoginError) Error() string { return e.Err.Error() }
@@ -156,10 +166,11 @@ func (s *Service) loginByWecomAccount(ctx context.Context, userid string) (domai
 	}
 	stored, err := s.store.FindUserByWecomAccount(ctx, userid)
 	if err != nil {
-		return domain.Session{}, ErrWecomNotBound
+		return domain.Session{}, WecomLoginError{Userid: userid, Err: ErrWecomNotBound}
 	}
 	if stored.Disabled {
-		return domain.Session{}, ErrUserNotProvisioned
+		// 绑定关系存在但账号被禁用：系统用户身份已知，供审计记录
+		return domain.Session{}, WecomLoginError{Userid: userid, BindUserID: stored.ID, Username: stored.Username, Err: ErrUserNotProvisioned}
 	}
 	return s.issueSession(ctx, stored)
 }

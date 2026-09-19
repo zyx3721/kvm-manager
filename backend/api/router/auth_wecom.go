@@ -51,10 +51,8 @@ func (r *router) handleWecomCallback(w http.ResponseWriter, req *http.Request) {
 	result, err := r.auth.WeComCallback(req.Context(), code, state)
 	if err != nil {
 		r.logger.Warn("wecom login failed", "error", err)
-		_ = r.store.WriteAudit(req.Context(), "", "auth.wecom.failed", "auth_provider", "wecom", repository.ClientIP(req), map[string]any{
-			"reason": wecomFailureReason(err),
-			"userid": wecomFailureUser(err),
-		})
+		auditUserID := wecomFailureAuditUserID(err)
+		_ = r.store.WriteAudit(req.Context(), auditUserID, "auth.wecom.failed", auditWecomResourceType(auditUserID), auditWecomResourceID(auditUserID), repository.ClientIP(req), wecomFailureMetadata(err))
 		r.redirectAuthResult(w, req, authFailureValues(err))
 		return
 	}
@@ -68,10 +66,8 @@ func (r *router) handleWecomSSOCallback(w http.ResponseWriter, req *http.Request
 	result, err := r.auth.WeComSSOCallback(req.Context(), ticket, redirect)
 	if err != nil {
 		r.logger.Warn("wecom sso login failed", "error", err)
-		_ = r.store.WriteAudit(req.Context(), "", "auth.wecom.failed", "auth_provider", "wecom", repository.ClientIP(req), map[string]any{
-			"reason": wecomFailureReason(err),
-			"userid": wecomFailureUser(err),
-		})
+		auditUserID := wecomFailureAuditUserID(err)
+		_ = r.store.WriteAudit(req.Context(), auditUserID, "auth.wecom.failed", auditWecomResourceType(auditUserID), auditWecomResourceID(auditUserID), repository.ClientIP(req), wecomFailureMetadata(err))
 		r.redirectAuthResult(w, req, authFailureValues(err))
 		return
 	}
@@ -113,7 +109,8 @@ func (r *router) handleWecomUnbind(w http.ResponseWriter, req *http.Request) {
 // finishWecomResult 回调成功收口：登录写登录审计并回传会话，绑定写绑定审计并通知前端弹窗。
 func (r *router) finishWecomResult(w http.ResponseWriter, req *http.Request, result auth.WecomResult) {
 	if result.Kind == auth.AuthPurposeBind {
-		_ = r.store.WriteAudit(req.Context(), result.Session.User.ID, "auth.wecom.bind", "auth_provider", "wecom", repository.ClientIP(req), map[string]any{
+		// 绑定作用于系统用户，资源与用户列按登录审计同风格记录发起绑定者
+		_ = r.store.WriteAudit(req.Context(), result.BindUserID, "auth.wecom.bind", "user", result.BindUserID, repository.ClientIP(req), map[string]any{
 			"username": result.Username,
 			"userid":   result.Userid,
 		})
@@ -176,4 +173,42 @@ func wecomFailureUser(err error) string {
 		return loginErr.Userid
 	}
 	return ""
+}
+
+// wecomFailureAuditUserID 提取失败场景中已确定的系统用户（绑定冲突、账号被禁用），未知时为空。
+func wecomFailureAuditUserID(err error) string {
+	var loginErr auth.WecomLoginError
+	if errors.As(err, &loginErr) {
+		return loginErr.BindUserID
+	}
+	return ""
+}
+
+// auditWecomResourceType 失败审计的资源类型：能定位系统用户时按用户记录，否则按认证提供方记录。
+func auditWecomResourceType(auditUserID string) string {
+	if auditUserID != "" {
+		return "user"
+	}
+	return "auth_provider"
+}
+
+// auditWecomResourceID 失败审计的资源 ID：能定位系统用户时为其 ID，否则为提供方 ID。
+func auditWecomResourceID(auditUserID string) string {
+	if auditUserID != "" {
+		return auditUserID
+	}
+	return "wecom"
+}
+
+// wecomFailureMetadata 失败审计 metadata：携带失败原因、企微账号，以及已知系统用户名。
+func wecomFailureMetadata(err error) map[string]any {
+	metadata := map[string]any{
+		"reason": wecomFailureReason(err),
+		"userid": wecomFailureUser(err),
+	}
+	var loginErr auth.WecomLoginError
+	if errors.As(err, &loginErr) && loginErr.Username != "" {
+		metadata["username"] = loginErr.Username
+	}
+	return metadata
 }
