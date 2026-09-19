@@ -98,7 +98,7 @@ export default function KvmLayout() {
   const [sidebarIndicatorDuration, setSidebarIndicatorDuration] = useState(0);
   const canManageAlerts = userHasPermission(user, 'alerts.manage');
   const canManageAgents = userHasPermission(user, 'agents.manage');
-  const displayName = user?.username || 'admin';
+  const displayName = user?.displayName || user?.username || 'admin';
   const sidebarIndicatorStyle = useMemo(
     () =>
       ({
