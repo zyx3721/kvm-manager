@@ -54,7 +54,7 @@ func (s *Store) DeleteExpiredSessions(ctx context.Context) error {
 	return err
 }
 
-// DeleteUserSessions 删除指定用户的全部会话记录，改密与找回密码后强制重新登录时调用。
+// DeleteUserSessions 删除指定用户的全部会话记录，找回密码重置成功后强制重新登录时调用。
 func (s *Store) DeleteUserSessions(ctx context.Context, userID string) error {
 	_, err := s.pool.Exec(ctx, `DELETE FROM user_sessions WHERE user_id=$1`, userID)
 	return err
