@@ -1,3 +1,4 @@
+/** 登录态存取层：令牌与用户信息持久化于 localStorage，同一浏览器新建标签页与重启后保持登录，仅随服务端会话过期失效 */
 const TOKEN_KEY = 'kvm.auth.token';
 const USER_KEY = 'kvm.auth.user';
 const EXPIRES_AT_KEY = 'kvm.auth.expires_at';
@@ -31,17 +32,17 @@ export const WECOM_BIND_MESSAGE = 'kvm:wecom-bind';
 export const WECOM_PROVIDERS_CHANGED_EVENT = 'kvm:wecom-providers-changed';
 
 export function getAuthToken() {
-  return window.sessionStorage.getItem(TOKEN_KEY);
+  return window.localStorage.getItem(TOKEN_KEY);
 }
 
 export function getStoredUser(): AuthUser | null {
-  const raw = window.sessionStorage.getItem(USER_KEY);
+  const raw = window.localStorage.getItem(USER_KEY);
   if (!raw) return null;
 
   try {
     return JSON.parse(raw) as AuthUser;
   } catch {
-    window.sessionStorage.removeItem(USER_KEY);
+    window.localStorage.removeItem(USER_KEY);
     return null;
   }
 }
@@ -61,13 +62,13 @@ export function userHasAnyPermission(user: AuthUser | null, permissions: string[
 }
 
 export function persistSession(session: LoginResponse) {
-  window.sessionStorage.setItem(TOKEN_KEY, session.token);
+  window.localStorage.setItem(TOKEN_KEY, session.token);
   const user = {
     ...session.user,
     wecomBound: session.wecom_bound ?? session.user.wecomBound ?? false,
   };
-  window.sessionStorage.setItem(USER_KEY, JSON.stringify(user));
-  window.sessionStorage.setItem(EXPIRES_AT_KEY, session.expires_at);
+  window.localStorage.setItem(USER_KEY, JSON.stringify(user));
+  window.localStorage.setItem(EXPIRES_AT_KEY, session.expires_at);
 }
 
 /** 就地更新本地会话中的用户信息（如绑定状态变化），返回更新后的用户 */
@@ -75,7 +76,7 @@ export function updateStoredUser(patch: Partial<AuthUser>): AuthUser | null {
   const user = getStoredUser();
   if (!user) return null;
   const next = { ...user, ...patch };
-  window.sessionStorage.setItem(USER_KEY, JSON.stringify(next));
+  window.localStorage.setItem(USER_KEY, JSON.stringify(next));
   return next;
 }
 
@@ -117,9 +118,9 @@ export async function unbindWecom() {
 }
 
 export function clearSession() {
-  window.sessionStorage.removeItem(TOKEN_KEY);
-  window.sessionStorage.removeItem(USER_KEY);
-  window.sessionStorage.removeItem(EXPIRES_AT_KEY);
+  window.localStorage.removeItem(TOKEN_KEY);
+  window.localStorage.removeItem(USER_KEY);
+  window.localStorage.removeItem(EXPIRES_AT_KEY);
 }
 
 async function readApiError(response: Response) {
