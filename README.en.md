@@ -285,6 +285,20 @@ WantedBy=multi-user.target
 systemctl daemon-reload && systemctl enable --now kvm-manager
 ```
 
+**Command-line flags and version query**
+
+The backend accepts command-line flags that temporarily override `.env` settings (explicit flags take precedence over environment variables) and supports build version queries:
+
+```bash
+./kvm-manager -v              # Show version info (version, commit, build date, Go version)
+./kvm-manager -h              # Show all command-line flags
+
+# Example: start with a temporary port and session TTL override
+./kvm-manager -server-port 9090 -jwt-expire-hours 24
+```
+
+Common flags and their environment variable counterparts: `-server-host` / `-server-port` / `-server-mode` (`SERVER_*`), `-db-host` / `-db-port` / `-db-name` / `-db-user` / `-db-password` / `-db-sslmode` (`DB_*`), `-jwt-secret` / `-jwt-expire-hours` (`JWT_*`), `-redis-addr` / `-redis-password` / `-redis-db` (`REDIS_*`), plus the runtime refresh and retention flags. See `-h` output for the full list.
+
 **3. Serve the frontend with Nginx**
 
 The frontend is a plain Vite SPA: let Nginx serve the static files and proxy the API to the backend — no Node.js required:

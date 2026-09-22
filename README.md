@@ -285,6 +285,20 @@ WantedBy=multi-user.target
 systemctl daemon-reload && systemctl enable --now kvm-manager
 ```
 
+**命令行参数与版本查询**
+
+后端支持命令行参数临时覆盖 `.env` 配置（显式参数优先于环境变量），并支持查询构建版本：
+
+```bash
+./kvm-manager -v              # 查看版本信息（版本号、commit、构建时间、Go 版本）
+./kvm-manager -h              # 查看全部命令行参数
+
+# 示例：临时覆盖监听端口与会话有效期启动
+./kvm-manager -server-port 9090 -jwt-expire-hours 24
+```
+
+常用参数与对应环境变量：`-server-host` / `-server-port` / `-server-mode`（`SERVER_*`）、`-db-host` / `-db-port` / `-db-name` / `-db-user` / `-db-password` / `-db-sslmode`（`DB_*`）、`-jwt-secret` / `-jwt-expire-hours`（`JWT_*`）、`-redis-addr` / `-redis-password` / `-redis-db`（`REDIS_*`）以及各运行态刷新与保留天数参数，完整清单以 `-h` 输出为准。
+
 **3. 部署前端静态资源（Nginx）**
 
 前端是 Vite 构建的纯 SPA，交给 Nginx 托管静态文件并把 API 反代到后端即可，无需 Node.js：

@@ -356,6 +356,52 @@ nohup go run cmd/server/main.go > app.log 2>&1 &
 
 后端服务默认运行在 `http://localhost:8080` ，如需指定地址和端口，请修改环境变量文件内的 `SERVER_HOST` 和 `SERVER_PORT` 参数。首次启动会自动创建数据库和默认管理员账户 `admin / 123456` 。
 
+### 2.4.1 后端命令行参数与版本查询
+
+后端支持命令行参数与版本查询。参数优先级为：**显式命令行参数 > 环境变量 > `.env` 文件 > 代码默认值**。
+
+```bash
+# 查看版本信息（版本号、commit、构建时间、Go 版本）
+go run cmd/server/main.go -v
+./kvm-manager -v
+
+# 查看全部命令行参数
+./kvm-manager -h
+
+# 示例：临时覆盖监听端口与会话有效期启动
+./kvm-manager -server-port 9090 -jwt-expire-hours 24
+
+# 示例：指定其他 .env 文件路径
+./kvm-manager -env /data/kvm-manager/backend/.env
+```
+
+除 `-v` / `-version` / `-env` 外，其余参数均与 `.env` 环境变量一一对应：
+
+| 参数 | 对应环境变量 | 说明 |
+| --- | --- | --- |
+| `-server-host` | `SERVER_HOST` | HTTP 监听主机 |
+| `-server-port` | `SERVER_PORT` | HTTP 监听端口 |
+| `-server-mode` | `SERVER_MODE` | 服务运行模式标记 |
+| `-db-host` | `DB_HOST` | PostgreSQL 主机 |
+| `-db-port` | `DB_PORT` | PostgreSQL 端口 |
+| `-db-name` | `DB_NAME` | PostgreSQL 数据库名 |
+| `-db-user` | `DB_USER` | PostgreSQL 用户名 |
+| `-db-password` | `DB_PASSWORD` | PostgreSQL 密码 |
+| `-db-sslmode` | `DB_SSLMODE` | PostgreSQL SSL 模式 |
+| `-jwt-secret` | `JWT_SECRET` | JWT/Session 签名密钥 |
+| `-jwt-expire-hours` | `JWT_EXPIRE_HOURS` | 登录会话有效期（小时） |
+| `-redis-addr` | `REDIS_ADDR` | Redis 地址 |
+| `-redis-password` | `REDIS_PASSWORD` | Redis 密码 |
+| `-redis-db` | `REDIS_DB` | Redis 数据库编号 |
+| `-runtime-sync-interval` | `RUNTIME_SYNC_INTERVAL` | 常规刷新间隔（如 `30s`） |
+| `-runtime-deep-sync-interval` | `RUNTIME_DEEP_SYNC_INTERVAL` | 深度刷新间隔（如 `10m`） |
+| `-runtime-sync-fast-timeout-seconds` | `RUNTIME_SYNC_FAST_TIMEOUT_SECONDS` | 快速同步超时秒数 |
+| `-runtime-sync-full-timeout-seconds` | `RUNTIME_SYNC_FULL_TIMEOUT_SECONDS` | 全量同步超时秒数 |
+| `-runtime-sync-concurrency` | `RUNTIME_SYNC_CONCURRENCY` | 同步并发数 |
+| `-metric-retention-days` | `METRIC_RETENTION_DAYS` | 指标保留天数 |
+| `-log-retention-days` | `LOG_RETENTION_DAYS` | 日志保留天数 |
+| `-metric-stream-maxlen` | `METRIC_STREAM_MAXLEN` | 指标 Stream 最大长度 |
+
 ## 2.5 Agent 配置与启动
 
 **注：这一步只在 KVM 宿主机上，并只需配置启动 Agent。**
