@@ -188,7 +188,7 @@ deploy/
 | 变量 | 默认值 | 说明 |
 | --- | --- | --- |
 | `JWT_SECRET` | `change-me-in-production` | 会话令牌签名密钥，生产环境必须显式设置为足够随机的长字符串 |
-| `JWT_EXPIRE_HOURS` | `24` | 登录会话最长有效期（小时），空闲超时由 `SESSION_IDLE_TIMEOUT_HOURS` 控制（默认 12 小时） |
+| `JWT_EXPIRE_HOURS` | `12` | 登录会话有效期（小时），会话签发时固定到期时间，注销后立即失效 |
 | `SERVER_MODE` | `release` | 运行模式；`release` 下启动页不回显调试验证码 |
 | `DB_HOST` / `DB_PORT` | `postgres` / `5432` | PostgreSQL 连接地址 |
 | `DB_NAME` / `DB_USER` / `DB_PASSWORD` | `kvm-manager` / `postgres` / `123456ok!` | 数据库与账号 |

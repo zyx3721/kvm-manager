@@ -13,8 +13,7 @@ import (
 	"time"
 )
 
-const defaultSessionHours = 24
-const defaultSessionIdleHours = 12
+const defaultSessionHours = 12
 
 type Config struct {
 	Server   ServerConfig
@@ -40,9 +39,8 @@ type DatabaseConfig struct {
 }
 
 type JWTConfig struct {
-	Secret          string
-	ExpireHours     int
-	IdleExpireHours int
+	Secret      string
+	ExpireHours int
 }
 
 type RedisConfig struct {
@@ -64,7 +62,6 @@ type RuntimeConfig struct {
 
 func Load(logger *slog.Logger) (Config, error) {
 	expireHours := envInt("JWT_EXPIRE_HOURS", defaultSessionHours)
-	idleExpireHours := envInt("SESSION_IDLE_TIMEOUT_HOURS", defaultSessionIdleHours)
 	cfg := Config{
 		Server: ServerConfig{
 			Host: envOrDefault("SERVER_HOST", "localhost"),
@@ -80,9 +77,8 @@ func Load(logger *slog.Logger) (Config, error) {
 			SSLMode:  envOrDefault("DB_SSLMODE", "disable"),
 		},
 		JWT: JWTConfig{
-			Secret:          os.Getenv("JWT_SECRET"),
-			ExpireHours:     expireHours,
-			IdleExpireHours: idleExpireHours,
+			Secret:      os.Getenv("JWT_SECRET"),
+			ExpireHours: expireHours,
 		},
 		Redis: RedisConfig{
 			Addr:     envOrDefault("REDIS_ADDR", "localhost:6379"),
@@ -106,9 +102,6 @@ func Load(logger *slog.Logger) (Config, error) {
 	}
 	if cfg.JWT.ExpireHours <= 0 {
 		cfg.JWT.ExpireHours = defaultSessionHours
-	}
-	if cfg.JWT.IdleExpireHours <= 0 {
-		cfg.JWT.IdleExpireHours = defaultSessionIdleHours
 	}
 	if strings.TrimSpace(cfg.JWT.Secret) == "" {
 		secret, err := randomSecret(32)
@@ -164,10 +157,6 @@ func (d DatabaseConfig) DSN() string {
 
 func (j JWTConfig) SessionTTL() time.Duration {
 	return time.Duration(j.ExpireHours) * time.Hour
-}
-
-func (j JWTConfig) SessionIdleTTL() time.Duration {
-	return time.Duration(j.IdleExpireHours) * time.Hour
 }
 
 func envOrDefault(key string, fallback string) string {

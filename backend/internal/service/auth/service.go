@@ -6,6 +6,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -16,6 +17,7 @@ import (
 	"time"
 
 	"github.com/go-ldap/ldap/v3"
+	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
 
 	"kvm-manager/backend/internal/domain"
@@ -30,10 +32,9 @@ type Store interface {
 	FindUserByUsername(ctx context.Context, username string) (domain.User, string, error)
 	UpsertUser(ctx context.Context, username, passwordHash, displayName, role string) (domain.User, error)
 	RecordUserLogin(ctx context.Context, userID string) error
-	CreateSession(ctx context.Context, token string, userID string, expiresAt time.Time) error
-	FindSession(ctx context.Context, token string) (domain.Session, error)
-	TouchSession(ctx context.Context, token string, seenAt time.Time) error
-	DeleteSession(ctx context.Context, token string) error
+	CreateSession(ctx context.Context, session domain.UserSession) error
+	FindSession(ctx context.Context, jti string) (domain.Session, error)
+	DeleteSession(ctx context.Context, jti string) error
 	DeleteExpiredSessions(ctx context.Context) error
 	GetAuthProvider(ctx context.Context, id string) (domain.AuthProvider, error)
 	CreateAuthState(ctx context.Context, item domain.AuthState) error
@@ -46,24 +47,23 @@ type Store interface {
 	GetSystemBaseConfig(ctx context.Context) (domain.SystemBaseConfig, error)
 }
 
-const sessionTouchInterval = 5 * time.Minute
+// sessionClaims 认证令牌的载荷：jti 对应服务端会话行主键，用户字段用于快速定位。
+type sessionClaims struct {
+	UserID   string `json:"uid"`
+	Username string `json:"username"`
+	Source   string `json:"source,omitempty"`
+	jwt.RegisteredClaims
+}
 
 type Service struct {
-	store          Store
-	sessionTTL     time.Duration
-	sessionIdleTTL time.Duration
-	now            func() time.Time
+	store      Store
+	secret     string
+	sessionTTL time.Duration
+	now        func() time.Time
 }
 
-func NewService(store Store, sessionTTL time.Duration) *Service {
-	return NewServiceWithIdleTTL(store, sessionTTL, 12*time.Hour)
-}
-
-func NewServiceWithIdleTTL(store Store, sessionTTL time.Duration, sessionIdleTTL time.Duration) *Service {
-	if sessionIdleTTL <= 0 {
-		sessionIdleTTL = 12 * time.Hour
-	}
-	return &Service{store: store, sessionTTL: sessionTTL, sessionIdleTTL: sessionIdleTTL, now: time.Now}
+func NewService(store Store, secret string, sessionTTL time.Duration) *Service {
+	return &Service{store: store, secret: secret, sessionTTL: sessionTTL, now: time.Now}
 }
 
 func HashPassword(password string) (string, error) {
@@ -109,17 +109,33 @@ func (s *Service) LoginWithProvider(ctx context.Context, providerID, username, p
 	return s.issueSession(ctx, stored)
 }
 
-// issueSession 为已确认身份的用户签发会话，本地、外部认证与 OAuth 登录共用。
+// issueSession 为已确认身份的用户签发 JWT 会话并写入服务端会话记录，本地、外部认证与 OAuth 登录共用。
 func (s *Service) issueSession(ctx context.Context, user domain.User) (domain.Session, error) {
-	token, err := generateToken(32)
+	jti, err := randomSessionID()
 	if err != nil {
 		return domain.Session{}, err
 	}
 	now := s.now()
 	expiresAt := now.Add(s.sessionTTL)
-	if err := s.store.CreateSession(ctx, token, user.ID, expiresAt); err != nil {
+	claims := sessionClaims{
+		UserID:   user.ID,
+		Username: user.Username,
+		Source:   user.Source,
+		RegisteredClaims: jwt.RegisteredClaims{
+			ID:        jti,
+			Subject:   user.Username,
+			IssuedAt:  jwt.NewNumericDate(now),
+			ExpiresAt: jwt.NewNumericDate(expiresAt),
+		},
+	}
+	signed, err := jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString([]byte(s.secret))
+	if err != nil {
 		return domain.Session{}, err
 	}
+	if err := s.store.CreateSession(ctx, domain.UserSession{JTI: jti, UserID: user.ID, Username: user.Username, Source: user.Source, CreatedAt: now, ExpiresAt: expiresAt}); err != nil {
+		return domain.Session{}, err
+	}
+	_ = s.store.DeleteExpiredSessions(ctx)
 	if err := s.store.RecordUserLogin(ctx, user.ID); err != nil {
 		return domain.Session{}, err
 	}
@@ -127,7 +143,7 @@ func (s *Service) issueSession(ctx context.Context, user domain.User) (domain.Se
 	if err != nil {
 		return domain.Session{}, err
 	}
-	return domain.Session{Token: token, ExpiresAt: expiresAt, LastSeenAt: now, User: user, WecomBound: bound}, nil
+	return domain.Session{Token: signed, ExpiresAt: expiresAt, User: user, WecomBound: bound}, nil
 }
 
 func TestLDAPProvider(ctx context.Context, provider domain.AuthProvider) (LDAPTestResult, error) {
@@ -204,32 +220,50 @@ func LDAPUserMessage(err error) string {
 	return "认证服务连接测试失败：" + err.Error()
 }
 
+// Validate 验签令牌并核对服务端会话行，行缺失或已过期一律视为会话失效。
 func (s *Service) Validate(ctx context.Context, token string) (domain.Session, error) {
-	if token == "" {
+	jti := sessionJTI(token, s.secret)
+	if jti == "" {
 		return domain.Session{}, ErrInvalidSession
 	}
-	_ = s.store.DeleteExpiredSessions(ctx)
-	session, err := s.store.FindSession(ctx, token)
-	now := s.now()
-	if err != nil || !session.ExpiresAt.After(now) || !session.LastSeenAt.Add(s.sessionIdleTTL).After(now) || session.User.Disabled {
+	session, err := s.store.FindSession(ctx, jti)
+	if err != nil || !session.ExpiresAt.After(s.now()) || session.User.Disabled {
 		return domain.Session{}, ErrInvalidSession
-	}
-	if now.Sub(session.LastSeenAt) >= sessionTouchInterval {
-		if err := s.store.TouchSession(ctx, token, now); err != nil {
-			return domain.Session{}, err
-		}
-		session.LastSeenAt = now
 	}
 	return session, nil
 }
 
+// Logout 解析当前令牌的 jti 并删除会话行，令牌无效或解析失败时静默放行。
 func (s *Service) Logout(ctx context.Context, token string) error {
-	if token == "" {
+	jti := sessionJTI(token, s.secret)
+	if jti == "" {
 		return nil
 	}
-	return s.store.DeleteSession(ctx, token)
+	return s.store.DeleteSession(ctx, jti)
 }
 
+// sessionJTI 从令牌解析会话标识，验签失败或令牌无效时返回空串。
+func sessionJTI(token, secret string) string {
+	claims := &sessionClaims{}
+	parsed, err := jwt.ParseWithClaims(strings.TrimSpace(token), claims, func(*jwt.Token) (any, error) {
+		return []byte(secret), nil
+	}, jwt.WithValidMethods([]string{jwt.SigningMethodHS256.Alg()}))
+	if err != nil || !parsed.Valid {
+		return ""
+	}
+	return claims.ID
+}
+
+// randomSessionID 生成 16 字节十六进制随机会话标识，作为会话记录主键与 JWT jti。
+func randomSessionID() (string, error) {
+	buf := make([]byte, 16)
+	if _, err := rand.Read(buf); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(buf), nil
+}
+
+// generateToken 生成 base64 随机串，供 OAuth 一次性 state 等场景使用。
 func generateToken(size int) (string, error) {
 	buf := make([]byte, size)
 	if _, err := rand.Read(buf); err != nil {

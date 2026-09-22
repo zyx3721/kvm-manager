@@ -113,10 +113,19 @@ type UserWecomBinding struct {
 type Session struct {
 	Token      string    `json:"token"`
 	ExpiresAt  time.Time `json:"expires_at"`
-	LastSeenAt time.Time `json:"last_seen_at"`
 	User       User      `json:"user"`
 	// WecomBound 登录用户是否已绑定企业微信账号，由认证入口按需填充。
 	WecomBound bool `json:"wecom_bound,omitempty"`
+}
+
+// UserSession 服务端会话记录：JTI 与签发的 JWT 一一对应，注销删除行、过期惰性清理。
+type UserSession struct {
+	JTI       string
+	UserID    string
+	Username  string
+	Source    string
+	CreatedAt time.Time
+	ExpiresAt time.Time
 }
 
 type Host struct {

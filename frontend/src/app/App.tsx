@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
+import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import {
   AlertTriangleIcon,
   CheckCircle2Icon,
@@ -23,11 +23,8 @@ import Snapshots from '../features/snapshots/SnapshotsPage';
 import StoragePools from '../features/storage-pools/StoragePoolsPage';
 import VMs from '../features/vms/VMsPage';
 import {
-  clearSession,
   getStoredUser,
   isAuthenticated,
-  isSessionIdleExpired,
-  markSessionActivity,
   userHasAnyPermission,
 } from '../lib/auth';
 import { applyKvmTheme, getInitialKvmTheme } from '../lib/utils';
@@ -65,11 +62,6 @@ function RequireAuth() {
   const location = useLocation();
   const user = getStoredUser();
 
-  if (isAuthenticated() && isSessionIdleExpired()) {
-    clearSession();
-    toast.info('长时间未操作，请重新登录');
-  }
-
   if (!isAuthenticated()) {
     return <Navigate to="/login" replace state={{ from: location }} />;
   }
@@ -105,64 +97,6 @@ function RequireAuth() {
   return <KvmLayout />;
 }
 
-function SessionIdleGuard() {
-  const location = useLocation();
-  const navigate = useNavigate();
-
-  useEffect(() => {
-    // 企业微信登录回调页会自行用回跳的 Token 建立会话，若旧会话已空闲过期也不应被弹回登录页
-    if (window.location.pathname === '/auth/callback') return;
-    if (!isAuthenticated()) return;
-
-    const expireIdleSession = () => {
-      clearSession();
-      toast.info('长时间未操作，请重新登录');
-      if (window.location.pathname !== '/login') {
-        navigate('/login', { replace: true, state: { from: location } });
-      }
-    };
-    const checkIdleSession = () => {
-      if (isAuthenticated() && isSessionIdleExpired()) {
-        expireIdleSession();
-      }
-    };
-    const handleActivity = () => {
-      if (!isAuthenticated()) return;
-      if (isSessionIdleExpired()) {
-        expireIdleSession();
-        return;
-      }
-      markSessionActivity();
-    };
-    const activityEvents = ['click', 'keydown', 'pointerdown', 'touchstart'] as const;
-    const activityListenerOptions = { capture: true, passive: true };
-
-    if (isSessionIdleExpired()) {
-      expireIdleSession();
-      return;
-    } else {
-      markSessionActivity();
-    }
-    activityEvents.forEach(event =>
-      window.addEventListener(event, handleActivity, activityListenerOptions)
-    );
-    window.addEventListener('focus', checkIdleSession);
-    document.addEventListener('visibilitychange', checkIdleSession);
-    const timer = window.setInterval(checkIdleSession, 60000);
-
-    return () => {
-      activityEvents.forEach(event =>
-        window.removeEventListener(event, handleActivity, activityListenerOptions)
-      );
-      window.removeEventListener('focus', checkIdleSession);
-      document.removeEventListener('visibilitychange', checkIdleSession);
-      window.clearInterval(timer);
-    };
-  }, [location, navigate]);
-
-  return null;
-}
-
 function AppRoutes() {
   return (
     <Routes>
@@ -196,7 +130,6 @@ const App = () => {
   return (
     <BrowserRouter>
       <ErrorBoundary>
-        <SessionIdleGuard />
         {booting ? <BootScreen /> : <AppRoutes />}
       </ErrorBoundary>
       <Toaster

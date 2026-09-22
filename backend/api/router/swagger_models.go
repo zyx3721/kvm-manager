@@ -287,9 +287,8 @@ type healthResponse struct {
 }
 
 type meResponse struct {
-	User       domain.User `json:"user"`
-	ExpiresAt  string      `json:"expires_at"`
-	LastSeenAt string      `json:"last_seen_at"`
+	User      domain.User `json:"user"`
+	ExpiresAt string      `json:"expires_at"`
 }
 
 type statusResponse struct {

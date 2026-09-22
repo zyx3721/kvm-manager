@@ -1,8 +1,6 @@
 const TOKEN_KEY = 'kvm.auth.token';
 const USER_KEY = 'kvm.auth.user';
 const EXPIRES_AT_KEY = 'kvm.auth.expires_at';
-const LAST_ACTIVITY_AT_KEY = 'kvm.auth.last_activity_at';
-const SESSION_IDLE_TIMEOUT_MS = 12 * 60 * 60 * 1000;
 
 export type AuthUser = {
   id?: string;
@@ -33,43 +31,23 @@ export const WECOM_BIND_MESSAGE = 'kvm:wecom-bind';
 export const WECOM_PROVIDERS_CHANGED_EVENT = 'kvm:wecom-providers-changed';
 
 export function getAuthToken() {
-  return window.localStorage.getItem(TOKEN_KEY);
+  return window.sessionStorage.getItem(TOKEN_KEY);
 }
 
 export function getStoredUser(): AuthUser | null {
-  const raw = window.localStorage.getItem(USER_KEY);
+  const raw = window.sessionStorage.getItem(USER_KEY);
   if (!raw) return null;
 
   try {
     return JSON.parse(raw) as AuthUser;
   } catch {
-    window.localStorage.removeItem(USER_KEY);
+    window.sessionStorage.removeItem(USER_KEY);
     return null;
   }
 }
 
 export function isAuthenticated() {
   return Boolean(getAuthToken());
-}
-
-export function getSessionExpiresAt() {
-  return window.localStorage.getItem(EXPIRES_AT_KEY);
-}
-
-export function getLastActivityAt() {
-  const raw = window.localStorage.getItem(LAST_ACTIVITY_AT_KEY);
-  const value = raw ? Number(raw) : 0;
-  return Number.isFinite(value) ? value : 0;
-}
-
-export function markSessionActivity(now = Date.now()) {
-  if (!getAuthToken()) return;
-  window.localStorage.setItem(LAST_ACTIVITY_AT_KEY, String(now));
-}
-
-export function isSessionIdleExpired(now = Date.now()) {
-  const lastActivityAt = getLastActivityAt();
-  return lastActivityAt <= 0 || now - lastActivityAt >= SESSION_IDLE_TIMEOUT_MS;
 }
 
 export function userHasPermission(user: AuthUser | null, permission: string) {
@@ -83,14 +61,13 @@ export function userHasAnyPermission(user: AuthUser | null, permissions: string[
 }
 
 export function persistSession(session: LoginResponse) {
-  window.localStorage.setItem(TOKEN_KEY, session.token);
+  window.sessionStorage.setItem(TOKEN_KEY, session.token);
   const user = {
     ...session.user,
     wecomBound: session.wecom_bound ?? session.user.wecomBound ?? false,
   };
-  window.localStorage.setItem(USER_KEY, JSON.stringify(user));
-  window.localStorage.setItem(EXPIRES_AT_KEY, session.expires_at);
-  markSessionActivity();
+  window.sessionStorage.setItem(USER_KEY, JSON.stringify(user));
+  window.sessionStorage.setItem(EXPIRES_AT_KEY, session.expires_at);
 }
 
 /** 就地更新本地会话中的用户信息（如绑定状态变化），返回更新后的用户 */
@@ -98,7 +75,7 @@ export function updateStoredUser(patch: Partial<AuthUser>): AuthUser | null {
   const user = getStoredUser();
   if (!user) return null;
   const next = { ...user, ...patch };
-  window.localStorage.setItem(USER_KEY, JSON.stringify(next));
+  window.sessionStorage.setItem(USER_KEY, JSON.stringify(next));
   return next;
 }
 
@@ -140,10 +117,9 @@ export async function unbindWecom() {
 }
 
 export function clearSession() {
-  window.localStorage.removeItem(TOKEN_KEY);
-  window.localStorage.removeItem(USER_KEY);
-  window.localStorage.removeItem(EXPIRES_AT_KEY);
-  window.localStorage.removeItem(LAST_ACTIVITY_AT_KEY);
+  window.sessionStorage.removeItem(TOKEN_KEY);
+  window.sessionStorage.removeItem(USER_KEY);
+  window.sessionStorage.removeItem(EXPIRES_AT_KEY);
 }
 
 async function readApiError(response: Response) {

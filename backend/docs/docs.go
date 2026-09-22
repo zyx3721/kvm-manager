@@ -7739,9 +7739,6 @@ const docTemplate = `{
                 "expires_at": {
                     "type": "string"
                 },
-                "last_seen_at": {
-                    "type": "string"
-                },
                 "token": {
                     "type": "string"
                 },
@@ -8569,9 +8566,6 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "expires_at": {
-                    "type": "string"
-                },
-                "last_seen_at": {
                     "type": "string"
                 },
                 "user": {

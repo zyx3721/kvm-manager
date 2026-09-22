@@ -55,7 +55,7 @@ type errorResponse struct {
 }
 
 func NewRouter(cfg config.Config, store *repository.Store, runtime *realtime.Service, notify *notification.Service, logger *slog.Logger, redisClient redis.Cmdable) http.Handler {
-	r := &router{cfg: cfg, logger: logger, store: store, runtime: runtime, notify: notify, redis: redisClient, auth: auth.NewServiceWithIdleTTL(store, cfg.JWT.SessionTTL(), cfg.JWT.SessionIdleTTL())}
+	r := &router{cfg: cfg, logger: logger, store: store, runtime: runtime, notify: notify, redis: redisClient, auth: auth.NewService(store, cfg.JWT.Secret, cfg.JWT.SessionTTL())}
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /api/health", r.handleHealth)
 	mux.HandleFunc("GET /swagger/", httpSwagger.WrapHandler)
@@ -203,7 +203,7 @@ func (r *router) handleMe(w http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		wecomBound = false
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"user": session.User, "expires_at": session.ExpiresAt, "last_seen_at": session.LastSeenAt, "wecom_bound": wecomBound})
+	writeJSON(w, http.StatusOK, map[string]any{"user": session.User, "expires_at": session.ExpiresAt, "wecom_bound": wecomBound})
 }
 
 func (r *router) handleLogout(w http.ResponseWriter, req *http.Request) {

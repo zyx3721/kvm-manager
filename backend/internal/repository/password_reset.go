@@ -96,11 +96,6 @@ func (s *Store) MarkPasswordResetTokenUsed(ctx context.Context, id string) error
 	return nil
 }
 
-func (s *Store) DeleteUserSessions(ctx context.Context, userID string) error {
-	_, err := s.pool.Exec(ctx, `DELETE FROM sessions WHERE user_id=$1`, userID)
-	return err
-}
-
 func hashResetCode(code string) string {
 	sum := sha256.Sum256([]byte(code))
 	return hex.EncodeToString(sum[:])

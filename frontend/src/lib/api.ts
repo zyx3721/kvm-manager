@@ -1,4 +1,4 @@
-import { clearSession, getAuthToken, markSessionActivity } from './auth';
+import { clearSession, getAuthToken } from './auth';
 
 export type ApiErrorPayload = {
   error?: string;
@@ -49,9 +49,6 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
   }
 
   const response = await fetch(path, { ...options, headers });
-  if (options.auth !== false && response.ok) {
-    markSessionActivity();
-  }
   if (!response.ok) {
     const error = await readError(response);
     if (response.status === 401 && !businessUnauthorizedCodes.has(error.code)) {

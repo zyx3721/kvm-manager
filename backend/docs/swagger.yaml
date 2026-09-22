@@ -434,8 +434,6 @@ definitions:
     properties:
       expires_at:
         type: string
-      last_seen_at:
-        type: string
       token:
         type: string
       user:
@@ -988,8 +986,6 @@ definitions:
   router.meResponse:
     properties:
       expires_at:
-        type: string
-      last_seen_at:
         type: string
       user:
         $ref: '#/definitions/domain.User'

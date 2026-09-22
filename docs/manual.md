@@ -290,8 +290,7 @@ DB_SSLMODE=disable
 
 # 登录与会话配置
 JWT_SECRET=your_jwt_secret_key
-JWT_EXPIRE_HOURS=24
-SESSION_IDLE_TIMEOUT_HOURS=12
+JWT_EXPIRE_HOURS=12
 
 # Redis 缓存与后台刷新配置
 REDIS_ADDR=redis:6379
@@ -311,7 +310,7 @@ LOG_RETENTION_DAYS=30
 
 **配置参数说明**：
 
-后端当前一共有 `23` 个可写入 `.env` 的环境变量：
+后端当前一共有 `22` 个可写入 `.env` 的环境变量：
 
 | 变量 | 默认值 | 说明 |
 | --- | --- | --- |
@@ -325,8 +324,7 @@ LOG_RETENTION_DAYS=30
 | `DB_PASSWORD` | `kvm_manager_dev` | PostgreSQL 密码 |
 | `DB_SSLMODE` | `disable` | PostgreSQL SSL 模式 |
 | `JWT_SECRET` | 启动时临时生成 | JWT/Session 签名密钥，生产环境必须固定配置 |
-| `JWT_EXPIRE_HOURS` | `24` | 登录后最长会话有效期，单位小时 |
-| `SESSION_IDLE_TIMEOUT_HOURS` | `12` | 会话空闲超时时间，连续超过该小时数无访问会自动失效 |
+| `JWT_EXPIRE_HOURS` | `12` | 登录会话有效期（小时），签发时固定到期时间，注销后立即失效 |
 
 新增运行态缓存与后台刷新变量：
 
@@ -479,8 +477,7 @@ DB_PASSWORD=123456ok!
 DB_SSLMODE=disable
 
 JWT_SECRET=change-me-in-production
-JWT_EXPIRE_HOURS=24
-SESSION_IDLE_TIMEOUT_HOURS=12
+JWT_EXPIRE_HOURS=12
 
 REDIS_ADDR=redis:6379
 REDIS_PASSWORD=123456
@@ -777,8 +774,7 @@ DB_SSLMODE=disable
 
 # 登录与会话配置
 JWT_SECRET=your_jwt_secret_key
-JWT_EXPIRE_HOURS=24
-SESSION_IDLE_TIMEOUT_HOURS=12
+JWT_EXPIRE_HOURS=12
 
 # Redis 缓存与后台刷新
 REDIS_ADDR=redis:6379
@@ -1473,9 +1469,9 @@ server {
 
 ## 9.3 认证
 
-- `POST /api/auth/login`  - 登录，返回访问令牌、用户信息、`expires_at` 最长有效期和 `last_seen_at` 最近活跃时间；会话连续超过 `SESSION_IDLE_TIMEOUT_HOURS` 未访问会自动失效
-- `POST /api/auth/logout`  - 注销当前会话
-- `GET /api/auth/me`  - 获取当前登录用户、会话最长有效期和最近活跃时间
+- `POST /api/auth/login`  - 登录，返回访问令牌（JWT）与用户信息；会话有效期由 `JWT_EXPIRE_HOURS` 决定，签发时固定到期时间
+- `POST /api/auth/logout`  - 注销当前会话，服务端立即删除对应会话记录
+- `GET /api/auth/me`  - 获取当前登录用户与会话到期时间
 - `PUT /api/auth/password`  - 修改当前用户密码，需提供旧密码、新密码和确认密码
 - `GET /api/auth/password-reset/captcha` - 获取找回密码图形验证码，图形验证码为加法、减法或乘法算式，1 分钟内有效，前端到期后会自动刷新
 - `POST /api/auth/password-reset/confirm` - 校验 10 分钟内有效的找回密码验证码并重置本地账号密码，成功后清理该用户已有会话

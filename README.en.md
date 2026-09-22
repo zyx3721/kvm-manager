@@ -188,7 +188,7 @@ Key environment variables (the full list lives in `.env.example` and [the full m
 | Variable | Default | Description |
 | --- | --- | --- |
 | `JWT_SECRET` | `change-me-in-production` | Session signing secret; set a long random value in production |
-| `JWT_EXPIRE_HOURS` | `24` | Maximum session lifetime in hours; idle timeout is controlled by `SESSION_IDLE_TIMEOUT_HOURS` (12 hours by default) |
+| `JWT_EXPIRE_HOURS` | `12` | Session lifetime in hours; the expiry is fixed at sign-in and sessions are revoked immediately on logout |
 | `SERVER_MODE` | `release` | Run mode; `release` hides debug captchas on the boot screen |
 | `DB_HOST` / `DB_PORT` | `postgres` / `5432` | PostgreSQL address |
 | `DB_NAME` / `DB_USER` / `DB_PASSWORD` | `kvm-manager` / `postgres` / `123456ok!` | Database and credentials |
