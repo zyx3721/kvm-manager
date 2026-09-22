@@ -41,6 +41,8 @@ type DatabaseConfig struct {
 type JWTConfig struct {
 	Secret      string
 	ExpireHours int
+	// SecretExplicit 标记 JWT_SECRET 是否由环境变量显式提供；未显式提供时密钥持久化到数据库
+	SecretExplicit bool
 }
 
 type RedisConfig struct {
@@ -109,7 +111,10 @@ func Load(logger *slog.Logger) (Config, error) {
 			return Config{}, fmt.Errorf("generate temporary jwt secret: %w", err)
 		}
 		cfg.JWT.Secret = secret
-		logger.Warn("JWT_SECRET is not set; generated a temporary secret for this process")
+		cfg.JWT.SecretExplicit = false
+		logger.Warn("JWT_SECRET is not set; generated a random secret to be persisted in database")
+	} else {
+		cfg.JWT.SecretExplicit = true
 	}
 
 	return cfg, nil

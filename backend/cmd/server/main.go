@@ -221,6 +221,15 @@ func main() {
 	}
 
 	store := repository.New(pool)
+	if !cfg.JWT.SecretExplicit {
+		resolved, err := store.ResolveJWTSecret(ctx, cfg.JWT.Secret)
+		if err != nil {
+			logger.Error("resolve jwt secret failed", "error", err)
+			os.Exit(1)
+		}
+		cfg.JWT.Secret = resolved
+		logger.Info("jwt secret persisted to database for restart stability")
+	}
 	if err := store.EnsureDefaultAdmin(ctx); err != nil {
 		logger.Error("initialize admin failed", "error", err)
 		os.Exit(1)
