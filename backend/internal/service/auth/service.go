@@ -36,6 +36,9 @@ type Store interface {
 	FindSession(ctx context.Context, jti string) (domain.Session, error)
 	DeleteSession(ctx context.Context, jti string) error
 	DeleteExpiredSessions(ctx context.Context) error
+	CountLoginFailures(ctx context.Context, username string) (int64, int64, error)
+	CreateLoginFailure(ctx context.Context, username string, failedAt int64) error
+	ClearLoginFailures(ctx context.Context, username string) (int64, error)
 	GetAuthProvider(ctx context.Context, id string) (domain.AuthProvider, error)
 	CreateAuthState(ctx context.Context, item domain.AuthState) error
 	TakeAuthState(ctx context.Context, state string) (domain.AuthState, error)
@@ -56,14 +59,16 @@ type sessionClaims struct {
 }
 
 type Service struct {
-	store      Store
-	secret     string
-	sessionTTL time.Duration
-	now        func() time.Time
+	store               Store
+	secret              string
+	sessionTTL          time.Duration
+	loginMaxFailures    int
+	loginLockoutMinutes int
+	now                 func() time.Time
 }
 
-func NewService(store Store, secret string, sessionTTL time.Duration) *Service {
-	return &Service{store: store, secret: secret, sessionTTL: sessionTTL, now: time.Now}
+func NewService(store Store, secret string, sessionTTL time.Duration, loginMaxFailures, loginLockoutMinutes int) *Service {
+	return &Service{store: store, secret: secret, sessionTTL: sessionTTL, loginMaxFailures: loginMaxFailures, loginLockoutMinutes: loginLockoutMinutes, now: time.Now}
 }
 
 func HashPassword(password string) (string, error) {

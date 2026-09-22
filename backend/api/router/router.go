@@ -55,7 +55,7 @@ type errorResponse struct {
 }
 
 func NewRouter(cfg config.Config, store *repository.Store, runtime *realtime.Service, notify *notification.Service, logger *slog.Logger, redisClient redis.Cmdable) http.Handler {
-	r := &router{cfg: cfg, logger: logger, store: store, runtime: runtime, notify: notify, redis: redisClient, auth: auth.NewService(store, cfg.JWT.Secret, cfg.JWT.SessionTTL())}
+	r := &router{cfg: cfg, logger: logger, store: store, runtime: runtime, notify: notify, redis: redisClient, auth: auth.NewService(store, cfg.JWT.Secret, cfg.JWT.SessionTTL(), cfg.LoginLock.MaxFailures, cfg.LoginLock.LockoutMinutes)}
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /api/health", r.handleHealth)
 	mux.HandleFunc("GET /swagger/", httpSwagger.WrapHandler)
@@ -179,6 +179,14 @@ func (r *router) handleLogin(w http.ResponseWriter, req *http.Request) {
 	if provider == "" {
 		provider = "local"
 	}
+	if lockErr := r.auth.EnsureLoginAllowed(req.Context(), body.Username); lockErr != nil {
+		var locked auth.LoginLockedError
+		if errors.As(lockErr, &locked) {
+			writeError(w, http.StatusTooManyRequests, "login_locked", locked.Error())
+			return
+		}
+		r.logger.Error("check login lock failed", "error", lockErr)
+	}
 	session, err := r.auth.LoginWithProvider(req.Context(), provider, body.Username, body.Password)
 	if err != nil {
 		if errors.Is(err, auth.ErrUserNotProvisioned) {
@@ -186,12 +194,18 @@ func (r *router) handleLogin(w http.ResponseWriter, req *http.Request) {
 			return
 		}
 		if errors.Is(err, auth.ErrInvalidCredentials) {
+			if recordErr := r.auth.RecordLoginFailure(req.Context(), body.Username); recordErr != nil {
+				r.logger.Error("record login failure failed", "error", recordErr)
+			}
 			writeError(w, http.StatusUnauthorized, "invalid_credentials", "用户名或密码不正确")
 			return
 		}
 		r.logger.Error("login failed", "error", err)
 		writeError(w, http.StatusInternalServerError, "login_failed", "登录失败，请稍后重试")
 		return
+	}
+	if _, clearErr := r.auth.ClearLoginFailures(req.Context(), body.Username); clearErr != nil {
+		r.logger.Error("clear login failures failed", "error", clearErr)
 	}
 	_ = r.store.WriteAudit(req.Context(), session.User.ID, "auth.login", "user", session.User.ID, repository.ClientIP(req), map[string]any{"username": session.User.Username, "provider": provider})
 	writeJSON(w, http.StatusOK, session)
