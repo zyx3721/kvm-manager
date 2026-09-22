@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
@@ -127,11 +128,35 @@ func applyFlagOverrides(overrides map[string]string) {
 	}
 }
 
+// loadDotEnv 按自定义路径、工作目录 ./.env、backend/.env、可执行文件同目录顺序加载首个存在的 .env 文件，
+// 已存在的环境变量不被覆盖；全部未命中时静默放行，交由配置默认值兜底
+func loadDotEnv(customPath string) {
+	seen := map[string]struct{}{}
+	candidates := []string{}
+	if strings.TrimSpace(customPath) != "" {
+		candidates = append(candidates, customPath)
+	}
+	candidates = append(candidates, ".env", filepath.Join("backend", ".env"))
+	if exePath, err := os.Executable(); err == nil {
+		candidates = append(candidates, filepath.Join(filepath.Dir(exePath), ".env"))
+	}
+	for _, candidate := range candidates {
+		candidate = filepath.Clean(candidate)
+		if _, ok := seen[candidate]; ok {
+			continue
+		}
+		seen[candidate] = struct{}{}
+		if err := godotenv.Load(candidate); err == nil {
+			return
+		}
+	}
+}
+
 // parseFlags 声明并解析全部命令行参数，逐一对应 .env 环境变量
 func parseFlags() (showVersion bool, flagVals flagValues) {
 	flag.BoolVar(&showVersion, "v", false, "显示版本信息并退出")
 	flag.BoolVar(&showVersion, "version", false, "显示版本信息并退出")
-	flag.StringVar(&flagVals.envPath, "env", "", ".env 配置文件路径，默认加载工作目录下的 .env")
+	flag.StringVar(&flagVals.envPath, "env", "", ".env 配置文件路径，默认按工作目录 ./.env、backend/.env、可执行文件同目录顺序查找")
 	flag.StringVar(&flagVals.serverHost, "server-host", "", "HTTP 监听主机，等价环境变量 SERVER_HOST")
 	flag.StringVar(&flagVals.serverPort, "server-port", "", "HTTP 监听端口，等价环境变量 SERVER_PORT")
 	flag.StringVar(&flagVals.serverMode, "server-mode", "", "服务运行模式标记，等价环境变量 SERVER_MODE")
@@ -173,9 +198,7 @@ func main() {
 		fmt.Print(versionText())
 		return
 	}
-	if err := godotenv.Load(flagVals.envPath); err != nil && !errors.Is(err, os.ErrNotExist) {
-		logger.Warn("load .env failed", "error", err)
-	}
+	loadDotEnv(flagVals.envPath)
 	applyFlagOverrides(overridesFromFlags(flagVals))
 
 	cfg, err := config.Load(logger)
