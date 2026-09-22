@@ -22,6 +22,8 @@ export const defaultBaseConfig: SystemBaseConfig = {
   alertNotificationRetryMaxMinutes: 15,
   alertNotificationBatchSize: 50,
   wecomStateTtlMinutes: 5,
+  loginMaxFailures: 5,
+  loginLockoutMinutes: 2,
 };
 
 const BRAND_STORAGE_KEY = 'kvm.brand';

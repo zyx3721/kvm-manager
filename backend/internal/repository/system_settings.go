@@ -95,6 +95,8 @@ func decodeSystemBaseConfig(raw []byte, createdAt, updatedAt time.Time) (domain.
 		AlertNotificationRetryMaxMinutes  int     `json:"alertNotificationRetryMaxMinutes"`
 		AlertNotificationBatchSize        int     `json:"alertNotificationBatchSize"`
 		WecomStateTTLMinutes              int     `json:"wecomStateTtlMinutes"`
+		LoginMaxFailures                  int     `json:"loginMaxFailures"`
+		LoginLockoutMinutes               int     `json:"loginLockoutMinutes"`
 	}
 	if err := json.Unmarshal(raw, &payload); err != nil {
 		return domain.SystemBaseConfig{}, err
@@ -119,6 +121,8 @@ func decodeSystemBaseConfig(raw []byte, createdAt, updatedAt time.Time) (domain.
 		AlertNotificationRetryMaxMinutes:  fallbackInt(payload.AlertNotificationRetryMaxMinutes, 15),
 		AlertNotificationBatchSize:        fallbackInt(payload.AlertNotificationBatchSize, 50),
 		WecomStateTTLMinutes:              fallbackInt(payload.WecomStateTTLMinutes, 5),
+		LoginMaxFailures:                  fallbackInt(payload.LoginMaxFailures, 5),
+		LoginLockoutMinutes:               fallbackInt(payload.LoginLockoutMinutes, 2),
 		CreatedAt:                         createdAt,
 		UpdatedAt:                         updatedAt,
 	}

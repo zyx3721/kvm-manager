@@ -26,14 +26,26 @@ func (s *Service) EnsureLoginAllowed(ctx context.Context, username string) error
 	if name == "" || strings.EqualFold(strings.TrimSpace(username), "admin") {
 		return nil
 	}
+	base, err := s.store.GetSystemBaseConfig(ctx)
+	if err != nil {
+		return err
+	}
+	maxFailures := base.LoginMaxFailures
+	if maxFailures <= 0 {
+		maxFailures = 5
+	}
+	lockoutMinutes := base.LoginLockoutMinutes
+	if lockoutMinutes <= 0 {
+		lockoutMinutes = 2
+	}
 	count, lastFailedAt, err := s.store.CountLoginFailures(ctx, name)
 	if err != nil {
 		return err
 	}
-	if count < int64(s.loginMaxFailures) || lastFailedAt <= 0 {
+	if count < int64(maxFailures) || lastFailedAt <= 0 {
 		return nil
 	}
-	if remaining := lastFailedAt + int64(s.loginLockoutMinutes)*60 - s.now().Unix(); remaining > 0 {
+	if remaining := lastFailedAt + int64(lockoutMinutes)*60 - s.now().Unix(); remaining > 0 {
 		return LoginLockedError{Minutes: (remaining + 59) / 60}
 	}
 	return nil

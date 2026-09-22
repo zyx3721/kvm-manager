@@ -29,6 +29,8 @@ type systemBaseConfigRequest struct {
 	AlertNotificationRetryMaxMinutes  int     `json:"alertNotificationRetryMaxMinutes"`
 	AlertNotificationBatchSize        int     `json:"alertNotificationBatchSize"`
 	WecomStateTTLMinutes              int     `json:"wecomStateTtlMinutes"`
+	LoginMaxFailures                  int     `json:"loginMaxFailures"`
+	LoginLockoutMinutes               int     `json:"loginLockoutMinutes"`
 }
 
 func (r *router) handlePublicSystemBaseConfig(w http.ResponseWriter, req *http.Request) {
@@ -61,6 +63,8 @@ func defaultSystemBaseConfig() domain.SystemBaseConfig {
 		AlertNotificationRetryMaxMinutes:  15,
 		AlertNotificationBatchSize:        50,
 		WecomStateTTLMinutes:              5,
+		LoginMaxFailures:                  5,
+		LoginLockoutMinutes:               2,
 	}
 }
 
@@ -133,6 +137,16 @@ func sanitizeSystemBaseConfig(w http.ResponseWriter, body systemBaseConfigReques
 	alertNotificationRetryMaxMinutes := positiveOrDefault(body.AlertNotificationRetryMaxMinutes, 15)
 	alertNotificationBatchSize := positiveOrDefault(body.AlertNotificationBatchSize, 50)
 	wecomStateTTLMinutes := positiveOrDefault(body.WecomStateTTLMinutes, 5)
+	loginMaxFailures := positiveOrDefault(body.LoginMaxFailures, 5)
+	loginLockoutMinutes := positiveOrDefault(body.LoginLockoutMinutes, 2)
+	if loginMaxFailures < 3 || loginMaxFailures > 10 {
+		writeError(w, http.StatusBadRequest, "invalid_base_config", "登录失败锁定次数需在 3 到 10 次之间")
+		return nil, false
+	}
+	if loginLockoutMinutes < 1 || loginLockoutMinutes > 10 {
+		writeError(w, http.StatusBadRequest, "invalid_base_config", "登录锁定等待时长需在 1 到 10 分钟之间")
+		return nil, false
+	}
 	if passwordResetCodeTTLMinutes < 1 || passwordResetCodeTTLMinutes > 60 {
 		writeError(w, http.StatusBadRequest, "invalid_base_config", "找回密码验证码有效期需在 1 到 60 分钟之间")
 		return nil, false
@@ -205,6 +219,8 @@ func sanitizeSystemBaseConfig(w http.ResponseWriter, body systemBaseConfigReques
 		"alertNotificationRetryMaxMinutes":  alertNotificationRetryMaxMinutes,
 		"alertNotificationBatchSize":        alertNotificationBatchSize,
 		"wecomStateTtlMinutes":              wecomStateTTLMinutes,
+		"loginMaxFailures":                  loginMaxFailures,
+		"loginLockoutMinutes":               loginLockoutMinutes,
 	}, true
 }
 

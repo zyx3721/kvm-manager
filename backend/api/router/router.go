@@ -55,7 +55,7 @@ type errorResponse struct {
 }
 
 func NewRouter(cfg config.Config, store *repository.Store, runtime *realtime.Service, notify *notification.Service, logger *slog.Logger, redisClient redis.Cmdable) http.Handler {
-	r := &router{cfg: cfg, logger: logger, store: store, runtime: runtime, notify: notify, redis: redisClient, auth: auth.NewService(store, cfg.JWT.Secret, cfg.JWT.SessionTTL(), cfg.LoginLock.MaxFailures, cfg.LoginLock.LockoutMinutes)}
+	r := &router{cfg: cfg, logger: logger, store: store, runtime: runtime, notify: notify, redis: redisClient, auth: auth.NewService(store, cfg.JWT.Secret, cfg.JWT.SessionTTL())}
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /api/health", r.handleHealth)
 	mux.HandleFunc("GET /swagger/", httpSwagger.WrapHandler)
@@ -182,6 +182,7 @@ func (r *router) handleLogin(w http.ResponseWriter, req *http.Request) {
 	if lockErr := r.auth.EnsureLoginAllowed(req.Context(), body.Username); lockErr != nil {
 		var locked auth.LoginLockedError
 		if errors.As(lockErr, &locked) {
+			_ = r.store.WriteAudit(req.Context(), "", "auth.login.locked", "user", body.Username, repository.ClientIP(req), map[string]any{"username": body.Username, "lockMinutes": locked.Minutes})
 			writeError(w, http.StatusTooManyRequests, "login_locked", locked.Error())
 			return
 		}

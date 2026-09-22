@@ -59,16 +59,14 @@ type sessionClaims struct {
 }
 
 type Service struct {
-	store               Store
-	secret              string
-	sessionTTL          time.Duration
-	loginMaxFailures    int
-	loginLockoutMinutes int
-	now                 func() time.Time
+	store      Store
+	secret     string
+	sessionTTL time.Duration
+	now        func() time.Time
 }
 
-func NewService(store Store, secret string, sessionTTL time.Duration, loginMaxFailures, loginLockoutMinutes int) *Service {
-	return &Service{store: store, secret: secret, sessionTTL: sessionTTL, loginMaxFailures: loginMaxFailures, loginLockoutMinutes: loginLockoutMinutes, now: time.Now}
+func NewService(store Store, secret string, sessionTTL time.Duration) *Service {
+	return &Service{store: store, secret: secret, sessionTTL: sessionTTL, now: time.Now}
 }
 
 func HashPassword(password string) (string, error) {

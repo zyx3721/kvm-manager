@@ -70,6 +70,8 @@ type SystemBaseConfig struct {
 	AlertNotificationRetryMaxMinutes  int       `json:"alertNotificationRetryMaxMinutes"`
 	AlertNotificationBatchSize        int       `json:"alertNotificationBatchSize"`
 	WecomStateTTLMinutes              int       `json:"wecomStateTtlMinutes"`
+	LoginMaxFailures                  int       `json:"loginMaxFailures"`
+	LoginLockoutMinutes               int       `json:"loginLockoutMinutes"`
 	CreatedAt                         time.Time `json:"created_at"`
 	UpdatedAt                         time.Time `json:"updated_at"`
 }

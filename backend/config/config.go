@@ -16,18 +16,11 @@ import (
 const defaultSessionHours = 12
 
 type Config struct {
-	Server    ServerConfig
-	Database  DatabaseConfig
-	JWT       JWTConfig
-	LoginLock LoginLockConfig
-	Redis     RedisConfig
-	Runtime   RuntimeConfig
-}
-
-// LoginLockConfig 登录失败锁定参数：同一账号连续密码失败达到 MaxFailures 次后锁定 LockoutMinutes 分钟
-type LoginLockConfig struct {
-	MaxFailures    int
-	LockoutMinutes int
+	Server   ServerConfig
+	Database DatabaseConfig
+	JWT      JWTConfig
+	Redis    RedisConfig
+	Runtime  RuntimeConfig
 }
 
 type ServerConfig struct {
@@ -88,10 +81,6 @@ func Load(logger *slog.Logger) (Config, error) {
 		JWT: JWTConfig{
 			Secret:      os.Getenv("JWT_SECRET"),
 			ExpireHours: expireHours,
-		},
-		LoginLock: LoginLockConfig{
-			MaxFailures:    envInt("LOGIN_MAX_FAILURES", 5),
-			LockoutMinutes: envInt("LOGIN_LOCKOUT_MINUTES", 2),
 		},
 		Redis: RedisConfig{
 			Addr:     envOrDefault("REDIS_ADDR", "localhost:6379"),

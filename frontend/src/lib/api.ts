@@ -168,6 +168,8 @@ export type SystemBaseConfig = {
   alertNotificationRetryMaxMinutes: number;
   alertNotificationBatchSize: number;
   wecomStateTtlMinutes: number;
+  loginMaxFailures: number;
+  loginLockoutMinutes: number;
   created_at?: string;
   updated_at?: string;
 };
