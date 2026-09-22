@@ -7,6 +7,22 @@
     <meta name="description" content="KVM Manager virtualization operations console" />
     <meta name="author" content="Jerion" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <script>
+      (function () {
+        try {
+          var raw = localStorage.getItem('kvm.brand');
+          if (!raw) return;
+          var brand = JSON.parse(raw);
+          if (brand && brand.siteName) document.title = brand.siteName;
+          if (brand && brand.iconData) {
+            var link = document.querySelector("link[rel='icon']");
+            if (link) link.href = brand.iconData;
+          }
+        } catch (e) {
+          console.debug('brand cache read failed', e);
+        }
+      })();
+    </script>
   </head>
 
   <body>

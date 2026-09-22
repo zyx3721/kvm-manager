@@ -24,7 +24,24 @@ export const defaultBaseConfig: SystemBaseConfig = {
   wecomStateTtlMinutes: 5,
 };
 
-let cachedBaseConfig: SystemBaseConfig = defaultBaseConfig;
+const BRAND_STORAGE_KEY = 'kvm.brand';
+const BRAND_FETCH_INTERVAL_MS = 30_000;
+
+// loadCachedBaseConfig 读取上次会话缓存的品牌配置，二次访问启动屏直接呈现真实品牌
+function loadCachedBaseConfig(): SystemBaseConfig {
+  if (typeof window === 'undefined') return defaultBaseConfig;
+  try {
+    const raw = window.localStorage.getItem(BRAND_STORAGE_KEY);
+    if (!raw) return defaultBaseConfig;
+    return normalizeBaseConfig(JSON.parse(raw) as Partial<SystemBaseConfig>);
+  } catch (error) {
+    console.warn('品牌本地缓存读取失败', error);
+    return defaultBaseConfig;
+  }
+}
+
+let cachedBaseConfig: SystemBaseConfig = loadCachedBaseConfig();
+let lastFetchedAt = 0;
 const listeners = new Set<(config: SystemBaseConfig) => void>();
 
 export function getBaseConfigSnapshot() {
@@ -33,8 +50,19 @@ export function getBaseConfigSnapshot() {
 
 export function setBaseConfigSnapshot(config: SystemBaseConfig) {
   cachedBaseConfig = normalizeBaseConfig(config);
+  if (typeof window !== 'undefined') {
+    try {
+      window.localStorage.setItem(BRAND_STORAGE_KEY, JSON.stringify(cachedBaseConfig));
+    } catch (error) {
+      console.warn('品牌本地缓存写入失败', error);
+    }
+  }
   applyDocumentBranding(cachedBaseConfig);
   listeners.forEach(listener => listener(cachedBaseConfig));
+}
+
+export function markBaseConfigFetched() {
+  lastFetchedAt = Date.now();
 }
 
 export function useBaseConfig() {
@@ -49,12 +77,15 @@ export function useBaseConfig() {
 
   useEffect(() => {
     let cancelled = false;
+    if (Date.now() - lastFetchedAt < BRAND_FETCH_INTERVAL_MS) return;
     void fetchPublicSystemBaseConfig()
       .then(next => {
-        if (!cancelled) setBaseConfigSnapshot(next);
+        if (cancelled) return;
+        lastFetchedAt = Date.now();
+        setBaseConfigSnapshot(next);
       })
-      .catch(() => {
-        if (!cancelled) setBaseConfigSnapshot(defaultBaseConfig);
+      .catch((error: unknown) => {
+        if (!cancelled) console.warn('品牌配置加载失败，使用当前品牌', error);
       });
     return () => {
       cancelled = true;
