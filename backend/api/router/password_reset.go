@@ -291,7 +291,11 @@ func (r *router) handlePasswordResetConfirm(w http.ResponseWriter, req *http.Req
 	if err := r.store.DeleteUserSessions(req.Context(), user.ID); err != nil {
 		r.logger.Warn("delete sessions after password reset failed", "error", err)
 	}
-	_ = r.store.WriteAudit(req.Context(), user.ID, "auth.password.reset.confirm", "user", user.ID, repository.ClientIP(req), map[string]any{"username": user.Username, "channel": token.ChannelID})
+	clearedLoginFailures, clearErr := r.store.ClearLoginFailures(req.Context(), strings.ToLower(strings.TrimSpace(user.Username)))
+	if clearErr != nil {
+		r.logger.Warn("clear login failures after password reset failed", "error", clearErr)
+	}
+	_ = r.store.WriteAudit(req.Context(), user.ID, "auth.password.reset.confirm", "user", user.ID, repository.ClientIP(req), map[string]any{"username": user.Username, "channel": token.ChannelID, "login_lock_cleared": clearedLoginFailures > 0})
 	writeJSON(w, http.StatusOK, map[string]string{"message": "密码已重置"})
 }
 
