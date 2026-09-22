@@ -160,6 +160,14 @@ export function normalizeBaseConfig(config: Partial<SystemBaseConfig>): SystemBa
       config.wecomStateTtlMinutes,
       defaultBaseConfig.wecomStateTtlMinutes
     ),
+    loginMaxFailures: normalizeNumber(
+      config.loginMaxFailures,
+      defaultBaseConfig.loginMaxFailures
+    ),
+    loginLockoutMinutes: normalizeNumber(
+      config.loginLockoutMinutes,
+      defaultBaseConfig.loginLockoutMinutes
+    ),
     created_at: config.created_at,
     updated_at: config.updated_at,
   };
