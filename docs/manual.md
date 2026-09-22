@@ -1515,12 +1515,12 @@ server {
 
 ## 9.3 认证
 
-- `POST /api/auth/login`  - 登录，返回访问令牌（JWT）与用户信息；会话有效期由 `JWT_EXPIRE_HOURS` 决定，签发时固定到期时间
+- `POST /api/auth/login`  - 登录，返回访问令牌（JWT）与用户信息；会话有效期由 `JWT_EXPIRE_HOURS` 决定，签发时固定到期时间；同一账号连续密码失败达到锁定次数后返回 429 并提示剩余等待分钟数，登录成功或锁定窗口过期后重新计数，内置管理员 admin 不受限
 - `POST /api/auth/logout`  - 注销当前会话，服务端立即删除对应会话记录
 - `GET /api/auth/me`  - 获取当前登录用户与会话到期时间
 - `PUT /api/auth/password`  - 修改当前用户密码，需提供旧密码、新密码和确认密码
 - `GET /api/auth/password-reset/captcha` - 获取找回密码图形验证码，图形验证码为加法、减法或乘法算式，1 分钟内有效，前端到期后会自动刷新
-- `POST /api/auth/password-reset/confirm` - 校验 10 分钟内有效的找回密码验证码并重置本地账号密码，成功后清理该用户已有会话
+- `POST /api/auth/password-reset/confirm` - 校验 10 分钟内有效的找回密码验证码并重置本地账号密码，成功后清理该用户已有会话并解除登录失败锁定
 - `POST /api/auth/password-reset/send-code` - 携带短期校验 Token 和验证邮箱
   - 使用已启用找回密码用途的邮件媒介发送 6 位找回密码验证码
   - 验证邮箱必须与用户名对应的用户配置邮箱一致
