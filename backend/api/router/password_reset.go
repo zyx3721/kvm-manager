@@ -201,6 +201,9 @@ func (r *router) handlePasswordResetSendCode(w http.ResponseWriter, req *http.Re
 		writeError(w, http.StatusInternalServerError, "password_reset_failed", "发送验证码失败")
 		return
 	}
+	if err := r.store.DeleteStalePasswordResetTokens(req.Context()); err != nil {
+		r.logger.Warn("delete stale password reset tokens failed", "error", err)
+	}
 	err = r.notify.SendPasswordReset(req.Context(), channel, notification.PasswordResetMessage{Username: user.Username, Code: code, ExpiresAt: expiresAt, RequestIP: repository.ClientIP(req), To: contact})
 	if err != nil {
 		r.logger.Warn("send password reset notification failed", "channel", channel.ID, "error", err)

@@ -75,6 +75,16 @@ func (s *Store) FindUsablePasswordResetToken(ctx context.Context, username, code
 	return token, users[0], nil
 }
 
+// DeleteStalePasswordResetTokens 删除已失效超过 7 天的找回密码验证码记录，仅清理已使用或已过期且超出 7 天窗口的行。
+func (s *Store) DeleteStalePasswordResetTokens(ctx context.Context) error {
+	_, err := s.pool.Exec(ctx, `
+		DELETE FROM password_reset_tokens
+		WHERE (used_at IS NOT NULL AND used_at < now() - interval '7 days')
+		   OR (used_at IS NULL AND expires_at < now() - interval '7 days')
+	`)
+	return err
+}
+
 func (s *Store) MarkPasswordResetTokenUsed(ctx context.Context, id string) error {
 	cmd, err := s.pool.Exec(ctx, `UPDATE password_reset_tokens SET used_at=now() WHERE id=$1 AND used_at IS NULL`, id)
 	if err != nil {
