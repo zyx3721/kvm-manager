@@ -14,6 +14,7 @@ import {
   UserIcon,
 } from 'lucide-react';
 import {
+  consumeAuthExpired,
   fetchWecomLoginUrl,
   isAuthenticated,
   login as loginRequest,
@@ -76,6 +77,12 @@ export default function Login() {
     applyKvmTheme(theme);
     persistKvmTheme(theme);
   }, [theme]);
+
+  useEffect(() => {
+    if (consumeAuthExpired()) {
+      toast.error('登录会话已过期，请重新登录');
+    }
+  }, []);
 
   useEffect(() => {
     if (isAuthenticated()) {

@@ -140,6 +140,41 @@ export function clearSession() {
   window.localStorage.removeItem(EXPIRES_AT_KEY);
 }
 
+const AUTH_EXPIRED_FLAG_KEY = 'kvm.auth.expired';
+let authRedirectingToLogin = false;
+
+// markAuthExpired 标记本次进入登录页由会话失效引起：仅认证请求收到 401 时调用，
+// 登录页挂载时消费该标记并提示重新登录；主动登出与未登录访问不产生标记
+export function markAuthExpired() {
+  try {
+    sessionStorage.setItem(AUTH_EXPIRED_FLAG_KEY, '1');
+  } catch {
+    return;
+  }
+}
+
+// consumeAuthExpired 读取并清除会话失效标记，返回是否存在待提示的过期进入
+export function consumeAuthExpired() {
+  try {
+    const expired = sessionStorage.getItem(AUTH_EXPIRED_FLAG_KEY) === '1';
+    if (expired) sessionStorage.removeItem(AUTH_EXPIRED_FLAG_KEY);
+    return expired;
+  } catch {
+    return false;
+  }
+}
+
+// markAuthRedirecting 标记正以整页刷新跳转登录页，路由守卫据此跳过客户端跳转，
+// 避免"先无动画进入登录页、再整页刷新带加载动画"的重复进入
+export function markAuthRedirecting() {
+  authRedirectingToLogin = true;
+}
+
+// isAuthRedirecting 返回当前文档是否已触发会话失效的整页跳转
+export function isAuthRedirecting() {
+  return authRedirectingToLogin;
+}
+
 async function readApiError(response: Response) {
   try {
     const body = (await response.json()) as ApiErrorResponse;
@@ -165,8 +200,11 @@ export async function login(username: string, password: string, provider = 'loca
   return session;
 }
 
+// logout 先清理本地会话再通知后端：退出引发的组件重挂载若触发重新请求，令牌已不在本地，
+// 不会携带"服务端已注销"的旧令牌而误报会话过期；注销请求失败静默忽略，不阻塞退出流程
 export async function logout() {
   const token = getAuthToken();
+  clearSession();
 
   try {
     if (token) {
@@ -181,7 +219,5 @@ export async function logout() {
     }
   } catch (error) {
     console.warn('Logout request failed:', error);
-  } finally {
-    clearSession();
   }
 }

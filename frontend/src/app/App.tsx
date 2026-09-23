@@ -23,7 +23,7 @@ import Settings from '../features/settings/SettingsPage';
 import Snapshots from '../features/snapshots/SnapshotsPage';
 import StoragePools from '../features/storage-pools/StoragePoolsPage';
 import VMs from '../features/vms/VMsPage';
-import { getStoredUser, isAuthenticated, userHasAnyPermission } from '../lib/auth';
+import { getStoredUser, isAuthenticated, isAuthRedirecting, userHasAnyPermission } from '../lib/auth';
 import { applyKvmTheme, getInitialKvmTheme } from '../lib/utils';
 
 applyKvmTheme(getInitialKvmTheme());
@@ -60,6 +60,7 @@ function RequireAuth() {
   const user = getStoredUser();
 
   if (!isAuthenticated()) {
+    if (isAuthRedirecting()) return null;
     return <Navigate to="/login" replace state={{ from: location }} />;
   }
 

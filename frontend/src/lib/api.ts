@@ -1,4 +1,4 @@
-import { clearSession, getAuthToken } from './auth';
+import { clearSession, getAuthToken, markAuthExpired, markAuthRedirecting } from './auth';
 
 export type ApiErrorPayload = {
   error?: string;
@@ -52,6 +52,8 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
   if (!response.ok) {
     const error = await readError(response);
     if (response.status === 401 && !businessUnauthorizedCodes.has(error.code)) {
+      markAuthExpired();
+      markAuthRedirecting();
       clearSession();
       if (window.location.pathname !== '/login') {
         window.location.assign('/login');

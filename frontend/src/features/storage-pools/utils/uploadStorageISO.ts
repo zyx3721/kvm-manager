@@ -8,7 +8,7 @@ import {
   type StorageVolumeClonePayload,
   type Task,
 } from '../../../lib/api';
-import { clearSession, getAuthToken } from '../../../lib/auth';
+import { clearSession, getAuthToken, markAuthExpired, markAuthRedirecting } from '../../../lib/auth';
 import { formatBytesAuto } from '../../../lib/format';
 import {
   taskToastDoneOptionsFor,
@@ -215,6 +215,8 @@ function xhrUpload<T>(
       }
       const error = parseError(xhr.status, xhr.responseText);
       if (xhr.status === 401 && !businessUnauthorizedCodes.has(error.code)) {
+        markAuthExpired();
+        markAuthRedirecting();
         clearSession();
         if (window.location.pathname !== '/login') {
           window.location.assign('/login');
