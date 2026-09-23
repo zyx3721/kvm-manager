@@ -968,7 +968,7 @@ const docTemplate = `{
         },
         "/api/auth/wecom/authorize": {
             "get": {
-                "description": "返回企业微信登录跳转地址与内嵌二维码渲染参数 embed：直连模式签发一次性 state（有效期为基础配置中的企业微信扫码有效期，默认 5 分钟）后返回企微授权页地址，内嵌 iframe_url 的回调指向内嵌回调端点，扫码结果经后端回跳前端 /wecom-qr-callback 中转路由；统一认证中心模式返回认证中心登录页地址，内嵌 iframe 复用认证中心入口地址。登录页默认内嵌渲染二维码，embed 缺失或渲染异常时前端自动回退整页跳转。回调地址优先取认证配置中的回调地址前缀，未配置时按当前访问地址自动推断。无需认证。",
+                "description": "返回企业微信登录跳转地址与内嵌二维码渲染参数 embed：直连模式签发一次性 state（有效期为基础配置中的企业微信扫码有效期，默认 5 分钟）后返回企微授权页地址，内嵌 iframe_url 的回调指向内嵌回调端点，embed 同时下发签发的 state 供官方面板回调后登录使用；统一认证中心模式返回认证中心登录页地址，内嵌 iframe 复用认证中心入口地址。登录页默认内嵌渲染官方登录面板（直连）或认证中心页面（统一认证中心），embed 缺失或渲染异常时在面板区域展示提示。回调地址优先取认证配置中的回调地址前缀，未配置时按当前访问地址自动推断。无需认证。",
                 "produces": [
                     "application/json"
                 ],
@@ -1114,6 +1114,44 @@ const docTemplate = `{
                         }
                     }
                 }
+            },
+            "post": {
+                "description": "直连模式官方面板回调接口：校验一次性 state 并用授权码换取企微账号，仅允许已绑定平台用户的企业微信账号登录，成功返回会话 JSON。无需认证。",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "企业微信内嵌扫码登录（直连）",
+                "parameters": [
+                    {
+                        "description": "企微回跳参数",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/router.wecomLoginByCodeRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/domain.Session"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/router.errorResponse"
+                        }
+                    }
+                }
             }
         },
         "/api/auth/wecom/embed/callback": {
@@ -1192,6 +1230,44 @@ const docTemplate = `{
                     },
                     "503": {
                         "description": "Service Unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/router.errorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "统一认证中心回调接口：使用 ticket 调用认证中心换取企微账号，仅允许已绑定平台用户的企业微信账号登录，成功返回会话 JSON。认证中心回调路径配置为 /login 时由登录页在认证中心顶层回跳后调用。无需认证。",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "企业微信内嵌扫码登录（统一认证中心）",
+                "parameters": [
+                    {
+                        "description": "认证中心回跳 ticket",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/router.wecomSSOLoginRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/domain.Session"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
                         "schema": {
                             "$ref": "#/definitions/router.errorResponse"
                         }
@@ -10358,6 +10434,9 @@ const docTemplate = `{
                 },
                 "iframe_url": {
                     "type": "string"
+                },
+                "state": {
+                    "type": "string"
                 }
             }
         },
@@ -10378,6 +10457,25 @@ const docTemplate = `{
                 "url": {
                     "type": "string",
                     "example": "https://login.work.weixin.qq.com/wwlogin/sso/login?..."
+                }
+            }
+        },
+        "router.wecomLoginByCodeRequest": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string"
+                },
+                "state": {
+                    "type": "string"
+                }
+            }
+        },
+        "router.wecomSSOLoginRequest": {
+            "type": "object",
+            "properties": {
+                "ticket": {
+                    "type": "string"
                 }
             }
         },

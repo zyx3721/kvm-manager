@@ -1529,10 +1529,12 @@ server {
   - 返回 10 分钟内有效的短期校验 Token
   - 返回已启用找回密码用途的邮件媒介
 - `GET /api/auth/providers` - 获取登录页可用的外部认证方式，本地账号登录始终可用；企业微信类认证方式额外返回 `authorize_path` 发起地址
-- `GET /api/auth/wecom/authorize` - 生成企业微信 Web 扫码登录页地址（含防伪 state）与内嵌二维码渲染参数 `embed`（`iframe_url`、回跳路径 `/wecom-qr-callback`）：直连模式签发一次性 state（有效期为基础配置中的企业微信扫码有效期，默认 5 分钟）后返回企微授权页地址，内嵌 `iframe_url` 的回调指向 `/api/auth/wecom/embed/callback`；统一认证中心模式返回认证中心登录页地址，内嵌 iframe 复用认证中心入口地址；登录页默认内嵌渲染二维码，配置异常时自动回退整页跳转；`redirect` 参数仅允许站内路径；回调地址优先取配置中的回调地址前缀，留空时按当前访问地址自动推断
+- `GET /api/auth/wecom/authorize` - 生成企业微信 Web 扫码登录页地址（含防伪 state）与内嵌二维码渲染参数 `embed`（`iframe_url`、回跳路径 `/wecom-qr-callback`、直连模式签发的 `state`）：直连模式签发一次性 state（有效期为基础配置中的企业微信扫码有效期，默认 5 分钟）后返回企微授权页地址，内嵌 `iframe_url` 的回调指向 `/api/auth/wecom/embed/callback`；统一认证中心模式返回认证中心登录页地址，内嵌 iframe 复用认证中心入口地址；登录页默认内嵌渲染官方登录面板（直连）或认证中心页面（统一认证中心），配置异常时在面板区域展示提示；`redirect` 参数仅允许站内路径；回调地址优先取配置中的回调地址前缀，留空时按当前访问地址自动推断
 - `GET /api/auth/wecom/callback` - 企业微信直连授权回调：登录 state 按绑定关系签发会话，绑定 state 把扫码账号绑定到发起用户；结果通过 URL fragment 跳转前端 `/auth/callback` 页面
+- `POST /api/auth/wecom/callback` - 企业微信内嵌扫码登录（直连）：登录页官方面板回调后以授权码与 state 换取会话 JSON，仅允许已绑定平台用户的企微账号登录
 - `GET /api/auth/wecom/embed/callback` - 企业微信内嵌二维码授权回调：处理逻辑与直连回调一致，结果通过 URL fragment 跳转前端 `/wecom-qr-callback` 中转路由，由登录页父页面在 iframe 内同源读取后完成登录
 - `GET /api/auth/wecom/sso/callback` - 统一认证中心票据回调：后端使用应用密钥发起 HMAC-SHA256 签名 verify 换取身份，redirect 携带绑定票据时执行绑定，否则签发会话；redirect 等于 `/wecom-qr-callback`（内嵌二维码标记）时结果回跳中转路由供登录页父页面读取
+- `POST /api/auth/wecom/sso/callback` - 企业微信内嵌扫码登录（统一认证中心）：登录页在认证中心顶层回跳 `/login?ticket` 后以票据换取会话 JSON，仅允许已绑定平台用户的企微账号登录；认证中心回调路径建议配置为 `/login`
 - `GET /api/auth/wecom/bind-url` - 获取当前用户的企业微信绑定跳转地址，按认证方式分派直连扫码或统一认证中心跳转；需要登录
 - `DELETE /api/auth/wecom/bind` - 解除当前用户的企业微信绑定并写审计，未绑定时同样返回成功；需要登录
 
@@ -1886,8 +1888,8 @@ AD/LDAP 登录规则：
 企业微信登录与绑定规则：
 
 - 企业微信认证以单一「企业微信」方式呈现，`authMode` 支持直连企业微信自建应用与经由统一认证中心（wecom-auth-center）两种接入方式，在认证配置中切换。
-- 登录页在登录方式下拉中选择企业微信后，默认在页面内以 iframe 内嵌渲染企微扫码二维码（直连模式为企微 wwlogin 授权页，统一认证中心模式为认证中心登录页，认证中心登录页需允许被本系统 iframe 嵌入），扫码确认后在页面内完成登录，全程不离开登录页；内嵌渲染异常（authorize 无内嵌参数、认证中心拒绝被嵌等）时自动回退为「企业微信扫码登录」按钮整页跳转，内嵌渲染正常时按钮区显示「扫码异常？使用跳转方式登录」小字链接。
-- 内嵌扫码确认后 iframe 内回跳前端中转路由 `/wecom-qr-callback`：直连模式经后端 `/api/auth/wecom/embed/callback` 处理，统一认证中心模式经认证中心回调 `/api/auth/wecom/sso/callback`（redirect 携带中转路由标记）；登录页父页面监听 iframe 加载并同源读取回传结果，中转页在 iframe 内仅作静默占位，作为顶层页面打开时自动转发回登录页。
+- 登录页在登录方式下拉中选择企业微信后，默认在页面内内嵌渲染扫码面板（直连模式为企微官方 JS-SDK 登录面板，统一认证中心模式为认证中心登录页，认证中心登录页需允许被本系统 iframe 嵌入），扫码确认后在页面内完成登录，全程不离开登录页；内嵌渲染异常（authorize 无内嵌参数、认证中心拒绝被嵌等）时在扫码面板区域展示提示。
+- 直连模式扫码确认后由企微官方面板通过 JS 回调返回授权码，登录页以授权码与 state 调用 `POST /api/auth/wecom/callback` 换取会话，面板不发生页面导航；统一认证中心模式扫码确认后认证中心顶层回跳 `/login?ticket`，登录页以票据调用 `POST /api/auth/wecom/sso/callback` 换取会话；两种模式换取会话期间均显示「正在处理企业微信授权，请稍候…」过渡视图。兼容保留：`/wecom-qr-callback` 中转路由与 fragment 回传链路仍可用于旧链接与整页回跳。
 - 企业微信账号与平台用户通过绑定关系关联（一人一条绑定，一个企微账号只能绑定一个用户）：必须先使用账号密码登录后在右上角完成绑定，未绑定的企微账号扫码会被拒绝，不自动建户、不按用户名兜底。
 - 用户菜单提供「绑定企业微信/解绑企业微信」入口：绑定在弹窗中完成扫码，成功后自动通知主窗口并关闭；解绑随时可操作并写审计。
 - 绑定状态随登录接口和 `GET /api/auth/me` 的 `wecom_bound` 字段返回，本地/AD/LDAP/企业微信登录路径均携带真实绑定状态。

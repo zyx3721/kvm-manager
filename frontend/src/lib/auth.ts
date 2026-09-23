@@ -80,11 +80,12 @@ export function updateStoredUser(patch: Partial<AuthUser>): AuthUser | null {
   return next;
 }
 
-/** WecomAuthorizeEmbed 内嵌二维码登录参数：iframe 地址与回跳中转路由 */
+/** WecomAuthorizeEmbed 内嵌二维码登录参数：iframe 地址、回跳中转路由与直连模式签发的 state */
 export type WecomAuthorizeEmbed = {
   auth_mode: 'direct' | 'sso';
   iframe_url: string;
   callback_path: string;
+  state?: string;
 };
 
 type WecomAuthorizeResponse = {
@@ -103,10 +104,30 @@ export async function fetchWecomAuthorize(redirect = '/') {
   return (await response.json()) as WecomAuthorizeResponse;
 }
 
-/** 获取企业微信扫码登录页地址（公开接口，整页跳转降级用） */
-export async function fetchWecomLoginUrl(redirect = '/') {
-  const response = await fetchWecomAuthorize(redirect);
-  return response.url;
+/** 内嵌扫码直连回调：以授权码与 state 换取登录会话 */
+export async function loginWithWecomCode(body: { code: string; state: string }) {
+  const response = await fetch('/api/auth/wecom/callback', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) {
+    throw new Error(await readApiError(response));
+  }
+  return (await response.json()) as LoginResponse;
+}
+
+/** 内嵌扫码统一认证中心回调：以票据换取登录会话 */
+export async function loginWithWecomCenterTicket(ticket: string) {
+  const response = await fetch('/api/auth/wecom/sso/callback', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ticket }),
+  });
+  if (!response.ok) {
+    throw new Error(await readApiError(response));
+  }
+  return (await response.json()) as LoginResponse;
 }
 
 /** 获取当前用户的企业微信绑定跳转地址（直连或统一认证中心按启用情况自动分派） */

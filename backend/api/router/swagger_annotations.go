@@ -1445,7 +1445,7 @@ func swaggerTestAuthProvider() {}
 
 // swaggerWecomAuthorize godoc
 // @Summary 获取企业微信扫码登录地址与内嵌二维码参数
-// @Description 返回企业微信登录跳转地址与内嵌二维码渲染参数 embed：直连模式签发一次性 state（有效期为基础配置中的企业微信扫码有效期，默认 5 分钟）后返回企微授权页地址，内嵌 iframe_url 的回调指向内嵌回调端点，扫码结果经后端回跳前端 /wecom-qr-callback 中转路由；统一认证中心模式返回认证中心登录页地址，内嵌 iframe 复用认证中心入口地址。登录页默认内嵌渲染二维码，embed 缺失或渲染异常时前端自动回退整页跳转。回调地址优先取认证配置中的回调地址前缀，未配置时按当前访问地址自动推断。无需认证。
+// @Description 返回企业微信登录跳转地址与内嵌二维码渲染参数 embed：直连模式签发一次性 state（有效期为基础配置中的企业微信扫码有效期，默认 5 分钟）后返回企微授权页地址，内嵌 iframe_url 的回调指向内嵌回调端点，embed 同时下发签发的 state 供官方面板回调后登录使用；统一认证中心模式返回认证中心登录页地址，内嵌 iframe 复用认证中心入口地址。登录页默认内嵌渲染官方登录面板（直连）或认证中心页面（统一认证中心），embed 缺失或渲染异常时在面板区域展示提示。回调地址优先取认证配置中的回调地址前缀，未配置时按当前访问地址自动推断。无需认证。
 // @Tags auth
 // @Produce json
 // @Param redirect query string false "登录成功后前往的站内路径，仅允许以 / 开头，默认 /"
@@ -1489,6 +1489,30 @@ func swaggerWecomEmbedCallback() {}
 // @Failure 503 {object} errorResponse
 // @Router /api/auth/wecom/sso/callback [get]
 func swaggerWecomSSOCallback() {}
+
+// swaggerWecomLoginByCode godoc
+// @Summary 企业微信内嵌扫码登录（直连）
+// @Description 直连模式官方面板回调接口：校验一次性 state 并用授权码换取企微账号，仅允许已绑定平台用户的企业微信账号登录，成功返回会话 JSON。无需认证。
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Param body body wecomLoginByCodeRequest true "企微回跳参数"
+// @Success 200 {object} domain.Session
+// @Failure 400 {object} errorResponse
+// @Router /api/auth/wecom/callback [post]
+func swaggerWecomLoginByCode() {}
+
+// swaggerWecomSSOLogin godoc
+// @Summary 企业微信内嵌扫码登录（统一认证中心）
+// @Description 统一认证中心回调接口：使用 ticket 调用认证中心换取企微账号，仅允许已绑定平台用户的企业微信账号登录，成功返回会话 JSON。认证中心回调路径配置为 /login 时由登录页在认证中心顶层回跳后调用。无需认证。
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Param body body wecomSSOLoginRequest true "认证中心回跳 ticket"
+// @Success 200 {object} domain.Session
+// @Failure 400 {object} errorResponse
+// @Router /api/auth/wecom/sso/callback [post]
+func swaggerWecomSSOLogin() {}
 
 // swaggerWecomBindURL godoc
 // @Summary 获取企业微信绑定地址

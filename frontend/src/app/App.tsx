@@ -23,7 +23,12 @@ import Settings from '../features/settings/SettingsPage';
 import Snapshots from '../features/snapshots/SnapshotsPage';
 import StoragePools from '../features/storage-pools/StoragePoolsPage';
 import VMs from '../features/vms/VMsPage';
-import { getStoredUser, isAuthenticated, isAuthRedirecting, userHasAnyPermission } from '../lib/auth';
+import {
+  getStoredUser,
+  isAuthenticated,
+  isAuthRedirecting,
+  userHasAnyPermission,
+} from '../lib/auth';
 import { applyKvmTheme, getInitialKvmTheme } from '../lib/utils';
 
 applyKvmTheme(getInitialKvmTheme());
@@ -119,12 +124,16 @@ function AppRoutes() {
 }
 
 const App = () => {
-  const [booting, setBooting] = useState(true);
+  const callbackBootSkip =
+    window.location.pathname === '/wecom-qr-callback' ||
+    window.location.pathname === '/auth/callback';
+  const [booting, setBooting] = useState(!callbackBootSkip);
 
   useEffect(() => {
+    if (!booting) return;
     const timer = window.setTimeout(() => setBooting(false), 1000);
     return () => window.clearTimeout(timer);
-  }, []);
+  }, [booting]);
 
   return (
     <BrowserRouter>

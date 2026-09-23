@@ -9,19 +9,18 @@ import {
   Loader2Icon,
   LockIcon,
   MoonIcon,
-  QrCodeIcon,
   SunIcon,
   UserIcon,
 } from 'lucide-react';
 import {
   consumeAuthExpired,
-  fetchWecomLoginUrl,
   isAuthenticated,
   login as loginRequest,
+  loginWithWecomCenterTicket,
+  loginWithWecomCode,
   persistSession,
-  type AuthUser,
 } from '../../lib/auth';
-import { WecomQrLogin } from './WecomQrLogin';
+import { WecomQrLogin, type WecomEmbedSuccess } from './WecomQrLogin';
 import { KvmTooltip } from '../../components/kvm/StatusBadge';
 import { fetchPublicAuthProviders, type PublicAuthProvider } from '../../lib/api';
 import { useBaseConfig } from '../../lib/branding';
@@ -43,7 +42,7 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [wecomEmbedFailed, setWecomEmbedFailed] = useState(false);
+  const [wecomAuthorizing, setWecomAuthorizing] = useState(false);
   const [wecomEmbedNonce, setWecomEmbedNonce] = useState(0);
   const [theme, setTheme] = useState<KvmTheme>(getInitialKvmTheme);
   const baseConfig = useBaseConfig();
@@ -52,26 +51,6 @@ export default function Login() {
     const state = location.state as { from?: { pathname?: string } } | null;
     return state?.from?.pathname || '/';
   }, [location.state]);
-
-  // finishWecomLogin 内嵌扫码成功后的登录收尾：换取会话信息落库并进入登录前目标页
-  const finishWecomLogin = useCallback(
-    async (token: string) => {
-      const response = await fetch('/api/auth/me', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!response.ok) throw new Error(`me failed: ${response.status}`);
-      const data = (await response.json()) as { user: AuthUser; expires_at: string };
-      persistSession({
-        token,
-        expires_at: data.expires_at,
-        wecom_bound: true,
-        user: data.user,
-      });
-      toast.success(`欢迎回来，${data.user.displayName || data.user.username}`);
-      navigate(redirectPath, { replace: true });
-    },
-    [navigate, redirectPath]
-  );
 
   useEffect(() => {
     applyKvmTheme(theme);
@@ -101,10 +80,6 @@ export default function Login() {
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (isWecomProvider) {
-      await startWecomLogin();
-      return;
-    }
     const normalizedUsername = username.trim();
 
     if (!normalizedUsername || !password) {
@@ -127,36 +102,74 @@ export default function Login() {
     }
   }
 
-  async function startWecomLogin() {
-    setLoading(true);
+  // 认证中心顶层回跳 /login?ticket 时换取会话并清理地址栏，防止刷新重复消费票据
+  useEffect(() => {
+    const ticket = new URLSearchParams(window.location.search).get('ticket');
+    if (!ticket) return;
+    window.history.replaceState(null, '', window.location.pathname);
+    setWecomAuthorizing(true);
+    setError('');
+    loginWithWecomCenterTicket(ticket)
+      .then(session => {
+        persistSession(session);
+        toast.success(`欢迎回来，${session.user.displayName || session.user.username}`);
+        navigate(redirectPath, { replace: true });
+      })
+      .catch(err => {
+        setError(err instanceof Error ? err.message : '企业微信登录失败，请稍后重试');
+        setWecomAuthorizing(false);
+      });
+  }, [navigate, redirectPath]);
+
+  async function handleWecomEmbedSuccess(payload: WecomEmbedSuccess) {
+    setWecomAuthorizing(true);
     setError('');
     try {
-      const url = await fetchWecomLoginUrl(redirectPath);
-      window.location.assign(url);
-      // 跳转失败或被拦截时 4 秒兜底复位按钮
-      window.setTimeout(() => setLoading(false), 4000);
+      const session =
+        payload.authMode === 'sso'
+          ? await loginWithWecomCenterTicket(payload.ticket ?? '')
+          : await loginWithWecomCode({ code: payload.code ?? '', state: payload.state ?? '' });
+      persistSession(session);
+      toast.success(`欢迎回来，${session.user.displayName || session.user.username}`);
+      navigate(redirectPath, { replace: true });
     } catch (err) {
-      setError(err instanceof Error ? err.message : '获取企业微信登录地址失败');
-      setLoading(false);
-    }
-  }
-
-  async function handleWecomEmbedSuccess(token: string) {
-    setLoading(true);
-    setError('');
-    try {
-      await finishWecomLogin(token);
-    } catch {
-      setError('登录会话获取失败，请重新扫码');
+      setError(err instanceof Error ? err.message : '企业微信登录失败，请稍后重试');
       setWecomEmbedNonce(value => value + 1);
-    } finally {
-      setLoading(false);
+      setWecomAuthorizing(false);
     }
   }
 
-  function handleWecomEmbedError(message: string) {
-    setError(message);
-    setWecomEmbedNonce(value => value + 1);
+  if (wecomAuthorizing) {
+    return (
+      <main
+        data-cmp="Login"
+        className="relative flex min-h-dvh items-center justify-center overflow-hidden px-4 py-8"
+        style={{ background: 'var(--kvm-login-bg)', color: 'var(--kvm-text)' }}
+      >
+        <section
+          className="kvm-login-frame w-full max-w-[420px] rounded-[24px] p-1"
+          role="status"
+          aria-live="polite"
+        >
+          <div
+            className="flex flex-col items-center gap-4 rounded-[20px] px-8 py-10 text-center"
+            style={{
+              background: 'var(--kvm-login-panel-bg)',
+              border: '1px solid var(--kvm-border)',
+              backdropFilter: 'blur(18px)',
+              boxShadow: 'var(--kvm-login-panel-shadow)',
+            }}
+          >
+            <Loader2Icon
+              className="animate-spin"
+              size={30}
+              style={{ color: 'var(--kvm-accent-text)' }}
+            />
+            <p className="text-sm font-medium">正在处理企业微信授权，请稍候…</p>
+          </div>
+        </section>
+      </main>
+    );
   }
 
   return (
@@ -246,45 +259,12 @@ export default function Login() {
                 <LoginProviderSelect
                   value={provider}
                   providers={providers}
-                  onChange={value => {
-                    setProvider(value);
-                    setWecomEmbedFailed(false);
-                  }}
+                  onChange={setProvider}
                 />
               )}
-              {isWecomProvider &&
-                (wecomEmbedFailed ? (
-                  <div
-                    className="flex flex-col items-center gap-2 rounded-2xl px-4 py-5 text-center"
-                    style={{
-                      background: 'var(--kvm-control-bg)',
-                      border: '1px solid var(--kvm-border)',
-                      color: 'var(--kvm-text)',
-                    }}
-                  >
-                    <span
-                      className="flex h-14 w-14 items-center justify-center rounded-full"
-                      style={{ background: 'rgba(59,130,246,0.14)' }}
-                    >
-                      <QrCodeIcon size={26} style={{ color: 'var(--kvm-accent-text)' }} />
-                    </span>
-                    <p className="text-sm font-medium" style={{ color: 'var(--kvm-text)' }}>
-                      企业微信扫码登录
-                    </p>
-                    <p className="text-xs leading-5" style={{ color: 'var(--kvm-text-muted)' }}>
-                      点击下方按钮跳转至企业微信授权页，
-                      <br />
-                      使用企业微信 App 扫码确认后自动登录
-                    </p>
-                  </div>
-                ) : (
-                  <WecomQrLogin
-                    key={wecomEmbedNonce}
-                    onSuccess={handleWecomEmbedSuccess}
-                    onError={handleWecomEmbedError}
-                    onFallback={() => setWecomEmbedFailed(true)}
-                  />
-                ))}
+              {isWecomProvider && (
+                <WecomQrLogin key={wecomEmbedNonce} onSuccess={handleWecomEmbedSuccess} />
+              )}
               {!isWecomProvider && (
                 <>
                   <div>
@@ -384,17 +364,7 @@ export default function Login() {
                 )}
               </div>
 
-              {isWecomProvider && !wecomEmbedFailed ? (
-                <button
-                  type="button"
-                  onClick={startWecomLogin}
-                  disabled={loading}
-                  className="w-full text-center text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60"
-                  style={{ color: 'var(--kvm-text-muted)' }}
-                >
-                  扫码异常？使用跳转方式登录
-                </button>
-              ) : (
+              {!isWecomProvider && (
                 <button
                   type="submit"
                   disabled={loading}
@@ -406,7 +376,7 @@ export default function Login() {
                   }}
                 >
                   {loading && <Loader2Icon size={17} className="animate-spin" aria-hidden="true" />}
-                  {loading ? '处理中...' : isWecomProvider ? '企业微信扫码登录' : '登录'}
+                  {loading ? '处理中...' : '登录'}
                 </button>
               )}
             </form>

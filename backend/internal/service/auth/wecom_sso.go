@@ -27,11 +27,12 @@ const WecomFrontendCallbackPath = "/auth/callback"
 // WecomEmbedCallbackPath 内嵌二维码登录的中转路由路径：iframe 内回跳的静默占位页，与整页回跳的 /auth/callback 区分。
 const WecomEmbedCallbackPath = "/wecom-qr-callback"
 
-// WecomLoginEmbed 内嵌二维码登录参数：iframe 地址与回跳中转路由。
+// WecomLoginEmbed 内嵌二维码登录参数：iframe 地址、回跳中转路由与直连模式签发的 state。
 type WecomLoginEmbed struct {
 	AuthMode     string
 	IframeURL    string
 	CallbackPath string
+	State        string
 }
 
 // WecomLoginPayload 登录跳转地址与内嵌二维码参数，Embed 为空表示仅支持整页跳转。
@@ -69,7 +70,7 @@ func (s *Service) WeComLoginPayload(ctx context.Context, redirect, remoteIP, req
 	}
 	return WecomLoginPayload{
 		URL:   cfg.AuthorizeURL(state, requestBase),
-		Embed: &WecomLoginEmbed{AuthMode: WecomModeDirect, IframeURL: cfg.EmbedAuthorizeURL(state, requestBase), CallbackPath: WecomEmbedCallbackPath},
+		Embed: &WecomLoginEmbed{AuthMode: WecomModeDirect, IframeURL: cfg.EmbedAuthorizeURL(state, requestBase), CallbackPath: WecomEmbedCallbackPath, State: state},
 	}, nil
 }
 

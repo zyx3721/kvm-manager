@@ -1,6 +1,7 @@
 package router
 
 import (
+	"encoding/json"
 	"errors"
 	"net/http"
 	"net/url"
@@ -33,11 +34,12 @@ func wecomRequestBaseURL(req *http.Request) string {
 	return scheme + "://" + req.Host
 }
 
-// wecomAuthorizeEmbed 内嵌二维码登录参数：iframe 地址与回跳中转路由。
+// wecomAuthorizeEmbed 内嵌二维码登录参数：iframe 地址、回跳中转路由与直连模式签发的 state。
 type wecomAuthorizeEmbed struct {
 	AuthMode     string `json:"auth_mode"`
 	IframeURL    string `json:"iframe_url"`
 	CallbackPath string `json:"callback_path"`
+	State        string `json:"state,omitempty"`
 }
 
 // wecomAuthorizeResponse 登录跳转地址与内嵌二维码参数，embed 为空表示仅支持整页跳转。
@@ -61,6 +63,7 @@ func (r *router) handleWecomAuthorize(w http.ResponseWriter, req *http.Request) 
 			AuthMode:     payload.Embed.AuthMode,
 			IframeURL:    payload.Embed.IframeURL,
 			CallbackPath: payload.Embed.CallbackPath,
+			State:        payload.Embed.State,
 		}
 	}
 	writeJSON(w, http.StatusOK, response)
@@ -168,6 +171,72 @@ func (r *router) finishWecomResult(w http.ResponseWriter, req *http.Request, res
 // redirectAuthResult 通过 URL fragment 回传结果：token 不进服务端日志与 Referer。
 func (r *router) redirectAuthResult(w http.ResponseWriter, req *http.Request, frontendPath string, values url.Values) {
 	http.Redirect(w, req, frontendPath+"#"+values.Encode(), http.StatusFound)
+}
+
+// wecomLoginByCodeRequest 内嵌扫码直连登录请求。
+type wecomLoginByCodeRequest struct {
+	Code  string `json:"code"`
+	State string `json:"state"`
+}
+
+// wecomSSOLoginRequest 内嵌扫码统一认证中心登录请求。
+type wecomSSOLoginRequest struct {
+	Ticket string `json:"ticket"`
+}
+
+// handleWecomLoginByCode 前端内嵌扫码登录接口：消费授权码与 state 换取会话，供官方面板 onLoginSuccess 回调后调用。
+func (r *router) handleWecomLoginByCode(w http.ResponseWriter, req *http.Request) {
+	var body wecomLoginByCodeRequest
+	if err := json.NewDecoder(req.Body).Decode(&body); err != nil || strings.TrimSpace(body.Code) == "" || strings.TrimSpace(body.State) == "" {
+		writeError(w, http.StatusBadRequest, "wecom_callback_failed", "请求格式不正确")
+		return
+	}
+	result, err := r.auth.WeComCallback(req.Context(), strings.TrimSpace(body.Code), strings.TrimSpace(body.State))
+	if err != nil {
+		r.logger.Warn("wecom login failed", "error", err)
+		r.recordWecomLoginFailureAudit(req, err)
+		writeError(w, http.StatusBadRequest, "wecom_callback_failed", auth.WeComUserMessage(err))
+		return
+	}
+	r.writeWecomLoginSession(w, req, result)
+}
+
+// handleWecomSSOLogin 前端内嵌扫码登录接口：校验统一认证中心票据换取会话，供认证中心回调登录页后调用。
+func (r *router) handleWecomSSOLogin(w http.ResponseWriter, req *http.Request) {
+	var body wecomSSOLoginRequest
+	if err := json.NewDecoder(req.Body).Decode(&body); err != nil || strings.TrimSpace(body.Ticket) == "" {
+		writeError(w, http.StatusBadRequest, "wecom_sso_failed", "请求格式不正确")
+		return
+	}
+	result, err := r.auth.WeComSSOCallback(req.Context(), strings.TrimSpace(body.Ticket), "")
+	if err != nil {
+		r.logger.Warn("wecom sso login failed", "error", err)
+		r.recordWecomLoginFailureAudit(req, err)
+		writeError(w, http.StatusBadRequest, "wecom_sso_failed", auth.WeComUserMessage(err))
+		return
+	}
+	r.writeWecomLoginSession(w, req, result)
+}
+
+// recordWecomLoginFailureAudit 记录企微登录失败审计，用户身份未知时以占位符表示。
+func (r *router) recordWecomLoginFailureAudit(req *http.Request, err error) {
+	auditUserID := wecomFailureAuditUserID(err)
+	_ = r.store.WriteAudit(req.Context(), auditUserID, "auth.wecom.failed", auditWecomResourceType(auditUserID), auditWecomResourceID(auditUserID), repository.ClientIP(req), wecomFailureMetadata(err))
+}
+
+// writeWecomLoginSession 登录成功收口：写登录审计并返回会话 JSON。
+func (r *router) writeWecomLoginSession(w http.ResponseWriter, req *http.Request, result auth.WecomResult) {
+	if result.Kind != auth.AuthPurposeLogin {
+		writeError(w, http.StatusBadRequest, "wecom_callback_failed", "请求格式不正确")
+		return
+	}
+	session := result.Session
+	session.WecomBound = true
+	_ = r.store.WriteAudit(req.Context(), session.User.ID, "auth.login", "user", session.User.ID, repository.ClientIP(req), map[string]any{
+		"username": session.User.Username,
+		"provider": "wecom",
+	})
+	writeJSON(w, http.StatusOK, session)
 }
 
 func authFailureValues(err error) url.Values {
