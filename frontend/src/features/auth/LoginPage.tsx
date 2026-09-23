@@ -1,4 +1,4 @@
-import React, { type FormEvent, useEffect, useMemo, useRef, useState } from 'react';
+import React, { type FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
@@ -13,7 +13,14 @@ import {
   SunIcon,
   UserIcon,
 } from 'lucide-react';
-import { fetchWecomLoginUrl, isAuthenticated, login as loginRequest } from '../../lib/auth';
+import {
+  fetchWecomLoginUrl,
+  isAuthenticated,
+  login as loginRequest,
+  persistSession,
+  type AuthUser,
+} from '../../lib/auth';
+import { WecomQrLogin } from './WecomQrLogin';
 import { KvmTooltip } from '../../components/kvm/StatusBadge';
 import { fetchPublicAuthProviders, type PublicAuthProvider } from '../../lib/api';
 import { useBaseConfig } from '../../lib/branding';
@@ -35,6 +42,8 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [wecomEmbedFailed, setWecomEmbedFailed] = useState(false);
+  const [wecomEmbedNonce, setWecomEmbedNonce] = useState(0);
   const [theme, setTheme] = useState<KvmTheme>(getInitialKvmTheme);
   const baseConfig = useBaseConfig();
 
@@ -42,6 +51,26 @@ export default function Login() {
     const state = location.state as { from?: { pathname?: string } } | null;
     return state?.from?.pathname || '/';
   }, [location.state]);
+
+  // finishWecomLogin 内嵌扫码成功后的登录收尾：换取会话信息落库并进入登录前目标页
+  const finishWecomLogin = useCallback(
+    async (token: string) => {
+      const response = await fetch('/api/auth/me', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!response.ok) throw new Error(`me failed: ${response.status}`);
+      const data = (await response.json()) as { user: AuthUser; expires_at: string };
+      persistSession({
+        token,
+        expires_at: data.expires_at,
+        wecom_bound: true,
+        user: data.user,
+      });
+      toast.success(`欢迎回来，${data.user.displayName || data.user.username}`);
+      navigate(redirectPath, { replace: true });
+    },
+    [navigate, redirectPath]
+  );
 
   useEffect(() => {
     applyKvmTheme(theme);
@@ -60,7 +89,7 @@ export default function Login() {
       .catch(() => setProviders([]));
   }, []);
 
-  // 登录方式下拉展示全部启用方式；企业微信选中后切换为扫码说明卡片
+  // 登录方式下拉展示全部启用方式；企业微信选中后切换为内嵌扫码二维码渲染
   const isWecomProvider = provider === 'wecom';
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -103,6 +132,24 @@ export default function Login() {
       setError(err instanceof Error ? err.message : '获取企业微信登录地址失败');
       setLoading(false);
     }
+  }
+
+  async function handleWecomEmbedSuccess(token: string) {
+    setLoading(true);
+    setError('');
+    try {
+      await finishWecomLogin(token);
+    } catch {
+      setError('登录会话获取失败，请重新扫码');
+      setWecomEmbedNonce(value => value + 1);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function handleWecomEmbedError(message: string) {
+    setError(message);
+    setWecomEmbedNonce(value => value + 1);
   }
 
   return (
@@ -192,34 +239,45 @@ export default function Login() {
                 <LoginProviderSelect
                   value={provider}
                   providers={providers}
-                  onChange={setProvider}
+                  onChange={value => {
+                    setProvider(value);
+                    setWecomEmbedFailed(false);
+                  }}
                 />
               )}
-              {isWecomProvider && (
-                <div
-                  className="flex flex-col items-center gap-2 rounded-2xl px-4 py-5 text-center"
-                  style={{
-                    background: 'var(--kvm-control-bg)',
-                    border: '1px solid var(--kvm-border)',
-                    color: 'var(--kvm-text)',
-                  }}
-                >
-                  <span
-                    className="flex h-14 w-14 items-center justify-center rounded-full"
-                    style={{ background: 'rgba(59,130,246,0.14)' }}
+              {isWecomProvider &&
+                (wecomEmbedFailed ? (
+                  <div
+                    className="flex flex-col items-center gap-2 rounded-2xl px-4 py-5 text-center"
+                    style={{
+                      background: 'var(--kvm-control-bg)',
+                      border: '1px solid var(--kvm-border)',
+                      color: 'var(--kvm-text)',
+                    }}
                   >
-                    <QrCodeIcon size={26} style={{ color: 'var(--kvm-accent-text)' }} />
-                  </span>
-                  <p className="text-sm font-medium" style={{ color: 'var(--kvm-text)' }}>
-                    企业微信扫码登录
-                  </p>
-                  <p className="text-xs leading-5" style={{ color: 'var(--kvm-text-muted)' }}>
-                    点击下方按钮跳转至企业微信授权页，
-                    <br />
-                    使用企业微信 App 扫码确认后自动登录
-                  </p>
-                </div>
-              )}
+                    <span
+                      className="flex h-14 w-14 items-center justify-center rounded-full"
+                      style={{ background: 'rgba(59,130,246,0.14)' }}
+                    >
+                      <QrCodeIcon size={26} style={{ color: 'var(--kvm-accent-text)' }} />
+                    </span>
+                    <p className="text-sm font-medium" style={{ color: 'var(--kvm-text)' }}>
+                      企业微信扫码登录
+                    </p>
+                    <p className="text-xs leading-5" style={{ color: 'var(--kvm-text-muted)' }}>
+                      点击下方按钮跳转至企业微信授权页，
+                      <br />
+                      使用企业微信 App 扫码确认后自动登录
+                    </p>
+                  </div>
+                ) : (
+                  <WecomQrLogin
+                    key={wecomEmbedNonce}
+                    onSuccess={handleWecomEmbedSuccess}
+                    onError={handleWecomEmbedError}
+                    onFallback={() => setWecomEmbedFailed(true)}
+                  />
+                ))}
               {!isWecomProvider && (
                 <>
                   <div>
@@ -319,19 +377,31 @@ export default function Login() {
                 )}
               </div>
 
-              <button
-                type="submit"
-                disabled={loading}
-                className="kvm-login-submit flex h-12 w-full items-center justify-center gap-2 rounded-2xl text-sm font-semibold transition-all disabled:cursor-not-allowed disabled:opacity-60"
-                style={{
-                  background: 'linear-gradient(135deg, #2563eb, #06b6d4)',
-                  color: '#fff',
-                  boxShadow: '0 18px 48px rgba(37,99,235,0.35)',
-                }}
-              >
-                {loading && <Loader2Icon size={17} className="animate-spin" aria-hidden="true" />}
-                {loading ? '处理中...' : isWecomProvider ? '企业微信扫码登录' : '登录'}
-              </button>
+              {isWecomProvider && !wecomEmbedFailed ? (
+                <button
+                  type="button"
+                  onClick={startWecomLogin}
+                  disabled={loading}
+                  className="w-full text-center text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60"
+                  style={{ color: 'var(--kvm-text-muted)' }}
+                >
+                  扫码异常？使用跳转方式登录
+                </button>
+              ) : (
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="kvm-login-submit flex h-12 w-full items-center justify-center gap-2 rounded-2xl text-sm font-semibold transition-all disabled:cursor-not-allowed disabled:opacity-60"
+                  style={{
+                    background: 'linear-gradient(135deg, #2563eb, #06b6d4)',
+                    color: '#fff',
+                    boxShadow: '0 18px 48px rgba(37,99,235,0.35)',
+                  }}
+                >
+                  {loading && <Loader2Icon size={17} className="animate-spin" aria-hidden="true" />}
+                  {loading ? '处理中...' : isWecomProvider ? '企业微信扫码登录' : '登录'}
+                </button>
+              )}
             </form>
           </div>
         </section>

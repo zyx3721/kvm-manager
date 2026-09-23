@@ -80,16 +80,33 @@ export function updateStoredUser(patch: Partial<AuthUser>): AuthUser | null {
   return next;
 }
 
-/** 获取企业微信扫码登录地址（公开接口：直连返回企微授权页，统一认证中心返回认证中心地址） */
-export async function fetchWecomLoginUrl(redirect = '/') {
+/** WecomAuthorizeEmbed 内嵌二维码登录参数：iframe 地址与回跳中转路由 */
+export type WecomAuthorizeEmbed = {
+  auth_mode: 'direct' | 'sso';
+  iframe_url: string;
+  callback_path: string;
+};
+
+type WecomAuthorizeResponse = {
+  url: string;
+  embed?: WecomAuthorizeEmbed;
+};
+
+/** 获取企业微信扫码登录跳转地址与内嵌二维码参数（公开接口：直连返回企微授权页，统一认证中心返回认证中心地址） */
+export async function fetchWecomAuthorize(redirect = '/') {
   const response = await fetch(
     `/api/auth/wecom/authorize?redirect=${encodeURIComponent(redirect)}`
   );
   if (!response.ok) {
     throw new Error(await readApiError(response));
   }
-  const data = (await response.json()) as { url: string };
-  return data.url;
+  return (await response.json()) as WecomAuthorizeResponse;
+}
+
+/** 获取企业微信扫码登录页地址（公开接口，整页跳转降级用） */
+export async function fetchWecomLoginUrl(redirect = '/') {
+  const response = await fetchWecomAuthorize(redirect);
+  return response.url;
 }
 
 /** 获取当前用户的企业微信绑定跳转地址（直连或统一认证中心按启用情况自动分派） */

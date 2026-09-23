@@ -128,13 +128,23 @@ func (c WecomProviderConfig) redirectBase(requestBase string) string {
 	return strings.TrimRight(requestBase, "/")
 }
 
-// AuthorizeURL 直连模式构造企业微信授权跳转（PC 浏览器扫码）。
+// AuthorizeURL 直连模式构造企业微信授权跳转（PC 浏览器扫码），回调指向后端整页回调端点。
 func (c WecomProviderConfig) AuthorizeURL(state, requestBase string) string {
+	return c.wecomLoginURL(c.redirectBase(requestBase)+"/api/auth/wecom/callback", state)
+}
+
+// EmbedAuthorizeURL 直连模式构造内嵌二维码扫码页地址，回调指向后端内嵌回调端点。
+func (c WecomProviderConfig) EmbedAuthorizeURL(state, requestBase string) string {
+	return c.wecomLoginURL(c.redirectBase(requestBase)+"/api/auth/wecom/embed/callback", state)
+}
+
+// wecomLoginURL 按回调地址与 state 拼接企微 Web 扫码登录页地址。
+func (c WecomProviderConfig) wecomLoginURL(redirectURI, state string) string {
 	q := url.Values{}
 	q.Set("login_type", "CorpApp")
 	q.Set("appid", c.CorpID)
 	q.Set("agentid", strconv.Itoa(c.AgentID))
-	q.Set("redirect_uri", c.redirectBase(requestBase)+"/api/auth/wecom/callback")
+	q.Set("redirect_uri", redirectURI)
 	q.Set("state", state)
 	return wecomQRLoginBase + "/wwlogin/sso/login?" + q.Encode()
 }

@@ -24,6 +24,22 @@ const (
 // 前端回调页路径，登录与绑定的结果都 302 到这里。
 const WecomFrontendCallbackPath = "/auth/callback"
 
+// WecomEmbedCallbackPath 内嵌二维码登录的中转路由路径：iframe 内回跳的静默占位页，与整页回跳的 /auth/callback 区分。
+const WecomEmbedCallbackPath = "/wecom-qr-callback"
+
+// WecomLoginEmbed 内嵌二维码登录参数：iframe 地址与回跳中转路由。
+type WecomLoginEmbed struct {
+	AuthMode     string
+	IframeURL    string
+	CallbackPath string
+}
+
+// WecomLoginPayload 登录跳转地址与内嵌二维码参数，Embed 为空表示仅支持整页跳转。
+type WecomLoginPayload struct {
+	URL   string
+	Embed *WecomLoginEmbed
+}
+
 // WecomResult OAuth 回调处理结果：登录返回会话，绑定返回企微账号与绑定用户。
 type WecomResult struct {
 	Kind       string
@@ -34,20 +50,27 @@ type WecomResult struct {
 	BindUserID string
 }
 
-// WeComLoginURL 获取企业微信扫码登录地址：直连返回企微授权页，统一认证中心返回认证中心登录页。
-func (s *Service) WeComLoginURL(ctx context.Context, redirect, remoteIP, requestBase string) (string, error) {
+// WeComLoginPayload 获取企业微信扫码登录跳转地址与内嵌二维码参数：直连签发一次性 state 并区分整页与内嵌回调端点，
+// 统一认证中心返回认证中心登录页地址，内嵌 iframe 复用入口地址并以中转路由作为 redirect 标记。
+func (s *Service) WeComLoginPayload(ctx context.Context, redirect, remoteIP, requestBase string) (WecomLoginPayload, error) {
 	_, cfg, err := s.enabledWecomProvider(ctx)
 	if err != nil {
-		return "", err
+		return WecomLoginPayload{}, err
 	}
 	if cfg.AuthMode == WecomModeSSO {
-		return cfg.WecomSSOLoginURL(redirect), nil
+		return WecomLoginPayload{
+			URL:   cfg.WecomSSOLoginURL(redirect),
+			Embed: &WecomLoginEmbed{AuthMode: WecomModeSSO, IframeURL: cfg.WecomSSOLoginURL(WecomEmbedCallbackPath), CallbackPath: WecomEmbedCallbackPath},
+		}, nil
 	}
 	state, err := s.newWecomState(ctx, AuthPurposeLogin, "", redirect, remoteIP)
 	if err != nil {
-		return "", err
+		return WecomLoginPayload{}, err
 	}
-	return cfg.AuthorizeURL(state, requestBase), nil
+	return WecomLoginPayload{
+		URL:   cfg.AuthorizeURL(state, requestBase),
+		Embed: &WecomLoginEmbed{AuthMode: WecomModeDirect, IframeURL: cfg.EmbedAuthorizeURL(state, requestBase), CallbackPath: WecomEmbedCallbackPath},
+	}, nil
 }
 
 // WeComBindURL 获取当前用户的企微绑定地址：直连签发 bind state 扫码，

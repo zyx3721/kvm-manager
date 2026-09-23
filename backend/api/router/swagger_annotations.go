@@ -1444,12 +1444,12 @@ func swaggerUpdateAuthProvider() {}
 func swaggerTestAuthProvider() {}
 
 // swaggerWecomAuthorize godoc
-// @Summary 获取企业微信扫码登录地址
-// @Description 返回企业微信登录跳转地址：直连模式签发一次性 state（有效期为基础配置中的企业微信扫码有效期，默认 5 分钟）后返回企微授权页地址，统一认证中心模式返回认证中心登录页地址。回调地址优先取认证配置中的回调地址前缀，未配置时按当前访问地址自动推断。无需认证。
+// @Summary 获取企业微信扫码登录地址与内嵌二维码参数
+// @Description 返回企业微信登录跳转地址与内嵌二维码渲染参数 embed：直连模式签发一次性 state（有效期为基础配置中的企业微信扫码有效期，默认 5 分钟）后返回企微授权页地址，内嵌 iframe_url 的回调指向内嵌回调端点，扫码结果经后端回跳前端 /wecom-qr-callback 中转路由；统一认证中心模式返回认证中心登录页地址，内嵌 iframe 复用认证中心入口地址。登录页默认内嵌渲染二维码，embed 缺失或渲染异常时前端自动回退整页跳转。回调地址优先取认证配置中的回调地址前缀，未配置时按当前访问地址自动推断。无需认证。
 // @Tags auth
 // @Produce json
 // @Param redirect query string false "登录成功后前往的站内路径，仅允许以 / 开头，默认 /"
-// @Success 200 {object} wecomBindURLResponse
+// @Success 200 {object} wecomAuthorizeResponse
 // @Failure 503 {object} errorResponse
 // @Router /api/auth/wecom/authorize [get]
 func swaggerWecomAuthorize() {}
@@ -1466,9 +1466,21 @@ func swaggerWecomAuthorize() {}
 // @Router /api/auth/wecom/callback [get]
 func swaggerWecomCallback() {}
 
+// swaggerWecomEmbedCallback godoc
+// @Summary 企业微信内嵌二维码回调
+// @Description 内嵌二维码模式的企微授权回调端点，处理逻辑与直连回调一致：state 用途为 login 时签发会话，用途为 bind 时绑定企微账号。结果通过 URL fragment 302 回前端 /wecom-qr-callback 中转路由，由登录页父页面在 iframe 内同源读取后完成登录，失败时携带 error 与 message。
+// @Tags auth
+// @Produce json
+// @Param code query string true "企业微信授权码"
+// @Param state query string true "发起登录时生成的一次性 state"
+// @Success 302 {string} string "跳转到前端中转路由"
+// @Failure 503 {object} errorResponse
+// @Router /api/auth/wecom/embed/callback [get]
+func swaggerWecomEmbedCallback() {}
+
 // swaggerWecomSSOCallback godoc
 // @Summary 统一认证中心票据回调
-// @Description 接收统一认证中心回调票据，后端使用应用密钥发起 HMAC-SHA256 签名的 verify 换取企微账号；redirect 携带绑定票据时执行绑定，否则按绑定关系签发会话。结果通过 URL fragment 302 回前端 /auth/callback 页面，失败时携带 error 与 message。
+// @Description 接收统一认证中心回调票据，后端使用应用密钥发起 HMAC-SHA256 签名的 verify 换取企微账号；redirect 携带绑定票据时执行绑定，否则按绑定关系签发会话。redirect 等于内嵌中转路径 /wecom-qr-callback 时结果经 URL fragment 302 回中转路由供登录页父页面读取，其余情况 302 回前端 /auth/callback 页面，失败时携带 error 与 message。
 // @Tags auth
 // @Produce json
 // @Param ticket query string true "认证中心签发的一次性票据"

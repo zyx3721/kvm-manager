@@ -299,6 +299,23 @@ type wecomBindURLResponse struct {
 	URL string `json:"url" example:"https://login.work.weixin.qq.com/wwlogin/sso/login?..."`
 }
 
+// WecomEmbed 内嵌二维码登录参数：iframe 地址与回跳中转路由。
+type WecomEmbed struct {
+	// AuthMode 认证方式：direct 直连企微，sso 统一认证中心
+	AuthMode string `json:"auth_mode" example:"direct"`
+	// IframeURL 内嵌二维码 iframe 加载地址
+	IframeURL string `json:"iframe_url" example:"https://login.work.weixin.qq.com/wwlogin/sso/login?..."`
+	// CallbackPath iframe 内扫码确认后回跳的前端中转路由
+	CallbackPath string `json:"callback_path" example:"/wecom-qr-callback"`
+}
+
+// WecomAuthorizeResponse 登录跳转地址与内嵌二维码参数，embed 为空表示仅支持整页跳转。
+type WecomAuthorizeResponse struct {
+	URL string `json:"url" example:"https://login.work.weixin.qq.com/wwlogin/sso/login?..."`
+	// Embed 内嵌二维码渲染参数
+	Embed *WecomEmbed `json:"embed,omitempty"`
+}
+
 type wecomUnbindResponse struct {
 	Status string `json:"status" example:"ok"`
 	// Userid 被解绑的企业微信账号，未绑定时为 -

@@ -12,6 +12,7 @@ import BootScreen from '../components/boot/BootScreen';
 import KvmLayout from '../components/layout/KvmLayout';
 import ForgotPasswordPage from '../features/auth/ForgotPasswordPage';
 import AuthCallbackPage from '../features/auth/AuthCallbackPage';
+import WecomQrCallbackPage from '../features/auth/WecomQrCallbackPage';
 import Login from '../features/auth/LoginPage';
 import Dashboard from '../features/dashboard/DashboardPage';
 import HostInterfaces from '../features/host-interfaces/HostInterfacesPage';
@@ -22,11 +23,7 @@ import Settings from '../features/settings/SettingsPage';
 import Snapshots from '../features/snapshots/SnapshotsPage';
 import StoragePools from '../features/storage-pools/StoragePoolsPage';
 import VMs from '../features/vms/VMsPage';
-import {
-  getStoredUser,
-  isAuthenticated,
-  userHasAnyPermission,
-} from '../lib/auth';
+import { getStoredUser, isAuthenticated, userHasAnyPermission } from '../lib/auth';
 import { applyKvmTheme, getInitialKvmTheme } from '../lib/utils';
 
 applyKvmTheme(getInitialKvmTheme());
@@ -102,6 +99,7 @@ function AppRoutes() {
     <Routes>
       <Route path="/login" element={<Login />} />
       <Route path="/auth/callback" element={<AuthCallbackPage />} />
+      <Route path="/wecom-qr-callback" element={<WecomQrCallbackPage />} />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
       <Route element={<RequireAuth />}>
         <Route path="/" element={<Dashboard />} />
@@ -129,9 +127,7 @@ const App = () => {
 
   return (
     <BrowserRouter>
-      <ErrorBoundary>
-        {booting ? <BootScreen /> : <AppRoutes />}
-      </ErrorBoundary>
+      <ErrorBoundary>{booting ? <BootScreen /> : <AppRoutes />}</ErrorBoundary>
       <Toaster
         position="top-right"
         theme="system"

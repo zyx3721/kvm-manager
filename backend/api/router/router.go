@@ -64,6 +64,7 @@ func NewRouter(cfg config.Config, store *repository.Store, runtime *realtime.Ser
 	mux.HandleFunc("POST /api/auth/login", r.handleLogin)
 	mux.HandleFunc("GET /api/auth/wecom/authorize", r.handleWecomAuthorize)
 	mux.HandleFunc("GET /api/auth/wecom/callback", r.handleWecomCallback)
+	mux.HandleFunc("GET /api/auth/wecom/embed/callback", r.handleWecomEmbedCallback)
 	mux.HandleFunc("GET /api/auth/wecom/sso/callback", r.handleWecomSSOCallback)
 	mux.Handle("GET /api/auth/wecom/bind-url", r.requireAuth(http.HandlerFunc(r.handleWecomBindURL)))
 	mux.Handle("DELETE /api/auth/wecom/bind", r.requireAuth(http.HandlerFunc(r.handleWecomUnbind)))
