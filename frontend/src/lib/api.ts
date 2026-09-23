@@ -52,9 +52,9 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
   if (!response.ok) {
     const error = await readError(response);
     if (response.status === 401 && !businessUnauthorizedCodes.has(error.code)) {
-      markAuthExpired();
       markAuthRedirecting();
       clearSession();
+      if (token) markAuthExpired();
       if (window.location.pathname !== '/login') {
         window.location.assign('/login');
       }
