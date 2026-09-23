@@ -522,6 +522,7 @@ kvm-manager/
 
 | 版本 | 发布日期 | 更新日志 |
 | --- | --- | --- |
+| v1.3.0 | 2026-09-24 | [verchanglog/v1.3.0.md](verchanglog/v1.3.0.md) |
 | v1.2.4 | 2026-09-23 | [verchanglog/v1.2.4.md](verchanglog/v1.2.4.md) |
 | v1.2.3 | 2026-09-23 | [verchanglog/v1.2.3.md](verchanglog/v1.2.3.md) |
 | v1.2.2 | 2026-09-22 | [verchanglog/v1.2.2.md](verchanglog/v1.2.2.md) |
