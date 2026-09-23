@@ -106,7 +106,7 @@ export function WecomQrLogin({ onSuccess }: WecomQrLoginProps) {
       return;
     }
     let cancelled = false;
-    let instance: { unmount(): void } | null = null;
+    let instance: { el?: HTMLIFrameElement; unmount(): void } | null = null;
     void (async () => {
       try {
         const ww = await import('@wecom/jssdk');
@@ -137,6 +137,11 @@ export function WecomQrLogin({ onSuccess }: WecomQrLoginProps) {
             });
           },
         });
+        if (instance.el) {
+          instance.el.style.width = '100%';
+          instance.el.style.height = '420px';
+          instance.el.style.border = '1px solid var(--kvm-border)';
+        }
       } catch {
         instance = null;
       }
@@ -186,7 +191,7 @@ export function WecomQrLogin({ onSuccess }: WecomQrLoginProps) {
       <div
         ref={panelHostRef}
         className="flex w-full justify-center rounded-2xl"
-        style={{ minHeight: 380 }}
+        style={{ minHeight: 420 }}
       />
     );
   }
