@@ -404,7 +404,7 @@ func WeComUserMessage(err error) string {
 	case errors.Is(err, ErrAuthProviderDisabled):
 		return "企业微信认证未启用，请先在系统配置中开启"
 	case errors.Is(err, ErrWecomNotBound):
-		return "该企业微信账号尚未绑定系统用户，请先使用账号密码登录后在右上角绑定企微账号"
+		return "该企业微信账号尚未绑定系统用户"
 	case errors.Is(err, ErrWecomAlreadyBound):
 		return "该企业微信账号已绑定其他用户"
 	case errors.Is(err, ErrInvalidState):
