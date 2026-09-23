@@ -454,7 +454,7 @@ function SecurityPanel({
       />
       <NumberControl
         label="企业微信扫码有效期"
-        description="企微授权 state 的有效窗口"
+        description="企微授权 state 的有效窗口，超时需重新扫码登录或绑定"
         unit="分钟"
         value={form.wecomStateTtlMinutes}
         min={1}
@@ -754,27 +754,19 @@ function NumberControl({
         style={{ color: 'var(--kvm-text)' }}
       >
         <span>{label}</span>
-        <span className="flex min-w-0 items-center gap-2">
-          <span
-            className="hidden truncate text-xs font-normal lg:inline"
-            style={{ color: 'var(--kvm-text-muted)' }}
-          >
-            {description}
-          </span>
-          <span
-            className="shrink-0 rounded-md border px-2 py-0.5 text-xs"
-            style={{
-              borderColor: 'rgba(59,130,246,0.28)',
-              color: 'var(--kvm-accent-text)',
-              background: 'rgba(59,130,246,0.08)',
-            }}
-          >
-            {normalized} {unit}
-          </span>
+        <span
+          className="shrink-0 rounded-md border px-2 py-0.5 text-xs"
+          style={{
+            borderColor: 'rgba(59,130,246,0.28)',
+            color: 'var(--kvm-accent-text)',
+            background: 'rgba(59,130,246,0.08)',
+          }}
+        >
+          {normalized} {unit}
         </span>
       </span>
       {description && (
-        <span className="mt-2 block text-xs lg:hidden" style={{ color: 'var(--kvm-text-muted)' }}>
+        <span className="mt-1.5 block text-xs leading-5" style={{ color: 'var(--kvm-text-muted)' }}>
           {description}
         </span>
       )}
