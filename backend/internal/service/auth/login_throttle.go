@@ -20,7 +20,7 @@ func (e LoginLockedError) Error() string {
 
 func (e LoginLockedError) Is(target error) bool { return target == ErrLoginLocked }
 
-// EnsureLoginAllowed 判定账号密码失败次数达到阈值且仍在锁定时长内时返回 LoginLockedError，admin 不受限
+// EnsureLoginAllowed 判定账号密码失败次数达到阈值且仍在锁定时长内时返回 LoginLockedError，锁定到期则清空该账号全部失败记录重新计数，admin 不受限
 func (s *Service) EnsureLoginAllowed(ctx context.Context, username string) error {
 	name := strings.ToLower(strings.TrimSpace(username))
 	if name == "" || strings.EqualFold(strings.TrimSpace(username), "admin") {
@@ -47,6 +47,9 @@ func (s *Service) EnsureLoginAllowed(ctx context.Context, username string) error
 	}
 	if remaining := lastFailedAt + int64(lockoutMinutes)*60 - s.now().Unix(); remaining > 0 {
 		return LoginLockedError{Minutes: (remaining + 59) / 60}
+	}
+	if _, err := s.store.ClearLoginFailures(ctx, name); err != nil {
+		return err
 	}
 	return nil
 }
