@@ -119,7 +119,7 @@ const wecomDirectGuidance =
   '配置步骤：企业微信管理后台 →「应用管理」→ 自建应用（记录 AgentID 与 Secret）→ 在「网页授权及 JS-SDK」中把回调域名加入可信域名 → 在「企业可信 IP」中加入本服务出口 IP。扫码确认后企业微信会携带授权码跳转至「回调地址前缀 + /api/auth/wecom/callback」完成登录或绑定。';
 
 const wecomSsoGuidance =
-  '配置步骤：部署企业微信统一认证中心（wecom-auth-center）→ 在认证中心 config.yaml 的 apps 下为本系统新增条目：domain 填本系统外部访问地址、callback_path 填 /api/auth/wecom/sso/callback、app_secret 填 32 位以上随机密钥 → 在上方填写认证中心地址、应用标识与应用密钥（与认证中心保持一致）→ 重启认证中心使配置生效。登录时本系统跳转认证中心完成企微扫码，认证中心携带一次性 ticket 回跳本系统完成登录或绑定。';
+  '配置步骤：部署企业微信统一认证中心（wecom-auth-center）→ 在认证中心 config.yaml 的 apps 下为本系统新增条目：domain 填本系统外部访问地址、callback_path 填 /login、app_secret 填 32 位以上随机密钥 → 在上方填写认证中心地址、应用标识与应用密钥（与认证中心保持一致）→ 重启认证中心使配置生效。登录时本系统跳转认证中心完成企微扫码，认证中心携带一次性 ticket 回跳本系统登录页，登录页自动换取会话完成登录或绑定。';
 
 const authModeOptions: Array<{ value: WecomAuthMode; label: string; description: string }> = [
   { value: 'direct', label: '直连企业微信', description: '本系统直接持有企微应用凭据并完成扫码' },
