@@ -43,7 +43,6 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [wecomAuthorizing, setWecomAuthorizing] = useState(false);
-  const [wecomEmbedNonce, setWecomEmbedNonce] = useState(0);
   const [theme, setTheme] = useState<KvmTheme>(getInitialKvmTheme);
   const baseConfig = useBaseConfig();
 
@@ -117,7 +116,6 @@ export default function Login() {
       })
       .catch(err => {
         setError(err instanceof Error ? err.message : '企业微信登录失败，请稍后重试');
-        setWecomAuthorizing(false);
       });
   }, [navigate, redirectPath]);
 
@@ -134,8 +132,6 @@ export default function Login() {
       navigate(redirectPath, { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : '企业微信登录失败，请稍后重试');
-      setWecomEmbedNonce(value => value + 1);
-      setWecomAuthorizing(false);
     }
   }
 
@@ -160,12 +156,34 @@ export default function Login() {
               boxShadow: 'var(--kvm-login-panel-shadow)',
             }}
           >
-            <Loader2Icon
-              className="animate-spin"
-              size={30}
-              style={{ color: 'var(--kvm-accent-text)' }}
-            />
-            <p className="text-sm font-medium">正在处理企业微信授权，请稍候…</p>
+            {error ? (
+              <>
+                <p className="text-sm leading-6" style={{ color: '#fca5a5' }} role="alert">
+                  {error}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => window.location.replace('/login')}
+                  className="kvm-action-button rounded-xl px-4 py-2 text-sm font-medium"
+                  style={{
+                    borderColor: 'var(--kvm-border)',
+                    background: 'var(--kvm-control-bg)',
+                    color: 'var(--kvm-accent-text)',
+                  }}
+                >
+                  返回登录
+                </button>
+              </>
+            ) : (
+              <>
+                <Loader2Icon
+                  className="animate-spin"
+                  size={30}
+                  style={{ color: 'var(--kvm-accent-text)' }}
+                />
+                <p className="text-sm font-medium">正在处理企业微信授权，请稍候…</p>
+              </>
+            )}
           </div>
         </section>
       </main>
@@ -262,9 +280,7 @@ export default function Login() {
                   onChange={setProvider}
                 />
               )}
-              {isWecomProvider && (
-                <WecomQrLogin key={wecomEmbedNonce} onSuccess={handleWecomEmbedSuccess} />
-              )}
+              {isWecomProvider && <WecomQrLogin onSuccess={handleWecomEmbedSuccess} />}
               {!isWecomProvider && (
                 <>
                   <div>

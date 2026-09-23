@@ -124,9 +124,12 @@ function AppRoutes() {
 }
 
 const App = () => {
+  const callbackBootParams = new URLSearchParams(window.location.search);
   const callbackBootSkip =
     window.location.pathname === '/wecom-qr-callback' ||
-    window.location.pathname === '/auth/callback';
+    window.location.pathname === '/auth/callback' ||
+    (window.location.pathname === '/login' &&
+      Boolean(callbackBootParams.get('ticket') || callbackBootParams.get('code')));
   const [booting, setBooting] = useState(!callbackBootSkip);
 
   useEffect(() => {
