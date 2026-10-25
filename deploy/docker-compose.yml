@@ -34,6 +34,7 @@ services:
   kvm-manager:
     image: registry.cn-shenzhen.aliyuncs.com/zyx3721/kvm-manager:latest
     container_name: kvm-manager
+    privileged: true
     restart: unless-stopped
     networks:
       - kvm_network
